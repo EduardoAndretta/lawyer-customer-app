@@ -1,0 +1,62 @@
+# Ignore bin and obj directories in all subdirectories, but not in the root
+**/bin/
+**/obj/
+
+# Ignore .vs folder (Visual Studio specific)
+**/.vs/
+
+# Ignore packages directories in subdirectories but not at the root
+**/packages/
+
+# Ignore compiled DLLs, PDBs, EXEs, and other build artifacts
+**/*.dll
+**/*.pdb
+**/*.exe
+**/*.app
+**/*.log
+
+# Ignore user-specific files
+**/*.user
+**/*.suo
+*.userosscache
+*.sln.docstates
+
+# Ignore publish folder (used by .NET Core) in all subdirectories
+**/publish/
+
+# Ignore temporary files
+**/*.tmp
+**/*.temp
+**/*.log
+**/*.bak
+
+# Ignore Rider IDE files
+.idea/
+
+# Ignore JetBrains ReSharper
+_ReSharper*/
+
+# Ignore VS Code files
+.vscode/
+
+# Ignore Test results
+TestResults/
+
+# Ignore Coverage files
+**/*.coverage
+**/*.coveragexml
+**/*.coveragejson
+
+# Ignore Entity Framework migrations history
+**/*.Designer.cs
+
+# Ignore lock files for dependencies
+**/project.lock.json
+global.json
+
+# Ignore logs and crash dumps
+**/*.log
+**/*.dmp
+
+# Ignore generated files for Mac
+.DS_Store

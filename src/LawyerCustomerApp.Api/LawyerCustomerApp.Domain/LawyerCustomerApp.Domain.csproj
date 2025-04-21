@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageReference Include="Dapper" Version="2.1.66" />
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="9.0.4" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.8.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LawyerCustomerApp.External\LawyerCustomerApp.External.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Models\Auth\Variations\Services\" />
+    <Folder Include="Models\Case\Variations\Services\" />
+    <Folder Include="Models\Chat\Variations\Repositories\" />
+    <Folder Include="Models\Chat\Variations\Services\" />
+    <Folder Include="Models\Customer\Variations\Repositories\" />
+    <Folder Include="Models\Customer\Variations\Services\" />
+    <Folder Include="Models\Lawyer\Variations\Repositories\" />
+    <Folder Include="Models\Lawyer\Variations\Services\" />
+    <Folder Include="Models\Search\Variations\Repositories\" />
+    <Folder Include="Models\Search\Variations\Services\" />
+    <Folder Include="Models\User\Variations\Repositories\" />
+    <Folder Include="Models\User\Variations\Services\" />
+  </ItemGroup>
+
+</Project>
