@@ -4,6 +4,12 @@ namespace LawyerCustomerApp.Domain.Case.Responses.Repositories.Error;
 
 internal class Error { }
 
+public class RegisterCaseDeniedError : Constructor
+{
+    public override string Identity => "RegisterCaseDeniedError";
+    public override Type Resource => typeof(Error);
+}
+
 public class RegisterCaseInsertionError : Constructor
 {
     public override string Identity => "RegisterCaseInsertionError";

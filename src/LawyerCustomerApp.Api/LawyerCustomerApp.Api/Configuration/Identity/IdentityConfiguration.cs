@@ -68,8 +68,6 @@ public static class IdentityConfiguration
                 .RequireRole("Administrator")
                 .Build();
 
-            options.DefaultPolicy = internalJwtBearerPolicy;
-
             options.AddPolicy("internal-jwt-bearer", internalJwtBearerPolicy);
             options.AddPolicy("administrator-internal-jwt-bearer", administratorInternalJwtBearerPolicy);
         });

@@ -1,5 +1,5 @@
-﻿using LawyerCustomerApp.Domain.Case.Interfaces.Services;
-using LawyerCustomerApp.Domain.Case.Models.Common;
+﻿using LawyerCustomerApp.Domain.Case.Common.Models;
+using LawyerCustomerApp.Domain.Case.Interfaces.Services;
 using LawyerCustomerApp.Domain.Common.Responses.Error;
 using LawyerCustomerApp.External.Models;
 using LawyerCustomerApp.External.Models.Context;
@@ -19,9 +19,9 @@ public class Controller : ControllerBase
         _service = service; 
     }
 
-    [HttpPost("creation"), Authorize(Policy = "internal-jwt-bearer")]
-    public async Task<ActionResult<bool>> Creation(
-        [FromBody] CreateParametersDto parameters,
+    [HttpPost("search"), Authorize(Policy = "internal-jwt-bearer")]
+    public async Task<ActionResult<SearchInformationDto>> Post(
+        [FromBody] SearchParametersDto parameters,
         CancellationToken cancellationToken = default)
     {
         var contextualizer = Contextualizer.Init(cancellationToken);
@@ -38,9 +38,9 @@ public class Controller : ControllerBase
                     Errors     = string.Join("; ", ModelState.Values.SelectMany(e => e.Errors).Select(em => em.ErrorMessage))
                 });
 
-            return resultContructor.Build().HandleActionResult(this);
+            return resultContructor.Build<SearchInformationDto>().HandleActionResult(this);
         }
-        var result = await _service.CreateAsync(parameters);
+        var result = await _service.SearchAsync(parameters, contextualizer);
 
         if (result.IsFinished)
             return result.HandleActionResult(this);
@@ -48,9 +48,38 @@ public class Controller : ControllerBase
         return result.Value;
     }
 
-    [HttpDelete("deletion"), Authorize(Policy = "internal-jwt-bearer")]
-    public async Task<ActionResult<bool>> Deletion(
-        [FromBody] DeleteParametersDto parameters,
+    [HttpPost("register"), Authorize(Policy = "internal-jwt-bearer")]
+    public async Task<ActionResult> Post(
+        [FromBody] RegisterParametersDto parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var contextualizer = Contextualizer.Init(cancellationToken);
+
+        if (!ModelState.IsValid)
+        {
+            var resultContructor = new ResultConstructor();
+
+            resultContructor.SetConstructor(
+                new ModelStateError()
+                {
+                    Status     = 400,
+                    SourceCode = this.GetType().Name,
+                    Errors     = string.Join("; ", ModelState.Values.SelectMany(e => e.Errors).Select(em => em.ErrorMessage))
+                });
+
+            return resultContructor.Build().HandleActionResult(this);
+        }
+        var result = await _service.RegisterAsync(parameters, contextualizer);
+
+        if (result.IsFinished)
+            return result.HandleActionResult(this);
+
+        return NoContent();
+    }
+
+    [HttpDelete("assign-lawyer"), Authorize(Policy = "internal-jwt-bearer")]
+    public async Task<ActionResult> Put(
+        [FromBody] AssignLawyerParametersDto parameters,
         CancellationToken cancellationToken = default)
     {
         var contextualizer = Contextualizer.Init(cancellationToken);
@@ -70,11 +99,11 @@ public class Controller : ControllerBase
             return resultContructor.Build().HandleActionResult(this);
         }
 
-        var result = await _service.DeleteAsync(parameters);
+        var result = await _service.AssignLawyerAsync(parameters, contextualizer);
 
         if (result.IsFinished)
             return result.HandleActionResult(this);
 
-        return result.Value;
+        return NoContent();
     }
 }

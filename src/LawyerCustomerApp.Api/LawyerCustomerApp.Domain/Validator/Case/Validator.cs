@@ -1,11 +1,11 @@
-﻿using LawyerCustomerApp.Domain.Case.Models.Common;
+﻿using LawyerCustomerApp.Domain.Case.Common.Models;
 using LawyerCustomerApp.External.Validation;
 
 namespace LawyerCustomerApp.Domain.Case.Validator;
 
-public class CreateParametersDtoValidator : AbstractValidator<CreateParametersDto>
+public class SearchParametersDtoValidator : AbstractValidator<SearchParametersDto>
 {
-    public CreateParametersDtoValidator()
+    public SearchParametersDtoValidator()
     {
         RuleFor(a => a.UserId)
             .NotEmpty()
@@ -17,6 +17,64 @@ public class CreateParametersDtoValidator : AbstractValidator<CreateParametersDt
             .GreaterThanOrEqualTo(0)
             .WithMessage("MaxLength")
             .WithState(new string[] { "UserId", "0" });
+
+        RuleFor(a => a.Persona)
+           .NotEmpty()
+           .WithMessage("NotEmpty")
+           .WithState(new string[] { "Persona" })
+           .NotNull()
+           .WithMessage("NotNull")
+           .WithState(new string[] { "Persona" });
+
+        RuleFor(a => a.Query)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "Title" })
+            .MaxLenght(50)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "Title", "100" });
+
+        RuleFor(a => a.Pagination)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "Pagination" });
+
+        RuleFor(a => a.Pagination!.End)
+           .NotNull()
+           .WithMessage("NotNull")
+           .WithState(new string[] { "Pagination.End" })
+                .When(a => a.Pagination != null);
+
+        RuleFor(a => a.Pagination!.Begin)
+           .NotNull()
+           .WithMessage("NotNull")
+           .WithState(new string[] { "Pagination.Begin" })
+                .When(a => a.Pagination != null);
+    }
+}
+
+public class RegisterParametersDtoValidator : AbstractValidator<RegisterParametersDto>
+{
+    public RegisterParametersDtoValidator()
+    {
+        RuleFor(a => a.UserId)
+            .NotEmpty()
+            .WithMessage("NotEmpty")
+            .WithState(new string[] { "UserId" })
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "UserId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "UserId", "0" });
+
+        RuleFor(a => a.Persona)
+           .NotEmpty()
+           .WithMessage("NotEmpty")
+           .WithState(new string[] { "Persona" })
+           .NotNull()
+           .WithMessage("NotNull")
+           .WithState(new string[] { "Persona" });
 
         RuleFor(a => a.Title)
             .NotEmpty()
@@ -39,61 +97,12 @@ public class CreateParametersDtoValidator : AbstractValidator<CreateParametersDt
             .MaxLenght(50)
             .WithMessage("MaxLength")
             .WithState(new string[] { "Description", "100" });
-
-        RuleFor(a => a.Status)
-            .NotEmpty()
-            .WithMessage("NotEmpty")
-            .WithState(new string[] { "Status" })
-            .NotNull()
-            .WithMessage("NotNull")
-            .WithState(new string[] { "Status" })
-            .MaxLenght(50)
-            .WithMessage("MaxLength")
-            .WithState(new string[] { "Status", "20" });
-
-        RuleFor(a => a.EndDate)
-            .NotEmpty()
-            .WithMessage("NotEmpty")
-            .WithState(new string[] { "EndDate" })
-            .NotNull()
-            .WithMessage("NotNull")
-            .WithState(new string[] { "EndDate" });
-
-        RuleFor(a => a.BeginDate)
-            .NotEmpty()
-            .WithMessage("NotEmpty")
-            .WithState(new string[] { "BeginDate" })
-            .NotNull()
-            .WithMessage("NotNull")
-            .WithState(new string[] { "BeginDate" });
-
-        RuleFor(a => a.CustomerId)
-            .NotEmpty()
-            .WithMessage("NotEmpty")
-            .WithState(new string[] { "CustomerId" })
-            .NotNull()
-            .WithMessage("NotNull")
-            .WithState(new string[] { "CustomerId" })
-            .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
-            .WithState(new string[] { "CustomerId", "0" });
-
-        RuleFor(a => a.LawyerId)
-            .NotEmpty()
-            .WithMessage("NotEmpty")
-            .WithState(new string[] { "LawyerId" })
-            .NotNull()
-            .WithMessage("NotNull")
-            .WithState(new string[] { "LawyerId" })
-            .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
-            .WithState(new string[] { "LawyerId", "0" });
     }
 }
 
-public class DeleteParametersDtoValidator : AbstractValidator<DeleteParametersDto>
+public class AssignLawyerParametersDtoValidator : AbstractValidator<AssignLawyerParametersDto>
 {
-    public DeleteParametersDtoValidator()
+    public AssignLawyerParametersDtoValidator()
     {
         RuleFor(a => a.UserId)
             .NotEmpty()
@@ -106,15 +115,28 @@ public class DeleteParametersDtoValidator : AbstractValidator<DeleteParametersDt
             .WithMessage("MaxLength")
             .WithState(new string[] { "UserId", "0" });
 
-        RuleFor(a => a.Id)
+        RuleFor(a => a.CaseId)
             .NotEmpty()
             .WithMessage("NotEmpty")
-            .WithState(new string[] { "CustomerId" })
+            .WithState(new string[] { "CaseId" })
             .NotNull()
             .WithMessage("NotNull")
-            .WithState(new string[] { "CustomerId" })
-            .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
-            .WithState(new string[] { "CustomerId", "0" });
+            .WithState(new string[] { "CaseId" });
+
+        RuleFor(a => a.Persona)
+           .NotEmpty()
+           .WithMessage("NotEmpty")
+           .WithState(new string[] { "Persona" })
+           .NotNull()
+           .WithMessage("NotNull")
+           .WithState(new string[] { "Persona" });
+
+        RuleFor(a => a.LawyerId)
+            .NotEmpty()
+            .WithMessage("NotEmpty")
+            .WithState(new string[] { "LawyerId" })
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "LawyerId" });
     }
 }

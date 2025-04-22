@@ -24,8 +24,11 @@ public static class Configuration
 
         services.AddScoped<Case.Interfaces.Services.IService, Case.Services.Service>();
 
-        services.AddScoped<IValidator<Case.Models.Common.CreateParametersDto>, Case.Validator.CreateParametersDtoValidator>();
-        services.AddScoped<IValidator<Case.Models.Common.DeleteParametersDto>, Case.Validator.DeleteParametersDtoValidator>();
+        services.AddScoped<Case.Interfaces.Services.IRepository, Case.Repositories.Repository>();
+
+        services.AddScoped<IValidator<Case.Common.Models.SearchParametersDto>, Case.Validator.SearchParametersDtoValidator>();
+        services.AddScoped<IValidator<Case.Common.Models.RegisterParametersDto>, Case.Validator.RegisterParametersDtoValidator>();
+        services.AddScoped<IValidator<Case.Common.Models.AssignLawyerParametersDto>, Case.Validator.AssignLawyerParametersDtoValidator>();
 
         #endregion
 
