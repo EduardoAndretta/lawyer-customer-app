@@ -9,4 +9,7 @@ public interface IService
     Task<Result<SearchInformationDto>> SearchAsync(SearchParametersDto parameters, Contextualizer contextualizer);
     Task<Result> RegisterAsync(RegisterParametersDto parameters, Contextualizer contextualizer);
     Task<Result> AssignLawyerAsync(AssignLawyerParametersDto parameters, Contextualizer contextualizer);
+    Task<Result> AssignCustomerAsync(AssignCustomerParametersDto parameters, Contextualizer contextualizer);
+    Task<Result> GrantPermissionsAsync(GrantPermissionsParametersDto parameters, Contextualizer contextualizer);
+    Task<Result> RevokePermissionsAsync(RevokePermissionsParametersDto parameters, Contextualizer contextualizer);
 }

@@ -54,8 +54,131 @@ CREATE TABLE IF NOT EXISTS users (
 	email                TEXT NOT NULL,
 	password             TEXT NOT NULL,
 	register_date        TEXT DEFAULT CURRENT_TIMESTAMP,
+	private				 BOOLEAN NOT NULL DEFAULT 1,
 	CONSTRAINT unq_users_email UNIQUE ( email )
  );
+
+CREATE TABLE IF NOT EXISTS blocked_users ( 
+	id					INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	user_id				INTEGER NOT NULL,
+
+	reason				TEXT NOT NULL,
+	date				TEXT DEFAULT CURRENT_TIMESTAMP,
+
+	CONSTRAINT unq_users_block UNIQUE ( user_id ),
+	FOREIGN KEY ( user_id ) REFERENCES users( id )  
+ );
+
+CREATE TABLE IF NOT EXISTS blocked_lawyers ( 
+	user_id				INTEGER NOT NULL,
+	lawyer_id			INTEGER NOT NULL,
+
+	reason				TEXT NOT NULL,
+	date				TEXT DEFAULT CURRENT_TIMESTAMP,
+
+	PRIMARY KEY ( user_id, lawyer_id ),
+	FOREIGN KEY ( user_id )	  REFERENCES users( id ),  
+	FOREIGN KEY ( lawyer_id ) REFERENCES lawyers( id )  
+);
+
+CREATE TABLE IF NOT EXISTS blocked_customers ( 
+	user_id				INTEGER NOT NULL,
+	customer_id			INTEGER NOT NULL,
+
+	reason				TEXT NOT NULL,
+	date				TEXT DEFAULT CURRENT_TIMESTAMP,
+
+	PRIMARY KEY ( user_id, lawyer_id ),
+	FOREIGN KEY ( user_id )	    REFERENCES users( id ),  
+	FOREIGN KEY ( customer_id ) REFERENCES customers( id )  
+);
+
+CREATE TABLE IF NOT EXISTS address_users ( 
+	user_id				INTEGER NOT NULL,
+	
+	zip_code	 TEXT,
+	house_number TEXT,
+	complement   TEXT,
+	district	 TEXT,
+	city		 TEXT,
+	state		 TEXT,
+	country		 TEXT,
+	
+	PRIMARY KEY ( user_id ),
+	FOREIGN KEY ( user_id ) REFERENCES users( id )
+ );
+
+CREATE TABLE IF NOT EXISTS address_attributes ( 
+	user_id			INTEGER NOT NULL,
+	lawyer_id		INTEGER NOT NULL,
+
+	zip_code	 TEXT,
+	house_number TEXT,
+	complement   TEXT,
+	district	 TEXT,
+	city		 TEXT,
+	state		 TEXT,
+	country		 TEXT,
+
+	PRIMARY KEY ( user_id, lawyer_id ),
+	FOREIGN KEY ( user_id )		 REFERENCES users( id ),  
+	FOREIGN KEY ( attribute_id ) REFERENCES attributes( id )  
+);
+
+CREATE TABLE IF NOT EXISTS address_customers ( 
+	user_id			INTEGER NOT NULL,
+	customer_id		INTEGER NOT NULL,
+
+	zip_code	 TEXT,
+	house_number TEXT,
+	complement   TEXT,
+	district	 TEXT,
+	city		 TEXT,
+	state		 TEXT,
+	country		 TEXT,
+
+	PRIMARY KEY ( user_id, customer_id ),
+	FOREIGN KEY ( user_id )		 REFERENCES users( id ),  
+	FOREIGN KEY ( attribute_id ) REFERENCES attributes( id )  
+);
+
+
+CREATE TABLE IF NOT EXISTS documents_users ( 
+	user_id				 INTEGER NOT NULL,
+	
+	type				 TEXT,
+	identifier_document	 TEXT,
+	
+	PRIMARY KEY ( user_id ),
+	FOREIGN KEY ( user_id )		 REFERENCES users( id ), 
+	CHECK ( type IN ('PF', 'PJ') )
+ );
+
+CREATE TABLE IF NOT EXISTS documents_lawyers ( 
+	user_id				INTEGER NOT NULL,
+	lawyer_id			INTEGER NOT NULL,
+
+	type				 TEXT,
+	identifier_document	 TEXT,
+
+	PRIMARY KEY ( user_id, lawyer_id ),
+	FOREIGN KEY ( user_id )	  REFERENCES users( id ),  
+	FOREIGN KEY ( lawyer_id ) REFERENCES lawyers( id ),
+	CHECK ( type IN ('PF', 'PJ') )
+);
+
+CREATE TABLE IF NOT EXISTS documents_customers ( 
+	user_id				INTEGER NOT NULL,
+	customer_id			INTEGER NOT NULL,
+
+	type				 TEXT,
+	identifier_document	 TEXT,
+
+	PRIMARY KEY ( user_id, customer_id ),
+	FOREIGN KEY ( user_id )	    REFERENCES users( id ),  
+	FOREIGN KEY ( customer_id ) REFERENCES customers( id ),
+	CHECK ( type IN ('PF', 'PJ') )
+);
 
 CREATE TABLE IF NOT EXISTS customers ( 
 	id                   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -64,7 +187,7 @@ CREATE TABLE IF NOT EXISTS customers (
 	private				 BOOLEAN NOT NULL DEFAULT 1,
 	user_id              INTEGER NOT NULL,
 	FOREIGN KEY ( user_id ) REFERENCES users( id )  
- );
+);
 
 CREATE TABLE IF NOT EXISTS lawyers ( 
 	id                   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -73,7 +196,7 @@ CREATE TABLE IF NOT EXISTS lawyers (
 	private				 BOOLEAN NOT NULL DEFAULT 1,
 	user_id              INTEGER,
 	FOREIGN KEY ( user_id ) REFERENCES users( id )  
- );
+);
 
 CREATE TABLE IF NOT EXISTS lawyers_tags ( 
 	lawyer_id            INTEGER NOT NULL,
@@ -145,20 +268,36 @@ CREATE TABLE IF NOT EXISTS permission_grants (
     UNIQUE (permission_id, role_id, attribute_id)
 );
 
-CREATE TABLE IF NOT EXISTS permission_grants_case (
-    case_id         INTEGER NOT NULL,
+CREATE TABLE IF NOT EXISTS permission_grants_relationship (
+    related_user_id INTEGER NOT NULL,
     permission_id   INTEGER NOT NULL,
 	role_id         INTEGER NOT NULL,
     user_id         INTEGER NOT NULL,
     attribute_id    INTEGER NULL,
 
-    PRIMARY KEY (case_id, role_id, user_id, permission_id, attribute_id),
+    PRIMARY KEY (related_user_id, role_id, user_id, permission_id, attribute_id),
 
-    FOREIGN KEY (case_id)       REFERENCES cases(id)       ON DELETE CASCADE,
-    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE,
-    FOREIGN KEY (role_id)       REFERENCES roles(id)       ON DELETE CASCADE,
-    FOREIGN KEY (user_id)       REFERENCES users(id)       ON DELETE CASCADE,
-    FOREIGN KEY (attribute_id)  REFERENCES attributes(id)  ON DELETE CASCADE
+    FOREIGN KEY (related_user_id) REFERENCES users(id)       ON DELETE CASCADE,
+    FOREIGN KEY (permission_id)   REFERENCES permissions(id) ON DELETE CASCADE,
+    FOREIGN KEY (role_id)         REFERENCES roles(id)       ON DELETE CASCADE,
+    FOREIGN KEY (user_id)         REFERENCES users(id)       ON DELETE CASCADE,
+    FOREIGN KEY (attribute_id)    REFERENCES attributes(id)  ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS permission_grants_case (
+    related_case_id INTEGER NOT NULL,
+    permission_id   INTEGER NOT NULL,
+	role_id         INTEGER NOT NULL,
+    user_id         INTEGER NOT NULL,
+    attribute_id    INTEGER NULL,
+
+    PRIMARY KEY (related_case_id, role_id, user_id, permission_id, attribute_id),
+
+    FOREIGN KEY (related_case_id) REFERENCES cases(id)       ON DELETE CASCADE,
+    FOREIGN KEY (permission_id)   REFERENCES permissions(id) ON DELETE CASCADE,
+    FOREIGN KEY (role_id)         REFERENCES roles(id)       ON DELETE CASCADE,
+    FOREIGN KEY (user_id)         REFERENCES users(id)       ON DELETE CASCADE,
+    FOREIGN KEY (attribute_id)    REFERENCES attributes(id)  ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS permission_grants_user (
@@ -312,7 +451,7 @@ CASE-SPECIFIC based on whether a valid `caseId` is provided.
         - Persona-Aware: Yes. Grant can be persona-agnostic (`attribute_id` is NULL)
           or specific to the active persona (`attribute_id` is set). Verifies
           persona capability if attribute_id is set.
-        - Check: Does a matching row exist for `case_id`, `user_id`,
+        - Check: Does a matching row exist for `related_case_id`, `user_id`,
           `permission_id`, and `attribute_id` (considering active persona)?
 
     LAYER 2: Case Ownership (`cases.creator_user_id`)
@@ -377,7 +516,7 @@ dynamically constructs the appropriate `UNION ALL` sequence based on context
 SELECT 1 FROM [permission_grants_user] [PGU]
 JOIN [roles] [UR_PGU] ON [PGU].[user_id] = [UR_PGU].[user_id] AND [PGU].[role_id] = [UR_PGU].[role_id]
 LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-WHERE [PGU].[user_id] = :userId
+WHERE [PGU].[user_id]		= :userId
   AND [PGU].[permission_id] = :requiredPermissionId -- ID for 'CREATE_CASE'
   AND ([PGU].[attribute_id] IS NULL OR [A_PGU].[name] = :activePersonaName) -- Matches 'LAWYER'
   -- AND (Generalized Capability Check SQL)
@@ -396,9 +535,9 @@ WHERE [PG].[permission_id] = :requiredPermissionId -- ID for 'CREATE_CASE'
 -- Check Layer 1 (`permission_grants_case`):
 SELECT 1 FROM [permission_grants_case] [PGC]
 LEFT JOIN [attributes] [A_PGC] ON [PGC].[attribute_id] = [A_PGC].[id]
-WHERE [PGC].[case_id] = :caseId -- 456
-  AND [PGC].[user_id] = :userId
-  AND [PGC].[permission_id] = :requiredPermissionId -- ID for 'EDIT_CASE_DETAILS'
+WHERE [PGC].[related_case_id] = :caseId -- 456
+  AND [PGC].[user_id]		  = :userId
+  AND [PGC].[permission_id]	  = :requiredPermissionId -- ID for 'EDIT_CASE_DETAILS'
   AND ([PGC].[attribute_id] IS NULL OR [A_PGC].[name] = :activePersonaName) -- Matches 'CUSTOMER'
   -- AND (Generalized Capability Check SQL)
 
@@ -424,12 +563,12 @@ WHERE [P_G].[name] = :globalOverridePermName -- e.g., 'EDIT_ANY_CASE'
 /*                            DEFAULT DATA INSERTION                          */
 /* ========================================================================== */
 
--- 1. Insert Default Roles (if they don't exist)
+-- 1. [Insert Default Roles (if they don't exist)]
 
 INSERT INTO [roles] ([name]) VALUES ('USER')  ON CONFLICT([name]) DO NOTHING;
 INSERT INTO [roles] ([name]) VALUES ('ADMIN') ON CONFLICT([name]) DO NOTHING;
 
--- 2. Insert Default User Attributes (Personas - if they don't exist)
+-- 2. [Insert Default User Attributes (Personas - if they don't exist)]
 
 INSERT INTO [attributes] ([name]) VALUES ('LAWYER')   ON CONFLICT([name]) DO NOTHING;
 INSERT INTO [attributes] ([name]) VALUES ('CUSTOMER') ON CONFLICT([name]) DO NOTHING;
@@ -437,135 +576,435 @@ INSERT INTO [attributes] ([name]) VALUES ('CUSTOMER') ON CONFLICT([name]) DO NOT
 -- Add others like 'MONITOR' if needed
 -- INSERT INTO [attributes] ([name]) VALUES ('MONITOR') ON CONFLICT([name]) DO NOTHING;
 
--- 3. Insert Default Permissions (if they don't exist)
+-- 3. [Insert Default Permissions (if they don't exist)]
 
--- ORDINARY PERMISSIONS
+-- /// <summary>
+-- /// CASE
+-- /// </summary>
 
-INSERT INTO permissions ([name], [description]) VALUES ('CHAT_USER',	   'Allows chat user')							       ON CONFLICT([name]) DO NOTHING;
-INSERT INTO permissions ([name], [description]) VALUES ('MANAGE_OWN_USER', 'Allows user manage configurations for their user') ON CONFLICT([name]) DO NOTHING;
+-- // =================== [   ACL   ] =================== //
 
--- CASE (SPECIFIC) PERMISSIONS
+INSERT INTO permissions ([name], [description]) VALUES ('VIEW_CASE',					'Allows viewing cases')							  ON CONFLICT([name]) DO NOTHING;
 
-INSERT INTO permissions ([name], [description]) VALUES ('VIEW_OWN_CASES',		'Allows viewing cases associated with the user (e.g., as customer)') ON CONFLICT([name]) DO NOTHING;
-INSERT INTO permissions ([name], [description]) VALUES ('VIEW_ANY_PUBLIC_CASE', 'Allows viewing any case marked as not private')					 ON CONFLICT([name]) DO NOTHING;
-INSERT INTO permissions ([name], [description]) VALUES ('REGISTER_CASE',		'Allows register a new case')										 ON CONFLICT([name]) DO NOTHING;
-INSERT INTO permissions ([name], [description]) VALUES ('ASSIGN_LAWYER_CASE',	'Allows editing the details of a specific case')					 ON CONFLICT([name]) DO NOTHING;
-INSERT INTO permissions ([name], [description]) VALUES ('ASSIGN_CUSTOMER_CASE',	'Allows editing the details of a specific case')					 ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('ASSIGN_LAWYER_CASE',			'Allows editing the lawyer of a specific case')	  ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('ASSIGN_CUSTOMER_CASE',			'Allows editing the customer of a specific case') ON CONFLICT([name]) DO NOTHING;
 
--- ADMINISTRATOR PERMISSIONS
+INSERT INTO permissions ([name], [description]) VALUES ('GRANT_PERMISSIONS_CASE',		'Allows grant permissions to a specific case')	  ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('REVOKE_PERMISSIONS_CASE',		'Allows revoke permissions to a specific case')	  ON CONFLICT([name]) DO NOTHING;
 
-INSERT INTO [permissions] ([name], [description]) VALUES ('CHAT_ANY_USER',	 'Allows chat with any user in the system') ON CONFLICT([name]) DO NOTHING;
-INSERT INTO [permissions] ([name], [description]) VALUES ('MANAGE_ANY_USER', 'Allows managing user accounts')			 ON CONFLICT([name]) DO NOTHING;
+-- // =================== [ NOT ACL ] =================== //
 
--- ADMINISTRATOR PERMISSIONS [CASE (SPECIFIC) PERMISSIONS]
+INSERT INTO permissions ([name], [description]) VALUES ('REGISTER_CASE',			   'Allows register a new case')										ON CONFLICT([name]) DO NOTHING;
 
-INSERT INTO [permissions] ([name], [description]) VALUES ('VIEW_ANY_CASE',	   'Allows viewing any case in the system')			   ON CONFLICT([name]) DO NOTHING;
-INSERT INTO [permissions] ([name], [description]) VALUES ('REGISTER_ANY_CASE', 'Allows editing details of any case in the system') ON CONFLICT([name]) DO NOTHING;
-INSERT INTO [permissions] ([name], [description]) VALUES ('EDIT_ANY_CASE',	   'Allows editing details of any case in the system') ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('VIEW_OWN_CASE',			   'Allows viewing cases associated with the user (e.g., as customer)') ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('VIEW_PUBLIC_CASE',			   'Allows viewing case marked as not private')						    ON CONFLICT([name]) DO NOTHING;
 
-/*
-								   [TABLE OF HIERARCHY]
+INSERT INTO permissions ([name], [description]) VALUES ('ASSIGN_LAWYER_OWN_CASE',	   'Allows editing the lawyer of a own case')						    ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('ASSIGN_CUSTOMER_OWN_CASE',	   'Allows editing the customer of a own case')						    ON CONFLICT([name]) DO NOTHING;
+
+INSERT INTO permissions ([name], [description]) VALUES ('GRANT_PERMISSIONS_OWN_CASE',  'Allows grant permissions to a own case')						    ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('REVOKE_PERMISSIONS_OWN_CASE', 'Allows revoke permissions to a own case')						    ON CONFLICT([name]) DO NOTHING;
+
+-- /// <summary>
+-- /// RELATIONSHIP
+-- /// </summary>
+
+-- // =================== [   ACL   ] =================== //
+
+INSERT INTO permissions ([name], [description]) VALUES ('GRANT_PERMISSIONS_CUSTOMER_ACCOUNT_USER',  'Allows grant permission for user with customer account')  ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('REVOKE_PERMISSIONS_CUSTOMER_ACCOUNT_USER', 'Allows revoke permission for user with customer account') ON CONFLICT([name]) DO NOTHING;
+
+INSERT INTO permissions ([name], [description]) VALUES ('GRANT_PERMISSIONS_LAWYER_ACCOUNT_USER',  'Allows grant permission for user with lawyer account')  ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('REVOKE_PERMISSIONS_LAWYER_ACCOUNT_USER', 'Allows revoke permission for user with lawyer account') ON CONFLICT([name]) DO NOTHING;
+
+INSERT INTO permissions ([name], [description]) VALUES ('GRANT_PERMISSIONS_USER',  'Allows grant permission for user')  ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('REVOKE_PERMISSIONS_USER', 'Allows revoke permission for user') ON CONFLICT([name]) DO NOTHING;
+
+INSERT INTO permissions ([name], [description]) VALUES ('VIEW_USER',		          'Allows view user')				   ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('VIEW_LAWYER_ACCOUNT_USER',	  'Allows view user lawyer account')   ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('VIEW_CUSTOMER_ACCOUNT_USER', 'Allows view user customer account') ON CONFLICT([name]) DO NOTHING;
+
+INSERT INTO permissions ([name], [description]) VALUES ('EDIT_USER',			      'Allows user edit values and configurations for their user')			   ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('EDIT_LAWYER_ACCOUNT_USER',   'Allows user edit values and configurations for their lawyer account')   ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('EDIT_CUSTOMER_ACCOUNT_USER', 'Allows user edit values and configurations for their customer account') ON CONFLICT([name]) DO NOTHING;
+
+INSERT INTO permissions ([name], [description]) VALUES ('CHAT_USER', 'Allows chat user') ON CONFLICT([name]) DO NOTHING;
+
+-- // =================== [ NOT ACL ] =================== //
+
+INSERT INTO permissions ([name], [description]) VALUES ('REGISTER_USER','Allows register an user') ON CONFLICT([name]) DO NOTHING;
+
+INSERT INTO permissions ([name], [description]) VALUES ('EDIT_OWN_USER',				  'Allows user edit values and configurations for their user') ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('EDIT_OWN_LAWYER_ACCOUNT_USER',	  'Allows user edit values and configurations for their lawyer account.')   ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('EDIT_OWN_CUSTOMER_ACCOUNT_USER', 'Allows user edit values and configurations for their customer account.') ON CONFLICT([name]) DO NOTHING;
+
+INSERT INTO permissions ([name], [description]) VALUES ('VIEW_OWN_USER',	'Allows own view public user')  ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('VIEW_PUBLIC_USER', 'Allows user view public user') ON CONFLICT([name]) DO NOTHING;
+
+INSERT INTO permissions ([name], [description]) VALUES ('VIEW_OWN_LAWYER_ACCOUNT_USER',      'Allows user view own lawyer account.')      ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('VIEW_OWN_CUSTOMER_ACCOUNT_USER',    'Allows user view own customer account.')    ON CONFLICT([name]) DO NOTHING;
+
+INSERT INTO permissions ([name], [description]) VALUES ('VIEW_PUBLIC_LAWYER_ACCOUNT_USER',   'Allows user view public customer account.') ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER', 'Allows user view public customer account.') ON CONFLICT([name]) DO NOTHING;
+
+INSERT INTO permissions ([name], [description]) VALUES ('GRANT_PERMISSIONS_OWN_USER',				   'Allows grant permission for own user.')				ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('GRANT_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER',   'Allows grant permission for own lawyer account.')	ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('GRANT_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER', 'Allows grant permission for own customer account.') ON CONFLICT([name]) DO NOTHING;
+
+INSERT INTO permissions ([name], [description]) VALUES ('REVOKE_PERMISSIONS_OWN_USER',					'Allows revoke permission for own user.')			  ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('REVOKE_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER',	'Allows revoke permission for own lawyer account.')   ON CONFLICT([name]) DO NOTHING;
+INSERT INTO permissions ([name], [description]) VALUES ('REVOKE_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER', 'Allows revoke permission for own customer account.') ON CONFLICT([name]) DO NOTHING;
+
+-- [ADMINISTRATOR PERMISSIONS]
+
+-- /// <summary>
+-- /// CASE
+-- /// </summary>
+
+-- // =================== [   ACL   ] =================== //
+
+INSERT INTO [permissions] ([name], [description]) VALUES ('VIEW_ANY_CASE',			     'Allows viewing any case in the system')			    ON CONFLICT([name]) DO NOTHING;
+
+INSERT INTO [permissions] ([name], [description]) VALUES ('ASSIGN_LAWYER_ANY_CASE',	     'Allows editing lawyer of any case in the system')     ON CONFLICT([name]) DO NOTHING;
+INSERT INTO [permissions] ([name], [description]) VALUES ('ASSIGN_CUSTOMER_ANY_CASE',    'Allows editing customer of any case in the system')   ON CONFLICT([name]) DO NOTHING;
+
+INSERT INTO [permissions] ([name], [description]) VALUES ('GRANT_PERMISSIONS_ANY_CASE',  'Allows grant permissions to any case in the system')  ON CONFLICT([name]) DO NOTHING;
+INSERT INTO [permissions] ([name], [description]) VALUES ('REVOKE_PERMISSIONS_ANY_CASE', 'Allows revoke permissions to any case in the system') ON CONFLICT([name]) DO NOTHING;
+
+-- /// <summary>
+-- /// RELATIONSHIP
+-- /// </summary>
+ 
+-- // =================== [   ACL   ] =================== //
+
+INSERT INTO [permissions] ([name], [description]) VALUES ('VIEW_ANY_LAWYER_ACCOUNT_USER',   'Allows view any lawyer account of any user')   ON CONFLICT([name]) DO NOTHING;
+INSERT INTO [permissions] ([name], [description]) VALUES ('VIEW_ANY_CUSTOMER_ACCOUNT_USER', 'Allows view any customer account of any user') ON CONFLICT([name]) DO NOTHING;
+INSERT INTO [permissions] ([name], [description]) VALUES ('VIEW_ANY_USER',					'Allows view any user')						    ON CONFLICT([name]) DO NOTHING;
+
+INSERT INTO [permissions] ([name], [description]) VALUES ('GRANT_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER',	'Allows grant permission for any user with lawyer account')   ON CONFLICT([name]) DO NOTHING;
+INSERT INTO [permissions] ([name], [description]) VALUES ('GRANT_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER',	'Allows grant permission for any user with customer account') ON CONFLICT([name]) DO NOTHING;
 
 
-							   | PERMISSION			    | OVERRIDE PERMISSION		  |
- 	    [ORDINARY PERMISSIONS] |------------------------------------------------------|
-							   | CHAT_USER				| CHAT_ANY_USER				  |
-							   | MANAGE_OWN_USER		| MANAGE_ANY_USER			  |
- [CASE (SPECIFIC) PERMISSIONS] |------------------------------------------------------|
-							   | VIEW_OWN_CASES			| VIEW_ANY_CASE				  |
-							   | VIEW_ANY_PUBLIC_CASE	| VIEW_ANY_CASE				  |
-							   | REGISTER_CASE			| REGISTER_ANY_CASE			  |
-							   | ASSIGN_LAWYER_CASE		| EDIT_ANY_CASE				  |
-							   | ASSIGN_CUSTOMER_CASE	| EDIT_ANY_CASE				  |
+INSERT INTO [permissions] ([name], [description]) VALUES ('REVOKE_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER',	 'Allows revoke permission for any user with lawyer account')   ON CONFLICT([name]) DO NOTHING;
+INSERT INTO [permissions] ([name], [description]) VALUES ('REVOKE_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER', 'Allows revoke permission for any user with customer account') ON CONFLICT([name]) DO NOTHING;
 
-*/
 
--- 4. Insert Default Permission Grants (Rules)
+INSERT INTO [permissions] ([name], [description]) VALUES ('GRANT_PERMISSIONS_ANY_USER',  'Allows grant permission for any user')  ON CONFLICT([name]) DO NOTHING;
+INSERT INTO [permissions] ([name], [description]) VALUES ('REVOKE_PERMISSIONS_ANY_USER', 'Allows revoke permission for any user') ON CONFLICT([name]) DO NOTHING;
 
--- Use subqueries to get IDs based on names for robustness.
+INSERT INTO [permissions] ([name], [description]) VALUES ('EDIT_ANY_USER', 'Allows edit values and configurations of any user accounts') ON CONFLICT([name]) DO NOTHING;
+
+INSERT INTO [permissions] ([name], [description]) VALUES ('EDIT_ANY_LAWYER_ACCOUNT_USER',  'Allows edit values and configurations of any lawyer account')   ON CONFLICT([name]) DO NOTHING;
+INSERT INTO [permissions] ([name], [description]) VALUES ('EDIT_ANY_LAWYER_CUSTOMER_USER', 'Allows edit values and configurations of any customer account') ON CONFLICT([name]) DO NOTHING;
+
+
+INSERT INTO [permissions] ([name], [description]) VALUES ('CHAT_ANY_USER', 'Allows chat with any user in the system') ON CONFLICT([name]) DO NOTHING;
+
+       /*
+
+     [TABLE OF HIERARCHY]
+
+                                      | PERMISSION											| OVERRIDE PERMISSION													|
+ [RELATIONSHIP (NOT ACL) PERMISSIONS] |-----------------------------------------------------------------------------------------------------------------------------|
+                                      | GRANT_PERMISSIONS_OWN_USER							| GRANT_PERMISSIONS_ANY_USER											|
+                                      | GRANT_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER			| GRANT_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER								|
+                                      | GRANT_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER			| GRANT_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER							|
+                                      | REVOKE_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER			| REVOKE_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER							|
+                                      | REVOKE_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER		| REVOKE_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER                          |
+                                      | REVOKE_PERMISSIONS_OWN_USER							| REVOKE_PERMISSIONS_ANY_USER											|
+                                      | REGISTER_USER										| REGISTER_USER													     	|
+                                      | EDIT_OWN_USER										| EDIT_ANY_USER											     			|
+                                      | EDIT_OWN_LAWYER_ACCOUNT_USER						| EDIT_ANY_LAWYER_ACCOUNT_USER											|
+                                      | EDIT_OWN_CUSTOMER_ACCOUNT_USER						| EDIT_ANY_CUSTOMER_ACCOUNT_USER										|
+                                      | VIEW_OWN_USER										| VIEW_ANY_USER															|
+                                      | VIEW_PUBLIC_USER									| VIEW_ANY_USER															|
+                                      | VIEW_PUBLIC_LAWYER_ACCOUNT_USER						| VIEW_ANY_LAWYER_ACCOUNT_USER											|
+                                      | VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER					| VIEW_ANY_CUSTOMER_ACCOUNT_USER										|
+                                      | VIEW_OWN_LAWYER_ACCOUNT_USER					    | VIEW_ANY_LAWYER_ACCOUNT_USER										    |
+                                      | VIEW_OWN_CUSTOMER_ACCOUNT_USER					    | VIEW_ANY_CUSTOMER_ACCOUNT_USER										|
+     [RELATIONSHIP (ACL) PERMISSIONS] |-----------------------------------------------------------------------------------------------------------------------------|
+                                      | GRANT_PERMISSIONS_USER								| GRANT_PERMISSIONS_ANY_USER											|
+                                      | GRANT_PERMISSIONS_LAWYER_ACCOUNT_USER		        | GRANT_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER								|
+    								  | GRANT_PERMISSIONS_CUSTOMER_ACCOUNT_USER		        | GRANT_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER							|
+                                      | REVOKE_PERMISSIONS_USER								| REVOKE_PERMISSIONS_ANY_USER											|  
+								      | REVOKE_PERMISSIONS_CUSTOMER_ACCOUNT_USER		    | REVOKE_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER							|
+                                      | REVOKE_PERMISSIONS_LAWYER_ACCOUNT_USER		        | REVOKE_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER							|
+                                      | CHAT_USER											| CHAT_ANY_USER															|
+                                      | VIEW_USER											| VIEW_ANY_USER															|
+                                      | VIEW_LAWYER_ACCOUNT_USER							| VIEW_ANY_LAWYER_ACCOUNT_USER											|
+                                      | VIEW_CUSTOMER_ACCOUNT_USER							| VIEW_ANY_CUSTOMER_ACCOUNT_USER										|
+                                      | EDIT_USER											| EDIT_ANY_USER											     			|
+                                      | EDIT_LAWYER_ACCOUNT_USER							| EDIT_ANY_LAWYER_ACCOUNT_USER											|
+                                      | EDIT_CUSTOMER_ACCOUNT_USER							| EDIT_ANY_CUSTOMER_ACCOUNT_USER										|
+         [CASE (NOT ACL) PERMISSIONS] |-----------------------------------------------------------------------------------------------------------------------------|
+                                      | REGISTER_CASE										| REGISTER_CASE															|
+                                      | VIEW_OWN_CASE										| VIEW_ANY_CASE															|
+                                      | VIEW_PUBLIC_CASE									| VIEW_PUBLIC_CASE														|
+                                      | ASSIGN_LAWYER_OWN_CASE								| ASSIGN_LAWYER_ANY_CASE												|
+                                      | ASSIGN_CUSTOMER_OWN_CASE							| ASSIGN_CUSTOMER_ANY_CASE												|
+                                      | GRANT_PERMISSIONS_OWN_CASE							| GRANT_PERMISSIONS_ANY_CASE											|
+                                      | REVOKE_PERMISSIONS_OWN_CASE							| REVOKE_PERMISSIONS_ANY_CASE											|
+             [CASE (ACL) PERMISSIONS] |-----------------------------------------------------------------------------------------------------------------------------|
+                                      | VIEW_CASE											| VIEW_ANY_CASE															|
+                                      | ASSIGN_LAWYER_CASE									| ASSIGN_LAWYER_ANY_CASE												|
+                                      | ASSIGN_CUSTOMER_CASE								| ASSIGN_CUSTOMER_ANY_CASE												|
+                                      | GRANT_PERMISSIONS_CASE								| GRANT_PERMISSIONS_ANY_CASE											|
+                                      | REVOKE_PERMISSIONS_CASE								| REVOKE_PERMISSIONS_ANY_CASE											|
+   */
+
+-- 4. [Insert Default Permission Grants (Rules)]
 
 -------------------------------------------------------------------------------------------------------
 ------------------------------------------------ USER -------------------------------------------------
 -------------------------------------------------------------------------------------------------------
 
------------------------------------------------------------------------------------------------------------
------------------------------------------------- CHAT_USER ------------------------------------------------
------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ GRANT_PERMISSIONS_OWN_USER ------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------
 
--- Grant: USER role -> CHAT_USER permission
-
-INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
-SELECT [P].[id], [R].[id], NULL
-FROM [permissions] [P], [roles] [R], [attributes] [A]
-WHERE [P].[name]  = 'CHAT_USER' AND
-	  [R].[name]  = 'USER'
-ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
-
------------------------------------------------------------------------------------------------------------------
------------------------------------------------- MANAGE_OWN_USER ------------------------------------------------
------------------------------------------------------------------------------------------------------------------
-
--- Grant: USER role -> MANAGE_OWN_USER permission
+-- Grant: USER role -> GRANT_PERMISSIONS_OWN_USER permission
 
 INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
 SELECT [P].[id], [R].[id], NULL
 FROM [permissions] [P], [roles] [R], [attributes] [A]
-WHERE [P].[name]  = 'MANAGE_OWN_USER' AND
+WHERE [P].[name]  = 'GRANT_PERMISSIONS_OWN_USER' AND
 	  [R].[name]  = 'USER'
 ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
 
-----------------------------------------------------------------------------------------------------------------
------------------------------------------------- VIEW_OWN_CASES ------------------------------------------------
-----------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ GRANT_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER ------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------
 
--- Grant: USER role + CUSTOMER attribute -> VIEW_OWN_CASES permission
+-- Grant: USER role -> GRANT_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'GRANT_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ GRANT_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER ------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> GRANT_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'GRANT_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+----------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ REVOKE_PERMISSIONS_OWN_USER ------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> REVOKE_PERMISSIONS_OWN_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'REVOKE_PERMISSIONS_OWN_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+----------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ REVOKE_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER ------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> REVOKE_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'REVOKE_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+----------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ REVOKE_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER ------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> REVOKE_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'REVOKE_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+-----------------------------------------------------------------------------------------------------------------
+------------------------------------------------ EDIT_OWN_USER ------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> EDIT_OWN_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'EDIT_OWN_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ EDIT_OWN_LAWYER_ACCOUNT_USER ------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> EDIT_OWN_LAWYER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'EDIT_OWN_LAWYER_ACCOUNT_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+--------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ EDIT_OWN_CUSTOMER_ACCOUNT_USER ------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> EDIT_OWN_CUSTOMER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'EDIT_OWN_CUSTOMER_ACCOUNT_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+---------------------------------------------------------------------------------------------------------------
+------------------------------------------------ VIEW_OWN_USER ------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> VIEW_OWN_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'VIEW_OWN_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ VIEW_OWN_LAWYER_ACCOUNT_USER ------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> VIEW_OWN_LAWYER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'VIEW_OWN_LAWYER_ACCOUNT_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+
+--------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ VIEW_OWN_CUSTOMER_ACCOUNT_USER ------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> VIEW_OWN_CUSTOMER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'VIEW_OWN_CUSTOMER_ACCOUNT_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+---------------------------------------------------------------------------------------------------------------
+------------------------------------------------ VIEW_PUBLIC_USER ------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> VIEW_PUBLIC_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'VIEW_PUBLIC_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+---------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ VIEW_PUBLIC_LAWYER_ACCOUNT_USER ------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> VIEW_PUBLIC_LAWYER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'VIEW_PUBLIC_LAWYER_ACCOUNT_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+-----------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER ------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+---------------------------------------------------------------------------------------------------------------
+------------------------------------------------ VIEW_OWN_CASE ------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role + CUSTOMER attribute -> VIEW_OWN_CASE permission
 
 INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
 SELECT [P].[id], [R].[id], [A].[id]
 FROM [permissions] [P], [roles] [R], [attributes] [A]
 WHERE
-	[P].[name] = 'VIEW_OWN_CASES' AND
-	[R].[name] = 'USER'		      AND
+	[P].[name] = 'VIEW_OWN_CASE' AND
+	[R].[name] = 'USER'		     AND
 	[A].[name] = 'CUSTOMER'
 ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
 
--- Grant: USER role + LAWYER attribute -> VIEW_OWN_CASES permission
+-- Grant: USER role + LAWYER attribute -> VIEW_OWN_CASE permission
 
 INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
 SELECT [P].[id], [R].[id], [A].[id]
 FROM [permissions] [P], [roles] [R], [attributes] [A]
 WHERE
-	[P].[name] = 'VIEW_OWN_CASES' AND
-	[R].[name] = 'USER'		      AND
+	[P].[name] = 'VIEW_OWN_CASE' AND
+	[R].[name] = 'USER'		     AND
 	[A].[name] = 'LAWYER'
 ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
 
-----------------------------------------------------------------------------------------------------------------------
------------------------------------------------- VIEW_ANY_PUBLIC_CASE ------------------------------------------------
-----------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ VIEW_PUBLIC_CASE ------------------------------------------------
+------------------------------------------------------------------------------------------------------------------
 
--- Grant: USER role + CUSTOMER attribute -> VIEW_ANY_PUBLIC_CASE permission
+-- Grant: USER role + CUSTOMER attribute -> VIEW_PUBLIC_CASE permission
 
 INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
 SELECT [P].[id], [R].[id], [A].[id]
 FROM [permissions] [P], [roles] [R], [attributes] [A]
 WHERE
-	[P].[name] = 'VIEW_ANY_PUBLIC_CASE' AND
-	[R].[name] = 'USER'				    AND
+	[P].[name] = 'VIEW_PUBLIC_CASE' AND
+	[R].[name] = 'USER'				AND
 	[A].[name] = 'CUSTOMER'
 ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
 
--- Grant: USER role + LAWYER attribute -> VIEW_ANY_PUBLIC_CASE permission
+-- Grant: USER role + LAWYER attribute -> VIEW_PUBLIC_CASE permission
 
 INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
 SELECT [P].[id], [R].[id], [A].[id]
 FROM [permissions] [P], [roles] [R], [attributes] [A]
 WHERE
-	[P].[name] = 'VIEW_ANY_PUBLIC_CASE' AND
-	[R].[name] = 'USER'				    AND
+	[P].[name] = 'VIEW_PUBLIC_CASE' AND
+	[R].[name] = 'USER'				AND
 	[A].[name] = 'LAWYER'
 ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
-
 
 ---------------------------------------------------------------------------------------------------------------
 ------------------------------------------------ REGISTER_CASE ------------------------------------------------
@@ -590,79 +1029,130 @@ FROM [permissions] [P], [roles] [R], [attributes] [A]
 WHERE
 	[P].[name]  = 'REGISTER_CASE' AND
 	[R].[name]  = 'USER'		  AND
-	[A].[name] = 'LAWYER'
+	[A].[name]  = 'LAWYER'
 ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
-
---------------------------------------------------------------------------------------------------------------------
------------------------------------------------- ASSIGN_LAWYER_CASE ------------------------------------------------
---------------------------------------------------------------------------------------------------------------------
-
--- Grant: USER role + CUSTOMER attribute -> ASSIGN_LAWYER_CASE permission
-
-INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
-SELECT [P].[id], [R].[id], [A].[id]
-FROM [permissions] [P], [roles] [R], [attributes] [A]
-WHERE
-	[P].[name] = 'ASSIGN_LAWYER_CASE' AND
-	[R].[name] = 'USER'	              AND
-	[A].[name] = 'CUSTOMER'
-ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
-
--- Grant: USER role + LAWYER attribute -> ASSIGN_LAWYER_CASE permission
-
-INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
-SELECT [P].[id], [R].[id], [A].[id]
-FROM [permissions] [P], [roles] [R], [attributes] [A]
-WHERE
-	[P].[name] = 'ASSIGN_LAWYER_CASE' AND
-	[R].[name] = 'USER'		          AND
-	[A].[name] = 'LAWYER'
-ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
-
-----------------------------------------------------------------------------------------------------------------------
------------------------------------------------- ASSIGN_CUSTOMER_CASE ------------------------------------------------
-----------------------------------------------------------------------------------------------------------------------
-
--- Grant: USER role + CUSTOMER attribute -> ASSIGN_CUSTOMER_CASE permission
-
-INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
-SELECT [P].[id], [R].[id], [A].[id]
-FROM [permissions] [P], [roles] [R], [attributes] [A]
-WHERE
-	[P].[name] = 'ASSIGN_CUSTOMER_CASE' AND
-	[R].[name] = 'USER'	                AND
-	[A].[name] = 'CUSTOMER'
-ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
-
--- Grant: USER role + LAWYER attribute -> ASSIGN_CUSTOMER_CASE permission
-
-INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
-SELECT [P].[id], [R].[id], [A].[id]
-FROM [permissions] [P], [roles] [R], [attributes] [A]
-WHERE
-	[P].[name] = 'ASSIGN_CUSTOMER_CASE' AND
-	[R].[name] = 'USER'		            AND
-	[A].[name] = 'LAWYER'
-ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
-
-
--------------------------------------------------------------------------------------------------------
------------------------------------------------- ADMIN ------------------------------------------------
--------------------------------------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------------------------------------------
------------------------------------------------- CHAT_ANY_USER ------------------------------------------------
+------------------------------------------------ REGISTER_USER ------------------------------------------------
 ---------------------------------------------------------------------------------------------------------------
 
--- Grant: ADMIN role (any attribute) -> CHAT_ANY_USER permission
+-- Grant: USER role (any attribute) -> REGISTER_USER permission
 
 INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
 SELECT [P].[id], [R].[id], NULL
 FROM [permissions] [P], [roles] [R]
 WHERE
-	[P].[name] = 'CHAT_ANY_USER' AND
-	[R].[name] = 'ADMIN'
+	[P].[name] = 'REGISTER_USER' AND
+	[R].[name] = 'USER'
 ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ ASSIGN_LAWYER_OWN_CASE ------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role + CUSTOMER attribute -> ASSIGN_LAWYER_OWN_CASE permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], [A].[id]
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE
+	[P].[name] = 'ASSIGN_LAWYER_OWN_CASE' AND
+	[R].[name] = 'USER'					  AND
+	[A].[name] = 'CUSTOMER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+-- Grant: USER role + LAWYER attribute -> ASSIGN_LAWYER_OWN_CASE permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], [A].[id]
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE
+	[P].[name] = 'ASSIGN_LAWYER_OWN_CASE' AND
+	[R].[name] = 'USER'					  AND
+	[A].[name] = 'LAWYER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+--------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ ASSIGN_CUSTOMER_OWN_CASE ------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role + CUSTOMER attribute -> ASSIGN_CUSTOMER_OWN_CASE permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], [A].[id]
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE
+	[P].[name] = 'ASSIGN_CUSTOMER_OWN_CASE' AND
+	[R].[name] = 'USER'						AND
+	[A].[name] = 'CUSTOMER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+-- Grant: USER role + LAWYER attribute -> ASSIGN_CUSTOMER_OWN_CASE permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], [A].[id]
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE
+	[P].[name] = 'ASSIGN_CUSTOMER_OWN_CASE' AND
+	[R].[name] = 'USER'						AND
+	[A].[name] = 'LAWYER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+----------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ GRANT_PERMISSIONS_OWN_CASE ------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role + CUSTOMER attribute -> GRANT_PERMISSIONS_OWN_CASE permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], [A].[id]
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE
+	[P].[name] = 'GRANT_PERMISSIONS_OWN_CASE' AND
+	[R].[name] = 'USER'						  AND
+	[A].[name] = 'CUSTOMER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+-- Grant: USER role + LAWYER attribute -> GRANT_PERMISSIONS_OWN_CASE permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], [A].[id]
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE
+	[P].[name] = 'GRANT_PERMISSIONS_OWN_CASE' AND
+	[R].[name] = 'USER'						  AND
+	[A].[name] = 'LAWYER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+-----------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ REVOKE_PERMISSIONS_OWN_CASE ------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role + CUSTOMER attribute -> REVOKE_PERMISSIONS_OWN_CASE permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], [A].[id]
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE
+	[P].[name] = 'REVOKE_PERMISSIONS_OWN_CASE' AND
+	[R].[name] = 'USER'						   AND
+	[A].[name] = 'CUSTOMER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+-- Grant: USER role + LAWYER attribute -> REVOKE_PERMISSIONS_OWN_CASE permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], [A].[id]
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE
+	[P].[name] = 'REVOKE_PERMISSIONS_OWN_CASE' AND
+	[R].[name] = 'USER'						   AND
+	[A].[name] = 'LAWYER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+-------------------------------------------------------------------------------------------------------
+------------------------------------------------ ADMIN ------------------------------------------------
+-------------------------------------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------------------------------------------
 ------------------------------------------------ VIEW_ANY_CASE ------------------------------------------------
@@ -678,55 +1168,306 @@ WHERE
 	[R].[name] = 'ADMIN'
 ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
 
----------------------------------------------------------------------------------------------------------------
------------------------------------------------- EDIT_ANY_CASE ------------------------------------------------
----------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ ASSIGN_LAWYER_ANY_CASE ------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
 
--- Grant: ADMIN role (any attribute) -> EDIT_ANY_CASE permission
+-- Grant: ADMIN role (any attribute) -> ASSIGN_LAWYER_ANY_CASE permission
 
 INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
 SELECT [P].[id], [R].[id], NULL
 FROM [permissions] [P], [roles] [R]
 WHERE
-	[P].[name] = 'EDIT_ANY_CASE' AND
+	[P].[name] = 'ASSIGN_LAWYER_ANY_CASE' AND
 	[R].[name] = 'ADMIN'
 ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
 
--------------------------------------------------------------------------------------------------------------------
------------------------------------------------- REGISTER_ANY_CASE ------------------------------------------------
--------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ ASSIGN_CUSTOMER_ANY_CASE ------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------
 
--- Grant: ADMIN role (any attribute) -> REGISTER_ANY_CASE permission
+-- Grant: ADMIN role (any attribute) -> ASSIGN_CUSTOMER_ANY_CASE permission
 
 INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
 SELECT [P].[id], [R].[id], NULL
 FROM [permissions] [P], [roles] [R]
 WHERE
-	[P].[name] = 'REGISTER_ANY_CASE' AND
+	[P].[name] = 'ASSIGN_CUSTOMER_ANY_CASE' AND
+	[R].[name] = 'ADMIN'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+---------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ GRANT_PERMISSIONS_ANY_CASE ------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: ADMIN role (any attribute) -> GRANT_PERMISSIONS_ANY_CASE permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R]
+WHERE
+	[P].[name] = 'GRANT_PERMISSIONS_ANY_CASE' AND
+	[R].[name] = 'ADMIN'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+----------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ REVOKE_PERMISSIONS_ANY_CASE ------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: ADMIN role (any attribute) -> REVOKE_PERMISSIONS_ANY_CASE permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R]
+WHERE
+	[P].[name] = 'REVOKE_PERMISSIONS_ANY_CASE' AND
+	[R].[name] = 'ADMIN'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+
+---------------------------------------------------------------------------------------------------------------
+------------------------------------------------ REGISTER_CASE ------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+
+-- Grant: ADMIN role (any attribute) -> REGISTER_CASE permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R]
+WHERE
+	[P].[name] = 'REGISTER_CASE' AND
+	[R].[name] = 'ADMIN'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+---------------------------------------------------------------------------------------------------------------
+------------------------------------------------ REGISTER_USER ------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+
+-- Grant: ADMIN role (any attribute) -> EDIT_ANY_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R]
+WHERE
+	[P].[name] = 'REGISTER_USER' AND
 	[R].[name] = 'ADMIN'
 ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
 
 -----------------------------------------------------------------------------------------------------------------
------------------------------------------------- MANAGE_ANY_USER ------------------------------------------------
+------------------------------------------------ EDIT_ANY_USER ------------------------------------------------
 -----------------------------------------------------------------------------------------------------------------
 
--- Grant: ADMIN role (any attribute) -> MANAGE_ANY_USER permission
+-- Grant: ADMIN role (any attribute) -> EDIT_ANY_USER permission
 
 INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
 SELECT [P].[id], [R].[id], NULL
 FROM [permissions] [P], [roles] [R]
 WHERE
-	[P].[name] = 'MANAGE_ANY_USER' AND
+	[P].[name] = 'EDIT_ANY_USER' AND
 	[R].[name] = 'ADMIN'
 ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ EDIT_ANY_LAWYER_ACCOUNT_USER ------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> EDIT_ANY_LAWYER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'EDIT_ANY_LAWYER_ACCOUNT_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+--------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ EDIT_ANY_CUSTOMER_ACCOUNT_USER ------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> EDIT_ANY_CUSTOMER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'EDIT_ANY_CUSTOMER_ACCOUNT_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ VIEW_ANY_LAWYER_ACCOUNT_USER ------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> VIEW_ANY_LAWYER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'VIEW_ANY_LAWYER_ACCOUNT_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+
+--------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ VIEW_ANY_CUSTOMER_ACCOUNT_USER ------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: USER role -> VIEW_ANY_CUSTOMER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R], [attributes] [A]
+WHERE [P].[name]  = 'VIEW_ANY_CUSTOMER_ACCOUNT_USER' AND
+	  [R].[name]  = 'USER'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ GRANT_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER ------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: ADMIN role (any attribute) -> GRANT_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R]
+WHERE
+	[P].[name] = 'EDIT_ANY_LAWYER_ACCOUNT_USER' AND
+	[R].[name] = 'ADMIN'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ GRANT_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER ------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: ADMIN role (any attribute) -> GRANT_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R]
+WHERE
+	[P].[name] = 'EDIT_ANY_CUSTOMER_ACCOUNT_USER' AND
+	[R].[name] = 'ADMIN'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ REVOKE_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER ------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: ADMIN role (any attribute) -> REVOKE_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R]
+WHERE
+	[P].[name] = 'REVOKE_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER' AND
+	[R].[name] = 'ADMIN'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+----------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ REVOKE_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER ------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: ADMIN role (any attribute) -> REVOKE_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R]
+WHERE
+	[P].[name] = 'REVOKE_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER' AND
+	[R].[name] = 'ADMIN'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ EDIT_ANY_LAWYER_ACCOUNT_USER ------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: ADMIN role (any attribute) -> EDIT_ANY_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R]
+WHERE
+	[P].[name] = 'EDIT_ANY_LAWYER_ACCOUNT_USER' AND
+	[R].[name] = 'ADMIN'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+--------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ EDIT_ANY_CUSTOMER_ACCOUNT_USER ------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: ADMIN role (any attribute) -> EDIT_ANY_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R]
+WHERE
+	[P].[name] = 'EDIT_ANY_CUSTOMER_ACCOUNT_USER' AND
+	[R].[name] = 'ADMIN'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+---------------------------------------------------------------------------------------------------------------
+------------------------------------------------ VIEW_ANY_USER ------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+
+-- Grant: ADMIN role (any attribute) -> VIEW_ANY_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R]
+WHERE
+	[P].[name] = 'VIEW_ANY_USER' AND
+	[R].[name] = 'ADMIN'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+---------------------------------------------------------------------------------------------------------------
+------------------------------------------------ CHAT_ANY_USER ------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+
+-- Grant: ADMIN role (any attribute) -> CHAT_ANY_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R]
+WHERE
+	[P].[name] = 'CHAT_ANY_USER' AND
+	[R].[name] = 'ADMIN'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+---------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ GRANT_PERMISSIONS_ANY_USER ------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: ADMIN role (any attribute) -> GRANT_PERMISSIONS_ANY_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R]
+WHERE
+	[P].[name] = 'GRANT_PERMISSIONS_ANY_USER' AND
+	[R].[name] = 'ADMIN'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
+----------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------ REVOKE_PERMISSIONS_ANY_USER ------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+
+-- Grant: ADMIN role (any attribute) -> REVOKE_PERMISSIONS_ANY_USER permission
+
+INSERT INTO [permission_grants] ([permission_id], [role_id], [attribute_id])
+SELECT [P].[id], [R].[id], NULL
+FROM [permissions] [P], [roles] [R]
+WHERE
+	[P].[name] = 'REVOKE_PERMISSIONS_ANY_USER' AND
+	[R].[name] = 'ADMIN'
+ON CONFLICT([permission_id], [role_id], [attribute_id]) DO NOTHING;
+
 
 
 /* ========================================================================== */
 /*                     END OF PERMISSION ARCHITECTURE                         */
 /* ========================================================================== */
 
-COMMIT;
-");
+COMMIT;");
 
 		return resultContructor.Build();
     }

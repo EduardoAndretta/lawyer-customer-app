@@ -29,6 +29,9 @@ public static class Configuration
         services.AddScoped<IValidator<Case.Common.Models.SearchParametersDto>, Case.Validator.SearchParametersDtoValidator>();
         services.AddScoped<IValidator<Case.Common.Models.RegisterParametersDto>, Case.Validator.RegisterParametersDtoValidator>();
         services.AddScoped<IValidator<Case.Common.Models.AssignLawyerParametersDto>, Case.Validator.AssignLawyerParametersDtoValidator>();
+        services.AddScoped<IValidator<Case.Common.Models.AssignCustomerParametersDto>, Case.Validator.AssignCustomerParametersDtoValidator>();
+        services.AddScoped<IValidator<Case.Common.Models.GrantPermissionsParametersDto>, Case.Validator.GrantPermissionsParametersDtoValidator>();
+        services.AddScoped<IValidator<Case.Common.Models.RevokePermissionsParametersDto>, Case.Validator.RevokePermissionsParametersDtoValidator>();
 
         #endregion
 
@@ -55,7 +58,10 @@ public static class Configuration
 
         services.AddScoped<User.Interfaces.Services.IRepository, User.Repositories.Repository>();
 
+        services.AddScoped<IValidator<User.Common.Models.SearchParametersDto>, User.Validator.SearchParametersDtoValidator>();
         services.AddScoped<IValidator<User.Common.Models.RegisterParametersDto>, User.Validator.RegisterParametersDtoValidator>();
+        services.AddScoped<IValidator<User.Common.Models.GrantPermissionsParametersDto>, User.Validator.GrantPermissionsParametersDtoValidator>();
+        services.AddScoped<IValidator<User.Common.Models.RevokePermissionsParametersDto>, User.Validator.RevokePermissionsParametersDtoValidator>();
 
         #endregion
 

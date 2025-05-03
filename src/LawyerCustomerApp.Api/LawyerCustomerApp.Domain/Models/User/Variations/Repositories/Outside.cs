@@ -1,16 +1,7 @@
 ﻿using LawyerCustomerApp.External.Models;
 
-namespace LawyerCustomerApp.Domain.Case.Repositories.Models;
+namespace LawyerCustomerApp.Domain.User.Repositories.Models;
 
-internal record AssignLawyerDatabaseInformation
-{
-    public bool Private { get; set; } = false;
-}
-
-internal record AssignCustomerDatabaseInformation
-{
-    public bool Private { get; set; } = false;
-}
 
 public abstract class InternalValues
 {
@@ -137,50 +128,59 @@ public abstract record PermissionResult
 {
     public record Search : PermissionResult
     {
-        public bool HasViewOwnCasePermission { get; init; } = false;
-        public bool HasViewAnyCasePermission { get; init; } = false;
-        public bool HasViewPublicCasePermission { get; init; } = false;
+        public bool HasViewAnyUserPermission { get; init; } = false;
+        public bool HasViewAnyLawyerAccountUserPermission { get; init; } = false;
+        public bool HasViewAnyCustomerAccountUserPermission { get; init; } = false;
+
+        public bool HasViewPublicUserPermission { get; init; } = false;
+        public bool HasViewPublicLawyerAccountUserPermission { get; init; } = false;
+        public bool HasViewPublicCustomerAccountUserPermission { get; init; } = false;
+
+        public bool HasViewOwnUserPermission { get; init; } = false;
+        public bool HasViewOwnLawyerAccountUserPermission { get; init; } = false;
+        public bool HasViewOwnCustomerAccountUserPermission { get; init; } = false;
     }
 
     public record Register : PermissionResult
     {
-        public bool HasRegisterCasePermission { get; init; } = false;
+        public bool HasRegisterUserPermission { get; init; } = false;
     }
 
-    public record AssignLawyer : PermissionResult
+    public record Edit : PermissionResult
     {
-        public bool HasAssignLawyerOwnCasePermission { get; init; } = false;
-        public bool HasAssignLawyerCasePermission { get; init; } = false;
-        public bool HasAssignLawyerAnyCasePermission { get; init; } = false;
+        public bool HasEditUserPermission { get; init; } = false;
+        public bool HasEditLawyerAccountUserPermission { get; init; } = false;
+        public bool HasEditCustomerAccountUserPermission { get; init; } = false;
 
-        public bool HasViewOwnCasePermission { get; init; } = false;
-        public bool HasViewCasePermission { get; init; } = false;
-        public bool HasViewAnyCasePermission { get; init; } = false;
-        public bool HasViewPublicCasePermission { get; init; } = false;
+        public bool HasEditOwnUserPermission { get; init; } = false;
+
+        public bool HasEditAnyUserPermission { get; init; } = false;
+        public bool HasEditAnyLawyerAccountUserPermission { get; init; } = false;
+        public bool HasEditAnyCustomerAccountUserPermission { get; init; } = false;
+
+        public bool HasViewOwnUserPermission { get; init; } = false;
+        public bool HasViewOwnLawyerAccountUserPermission { get; init; } = false;
+        public bool HasViewOwnCustomerAccountUserPermission { get; init; } = false;
+
+        public bool HasViewPublicUserPermission { get; init; } = false;
+        public bool HasViewPublicLawyerAccountUserPermission { get; init; } = false;
+        public bool HasViewPublicCustomerAccountUserPermission { get; init; } = false;
+
+        public bool HasViewAnyUserPermission { get; init; } = false;
+        public bool HasViewAnyLawyerAccountUserPermission { get; init; } = false;
+        public bool HasViewAnyCustomerAccountUserPermission { get; init; } = false;
+
+        public bool HasViewUserPermission { get; init; } = false;
+        public bool HasViewLawyerAccountUserPermission { get; init; } = false;
+        public bool HasViewCustomerAccountUserPermission { get; init; } = false;
     }
 
-    public record AssignCustomer : PermissionResult
-    {
-        public bool HasAssignCustomerOwnCasePermission { get; init; } = false;
-        public bool HasAssignCustomerCasePermission { get; init; } = false;
-        public bool HasAssignCustomerAnyCasePermission { get; init; } = false;
-
-        public bool HasViewOwnCasePermission { get; init; } = false;
-        public bool HasViewCasePermission { get; init; } = false;
-        public bool HasViewAnyCasePermission { get; init; } = false;
-        public bool HasViewPublicCasePermission { get; init; } = false;
-    }
 
     public record GrantPermissions : PermissionResult
     {
-        public bool HasGrantPermissionsOwnCasePermission { get; init; } = false;
-        public bool HasGrantPermissionsCasePermission { get; init; } = false;
-        public bool HasGrantPermissionsAnyCasePermission { get; init; } = false;
-
-        public bool HasViewOwnCasePermission { get; init; } = false;
-        public bool HasViewCasePermission { get; init; } = false;
-        public bool HasViewAnyCasePermission { get; init; } = false;
-        public bool HasViewPublicCasePermission { get; init; } = false;
+        public bool HasGrantPermissionsOwnUserPermission { get; init; } = false;
+        public bool HasGrantPermissionsUserPermission { get; init; } = false;
+        public bool HasGrantPermissionsAnyUserPermission { get; init; } = false;
 
         public record SpecificUser
         {
@@ -195,29 +195,20 @@ public abstract record PermissionResult
             public bool HasViewPublicUserPermission { get; init; } = false;
             public bool HasViewPublicLawyerAccountUserPermission { get; init; } = false;
             public bool HasViewPublicCustomerAccountUserPermission { get; init; } = false;
-        }  
+        }
     }
 
     public record RevokePermissions : PermissionResult
     {
-        public bool HasRevokePermissionsOwnCasePermission { get; init; } = false;
-        public bool HasRevokePermissionsCasePermission { get; init; } = false;
-        public bool HasRevokePermissionsAnyCasePermission { get; init; } = false;
-
-        public bool HasViewOwnCasePermission { get; init; } = false;
-        public bool HasViewCasePermission { get; init; } = false;
-        public bool HasViewAnyCasePermission { get; init; } = false;
-        public bool HasViewPublicCasePermission { get; init; } = false;
+        public bool HasRevokePermissionsOwnUserPermission { get; init; } = false;
+        public bool HasRevokePermissionsUserPermission { get; init; } = false;
+        public bool HasRevokePermissionsAnyUserPermission { get; init; } = false;
 
         public record SpecificUser
         {
             public bool HasRevokePermissionsAnyUserPermission { get; init; } = false;
             public bool HasRevokePermissionsAnyLawyerAccountUserPermission { get; init; } = false;
             public bool HasRevokePermissionsAnyCustomerAccountUserPermission { get; init; } = false;
-
-            public bool HasRevokePermissionsOwnUserPermission { get; init; } = false;
-            public bool HasRevokePermissionsOwnLawyerAccountUserPermission { get; init; } = false;
-            public bool HasRevokePermissionsOwnCustomerAccountUserPermission { get; init; } = false;
 
             public bool HasViewAnyUserPermission { get; init; } = false;
             public bool HasViewAnyLawyerAccountUserPermission { get; init; } = false;

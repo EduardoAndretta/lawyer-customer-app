@@ -9,7 +9,31 @@ public static class SwaggerConfiguration
         services.AddSwaggerGen(options =>
         {
             options.UseOneOfForPolymorphism();
-            options.CustomSchemaIds(x => x.FullName);
+
+            string GenerateRandomHash(int length)
+            {
+                const string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+                var random = new Random();
+                return new string(Enumerable.Repeat(chars, length)
+                    .Select(s => s[random.Next(s.Length)]).ToArray());
+            }
+
+            bool IsCustomType(Type type)
+            {
+                return type.Namespace != null && type.Namespace.StartsWith("LawyerCustomerApp");
+            }
+
+            options.CustomSchemaIds(x =>
+            {
+                var fullName = x.FullName?.Replace('+', '.') ?? GenerateRandomHash(5);
+
+                if (x.IsGenericTypeDefinition && IsCustomType(x))
+                {
+                    return $"[{GenerateRandomHash(5)}]-[{fullName}]";
+                }
+
+                return fullName;
+            });
 
             bool jwtBearerIsConfigured = services.Any(service =>
                 service.ServiceType.FullName?.Contains("JwtBearerHandler") == true);

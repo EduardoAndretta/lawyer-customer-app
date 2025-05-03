@@ -14,7 +14,7 @@ public class AuthenticateParametersDtoValidator : AbstractValidator<Authenticate
             .NotNull()
             .WithMessage("NotNull")
             .WithState(new string[] { "Email" })
-            .MaxLenght(50)
+            .MaxLength(50)
             .WithMessage("MaxLength")
             .WithState(new string[] { "Email", "50" });
 
@@ -25,7 +25,7 @@ public class AuthenticateParametersDtoValidator : AbstractValidator<Authenticate
             .NotNull()
             .WithMessage("NotNull")
             .WithState(new string[] { "Password" })
-            .MaxLenght(50)
+            .MaxLength(50)
             .WithMessage("MaxLength")
             .WithState(new string[] { "Password", "50" });
     }
@@ -42,7 +42,7 @@ public class RefreshParametersDtoValidator : AbstractValidator<RefreshParameters
             .NotNull()
             .WithMessage("NotNull")
             .WithState(new string[] { "Token" })
-            .MaxLenght(2500)
+            .MaxLength(2500)
             .WithMessage("MaxLength")
             .WithState(new string[] { "Token", "2500" });
 
@@ -53,7 +53,7 @@ public class RefreshParametersDtoValidator : AbstractValidator<RefreshParameters
             .NotNull()
             .WithMessage("NotNull")
             .WithState(new string[] { "RefreshToken" })
-            .MaxLenght(300)
+            .MaxLength(300)
             .WithMessage("MaxLength")
             .WithState(new string[] { "RefreshToken", "300" });
     }
@@ -70,7 +70,7 @@ public class InvalidateParametersDtoValidator : AbstractValidator<InvalidatePara
             .NotNull()
             .WithMessage("NotNull")
             .WithState(new string[] { "Token" })
-            .MaxLenght(2500)
+            .MaxLength(2500)
             .WithMessage("MaxLength")
             .WithState(new string[] { "Token", "2500" });
 
@@ -81,7 +81,7 @@ public class InvalidateParametersDtoValidator : AbstractValidator<InvalidatePara
             .NotNull()
             .WithMessage("NotNull")
             .WithState(new string[] { "RefreshToken" })
-            .MaxLenght(300)
+            .MaxLength(300)
             .WithMessage("MaxLength")
             .WithState(new string[] { "RefreshToken", "300" });
     }
@@ -98,7 +98,7 @@ public class ValidateParametersDtoValidator : AbstractValidator<ValidateParamete
             .NotNull()
             .WithMessage("NotNull")
             .WithState(new string[] { "Token" })
-            .MaxLenght(2500)
+            .MaxLength(2500)
             .WithMessage("MaxLength")
             .WithState(new string[] { "Token", "2500" });
     }

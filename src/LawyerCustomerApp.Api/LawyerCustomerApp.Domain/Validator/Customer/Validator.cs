@@ -16,13 +16,13 @@ public class RegisterParametersDtoValidator : AbstractValidator<RegisterParamete
             .WithState(new string[] { "UserId", "0" });
 
         RuleFor(a => a.Address)
-            .MaxLenght(100)
+            .MaxLength(100)
             .WithMessage("MaxLength")
             .WithState(new string[] { "Address", "100" })
                 .When(a => !string.IsNullOrWhiteSpace(a.Phone));
 
         RuleFor(a => a.Phone)
-            .MaxLenght(15)
+            .MaxLength(15)
             .WithMessage("MaxLength")
             .WithState(new string[] { "Phone", "15" })
                 .When(a => !string.IsNullOrWhiteSpace(a.Phone));

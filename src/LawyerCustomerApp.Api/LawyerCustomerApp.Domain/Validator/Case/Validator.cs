@@ -8,9 +8,6 @@ public class SearchParametersDtoValidator : AbstractValidator<SearchParametersDt
     public SearchParametersDtoValidator()
     {
         RuleFor(a => a.UserId)
-            .NotEmpty()
-            .WithMessage("NotEmpty")
-            .WithState(new string[] { "UserId" })
             .NotNull()
             .WithMessage("NotNull")
             .WithState(new string[] { "UserId" })
@@ -18,19 +15,27 @@ public class SearchParametersDtoValidator : AbstractValidator<SearchParametersDt
             .WithMessage("MaxLength")
             .WithState(new string[] { "UserId", "0" });
 
-        RuleFor(a => a.Persona)
-           .NotEmpty()
-           .WithMessage("NotEmpty")
-           .WithState(new string[] { "Persona" })
-           .NotNull()
-           .WithMessage("NotNull")
-           .WithState(new string[] { "Persona" });
+        RuleFor(a => a.AttributeId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "AttributeId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "AttributeId", "0" });
+
+        RuleFor(a => a.RoleId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "RoleId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "RoleId", "0" });
 
         RuleFor(a => a.Query)
             .NotNull()
             .WithMessage("NotNull")
             .WithState(new string[] { "Title" })
-            .MaxLenght(50)
+            .MaxLength(50)
             .WithMessage("MaxLength")
             .WithState(new string[] { "Title", "100" });
 
@@ -58,9 +63,6 @@ public class RegisterParametersDtoValidator : AbstractValidator<RegisterParamete
     public RegisterParametersDtoValidator()
     {
         RuleFor(a => a.UserId)
-            .NotEmpty()
-            .WithMessage("NotEmpty")
-            .WithState(new string[] { "UserId" })
             .NotNull()
             .WithMessage("NotNull")
             .WithState(new string[] { "UserId" })
@@ -68,13 +70,21 @@ public class RegisterParametersDtoValidator : AbstractValidator<RegisterParamete
             .WithMessage("MaxLength")
             .WithState(new string[] { "UserId", "0" });
 
-        RuleFor(a => a.Persona)
-           .NotEmpty()
-           .WithMessage("NotEmpty")
-           .WithState(new string[] { "Persona" })
-           .NotNull()
-           .WithMessage("NotNull")
-           .WithState(new string[] { "Persona" });
+        RuleFor(a => a.AttributeId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "AttributeId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "AttributeId", "0" });
+
+        RuleFor(a => a.RoleId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "RoleId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "RoleId", "0" });
 
         RuleFor(a => a.Title)
             .NotEmpty()
@@ -83,7 +93,7 @@ public class RegisterParametersDtoValidator : AbstractValidator<RegisterParamete
             .NotNull()
             .WithMessage("NotNull")
             .WithState(new string[] { "Title" })
-            .MaxLenght(50)
+            .MaxLength(50)
             .WithMessage("MaxLength")
             .WithState(new string[] { "Title", "50" });
 
@@ -94,7 +104,7 @@ public class RegisterParametersDtoValidator : AbstractValidator<RegisterParamete
             .NotNull()
             .WithMessage("NotNull")
             .WithState(new string[] { "Description" })
-            .MaxLenght(50)
+            .MaxLength(50)
             .WithMessage("MaxLength")
             .WithState(new string[] { "Description", "100" });
     }
@@ -105,15 +115,28 @@ public class AssignLawyerParametersDtoValidator : AbstractValidator<AssignLawyer
     public AssignLawyerParametersDtoValidator()
     {
         RuleFor(a => a.UserId)
-            .NotEmpty()
-            .WithMessage("NotEmpty")
-            .WithState(new string[] { "UserId" })
             .NotNull()
             .WithMessage("NotNull")
             .WithState(new string[] { "UserId" })
             .GreaterThanOrEqualTo(0)
             .WithMessage("MaxLength")
             .WithState(new string[] { "UserId", "0" });
+
+        RuleFor(a => a.AttributeId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "AttributeId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "AttributeId", "0" });
+
+        RuleFor(a => a.RoleId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "RoleId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "RoleId", "0" });
 
         RuleFor(a => a.CaseId)
             .NotEmpty()
@@ -123,14 +146,6 @@ public class AssignLawyerParametersDtoValidator : AbstractValidator<AssignLawyer
             .WithMessage("NotNull")
             .WithState(new string[] { "CaseId" });
 
-        RuleFor(a => a.Persona)
-           .NotEmpty()
-           .WithMessage("NotEmpty")
-           .WithState(new string[] { "Persona" })
-           .NotNull()
-           .WithMessage("NotNull")
-           .WithState(new string[] { "Persona" });
-
         RuleFor(a => a.LawyerId)
             .NotEmpty()
             .WithMessage("NotEmpty")
@@ -138,5 +153,257 @@ public class AssignLawyerParametersDtoValidator : AbstractValidator<AssignLawyer
             .NotNull()
             .WithMessage("NotNull")
             .WithState(new string[] { "LawyerId" });
+    }
+}
+
+public class AssignCustomerParametersDtoValidator : AbstractValidator<AssignCustomerParametersDto>
+{
+    public AssignCustomerParametersDtoValidator()
+    {
+        RuleFor(a => a.UserId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "UserId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "UserId", "0" });
+
+        RuleFor(a => a.AttributeId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "AttributeId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "AttributeId", "0" });
+
+        RuleFor(a => a.RoleId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "RoleId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "RoleId", "0" });
+
+        RuleFor(a => a.CaseId)
+            .NotEmpty()
+            .WithMessage("NotEmpty")
+            .WithState(new string[] { "CaseId" })
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "CaseId" });
+
+        RuleFor(a => a.CustomerId)
+            .NotEmpty()
+            .WithMessage("NotEmpty")
+            .WithState(new string[] { "CustomerId" })
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "CustomerId" });
+    }
+}
+
+public class GrantPermissionsParametersDtoValidator : AbstractValidator<GrantPermissionsParametersDto>
+{
+    public GrantPermissionsParametersDtoValidator()
+    {
+        RuleFor(a => a.UserId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "UserId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "UserId", "0" });
+
+        RuleFor(a => a.AttributeId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "AttributeId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "AttributeId", "0" });
+
+        RuleFor(a => a.RoleId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "RoleId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "RoleId", "0" });
+
+        RuleFor(a => a.CaseId)
+            .NotEmpty()
+            .WithMessage("NotEmpty")
+            .WithState(new string[] { "CaseId" })
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "CaseId" });
+
+        RuleFor(x => x.Permissions)
+            .Custom(async (x, context, cancellationToken) =>
+            {
+                if (x == null)
+                    return;
+
+                foreach (var (item, index) in x.Select((item, index) => (item, index)))
+                {
+                    var identifier = index.ToString();
+
+                    if (item == null)
+                    {
+                        context.AddFailure(new ValidationFailure(identifier, "NotNull", (Identifier: identifier, Parameters: new string[] { "Item" })));
+
+                        continue;
+                    }
+
+                    var validationResult = await new PermissionPropertiesValidator(identifier).ValidateAsync(item, cancellationToken);
+
+                    foreach (var error in validationResult.Errors)
+                    {
+                        context.AddFailure(error);
+                    }
+                }
+            });
+    }
+
+    protected class PermissionPropertiesValidator : AbstractValidator<GrantPermissionsParametersDto.PermissionProperties>
+    {
+        public PermissionPropertiesValidator(string identifier)
+        {
+            RuleFor(a => a.UserId)
+                .NotNull()
+                .WithMessage("NotNull")
+                .WithState((Identifier: identifier, Parameters: new string[] { "UserId" }))
+                .GreaterThan(0)
+                .WithMessage("GreaterThan")
+                .WithState((Identifier: identifier, Parameters: new string[] { "UserId", "0" }));
+
+            RuleFor(a => a.AttributeId)
+                .NotNull()
+                .WithMessage("NotNull")
+                .WithState((Identifier: identifier, Parameters: new string[] { "AttributeId" }))
+                .GreaterThan(0)
+                .WithMessage("GreaterThan")
+                .WithState((Identifier: identifier, Parameters: new string[] { "AttributeId", "0" }));
+
+            RuleFor(a => a.RoleId)
+                .NotNull()
+                .WithMessage("NotNull")
+                .WithState((Identifier: identifier, Parameters: new string[] { "RoleId" }))
+                .GreaterThan(0)
+                .WithMessage("GreaterThan")
+                .WithState((Identifier: identifier, Parameters: new string[] { "RoleId", "0" }));
+
+            RuleFor(a => a.PermissionId)
+                .NotNull()
+                .WithMessage("NotNull")
+                .WithState((Identifier: identifier, Parameters: new string[] { "PermissionId" }))
+                .GreaterThan(0)
+                .WithMessage("GreaterThan")
+                .WithState((Identifier: identifier, Parameters: new string[] { "PermissionId", "0" }));
+
+        }
+    }
+}
+
+public class RevokePermissionsParametersDtoValidator : AbstractValidator<RevokePermissionsParametersDto>
+{
+    public RevokePermissionsParametersDtoValidator()
+    {
+        RuleFor(a => a.UserId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "UserId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "UserId", "0" });
+
+        RuleFor(a => a.AttributeId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "AttributeId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "AttributeId", "0" });
+
+        RuleFor(a => a.RoleId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "RoleId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "RoleId", "0" });
+
+        RuleFor(a => a.CaseId)
+            .NotEmpty()
+            .WithMessage("NotEmpty")
+            .WithState(new string[] { "CaseId" })
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "CaseId" });
+
+        RuleFor(x => x.Permissions)
+            .Custom(async (x, context, cancellationToken) =>
+            {
+                if (x == null)
+                    return;
+
+                foreach (var (item, index) in x.Select((item, index) => (item, index)))
+                {
+                    var identifier = index.ToString();
+
+                    if (item == null)
+                    {
+                        context.AddFailure(new ValidationFailure(identifier, "NotNull", (Identifier: identifier, Parameters: new string[] { "Item" })));
+
+                        continue;
+                    }
+
+                    var validationResult = await new PermissionPropertiesValidator(identifier).ValidateAsync(item, cancellationToken);
+
+                    foreach (var error in validationResult.Errors)
+                    {
+                        context.AddFailure(error);
+                    }
+                }
+            });
+    }
+
+    protected class PermissionPropertiesValidator : AbstractValidator<RevokePermissionsParametersDto.PermissionProperties>
+    {
+        public PermissionPropertiesValidator(string identifier)
+        {
+            RuleFor(a => a.UserId)
+                .NotNull()
+                .WithMessage("NotNull")
+                .WithState((Identifier: identifier, Parameters: new string[] { "UserId" }))
+                .GreaterThan(0)
+                .WithMessage("GreaterThan")
+                .WithState((Identifier: identifier, Parameters: new string[] { "UserId", "0" }));
+
+            RuleFor(a => a.AttributeId)
+                .NotNull()
+                .WithMessage("NotNull")
+                .WithState((Identifier: identifier, Parameters: new string[] { "AttributeId" }))
+                .GreaterThan(0)
+                .WithMessage("GreaterThan")
+                .WithState((Identifier: identifier, Parameters: new string[] { "AttributeId", "0" }));
+
+            RuleFor(a => a.RoleId)
+                .NotNull()
+                .WithMessage("NotNull")
+                .WithState((Identifier: identifier, Parameters: new string[] { "RoleId" }))
+                .GreaterThan(0)
+                .WithMessage("GreaterThan")
+                .WithState((Identifier: identifier, Parameters: new string[] { "RoleId", "0" }));
+
+            RuleFor(a => a.PermissionId)
+                .NotNull()
+                .WithMessage("NotNull")
+                .WithState((Identifier: identifier, Parameters: new string[] { "PermissionId" }))
+                .GreaterThan(0)
+                .WithMessage("GreaterThan")
+                .WithState((Identifier: identifier, Parameters: new string[] { "PermissionId", "0" }));
+
+        }
     }
 }

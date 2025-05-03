@@ -234,7 +234,7 @@ public class ConstructorSpecification
         }
     }
 
-    public bool TryGetResponse(HttpContext context, out Base.Response? response)
+    public bool TryGetResponse(IServiceProvider serviceProvider, out Base.Response? response)
     {
         response = default;
 
@@ -246,7 +246,7 @@ public class ConstructorSpecification
 
         if (_warnings != null && _warnings.Any())
         {
-            var warningGeneratorService = context.RequestServices.GetRequiredService<IWarningGeneratorService>();
+            var warningGeneratorService = serviceProvider.GetRequiredService<IWarningGeneratorService>();
 
             foreach (var warning in _warnings)
                 warningGeneratorService.CreateWarning(warning);
@@ -254,7 +254,7 @@ public class ConstructorSpecification
 
         if (IsSuccess)
         {
-            var successGeneratorService = context.RequestServices.GetRequiredService<ISuccessGeneratorService>();
+            var successGeneratorService = serviceProvider.GetRequiredService<ISuccessGeneratorService>();
 
             if (constructor is not Success.Constructor parsedConstructor)
                 return false;
@@ -266,7 +266,7 @@ public class ConstructorSpecification
 
         if (IsError)
         {
-            var errorGeneratorService = context.RequestServices.GetRequiredService<IErrorGeneratorService>();
+            var errorGeneratorService = serviceProvider.GetRequiredService<IErrorGeneratorService>();
 
             if (constructor is not Error.Constructor parsedConstructor)
                 return false;
@@ -410,12 +410,31 @@ public class Result<TValue>
         return true;
     }
 
+    public Base.Response BuildResponse(IServiceProvider serviceProvider)
+    {
+        if (!TryGetConstructorSpecification(out var constructorSpecification))
+        {
+            var errorGeneratorService = serviceProvider.GetRequiredService<IErrorGeneratorService>();
+
+            return errorGeneratorService.CreateError(new Exception("Failed to create the response. ConstructorSpecification not found."));
+        }
+
+        if (!constructorSpecification.TryGetResponse(serviceProvider, out var response))
+        {
+            var errorGeneratorService = serviceProvider.GetRequiredService<IErrorGeneratorService>();
+
+            return errorGeneratorService.CreateError(new Exception("Failed to create the response. Response not found."));
+        }
+
+        return response!;
+    }
+
     public ActionResult HandleActionResult(ControllerBase controller)
     {
         if (!TryGetConstructorSpecification(out var constructorSpecification))
             return controller.StatusCode(500, new());
 
-        if (!constructorSpecification.TryGetResponse(controller.HttpContext, out var response))
+        if (!constructorSpecification.TryGetResponse(controller.HttpContext.RequestServices, out var response))
             return controller.StatusCode(500, new());
 
         if (!constructorSpecification.TryGetContructor(out var contructor))
@@ -583,6 +602,25 @@ public class ResultNullable<TValue>
         return true;
     }
 
+    public Base.Response BuildResponse(IServiceProvider serviceProvider)
+    {
+        if (!TryGetConstructorSpecification(out var constructorSpecification))
+        {
+            var errorGeneratorService = serviceProvider.GetRequiredService<IErrorGeneratorService>();
+
+            return errorGeneratorService.CreateError(new Exception("Failed to create the response. ConstructorSpecification not found."));
+        }
+
+        if (!constructorSpecification.TryGetResponse(serviceProvider, out var response))
+        {
+            var errorGeneratorService = serviceProvider.GetRequiredService<IErrorGeneratorService>();
+
+            return errorGeneratorService.CreateError(new Exception("Failed to create the response. Response not found."));
+        }
+
+        return response!;
+    }
+
     public TValue? Value => ValuesExtensions.GetValue(() =>
     {
         if (_isFinished)
@@ -596,7 +634,7 @@ public class ResultNullable<TValue>
         if (!TryGetConstructorSpecification(out var constructorSpecification))
             return controller.StatusCode(500, new());
 
-        if (!constructorSpecification.TryGetResponse(controller.HttpContext, out var response))
+        if (!constructorSpecification.TryGetResponse(controller.HttpContext.RequestServices, out var response))
             return controller.StatusCode(500, new());
 
         if (!constructorSpecification.TryGetContructor(out var contructor))
@@ -746,12 +784,31 @@ public class Result
         return true;
     }
 
+    public Base.Response BuildResponse(IServiceProvider serviceProvider)
+    {
+        if (!TryGetConstructorSpecification(out var constructorSpecification))
+        {
+            var errorGeneratorService = serviceProvider.GetRequiredService<IErrorGeneratorService>();
+
+            return errorGeneratorService.CreateError(new Exception("Failed to create the response. ConstructorSpecification not found."));
+        }
+
+        if (!constructorSpecification.TryGetResponse(serviceProvider, out var response))
+        {
+            var errorGeneratorService = serviceProvider.GetRequiredService<IErrorGeneratorService>();
+
+            return errorGeneratorService.CreateError(new Exception("Failed to create the response. Response not found."));
+        }
+
+        return response!;
+    }
+
     public ActionResult HandleActionResult(ControllerBase controller)
     {
         if (!TryGetConstructorSpecification(out var constructorSpecification))
             return controller.StatusCode(500, new());
 
-        if (!constructorSpecification.TryGetResponse(controller.HttpContext, out var response))
+        if (!constructorSpecification.TryGetResponse(controller.HttpContext.RequestServices, out var response))
             return controller.StatusCode(500, new());
 
         if (!constructorSpecification.TryGetContructor(out var contructor))
