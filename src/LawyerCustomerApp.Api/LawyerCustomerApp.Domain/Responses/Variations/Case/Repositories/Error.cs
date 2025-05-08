@@ -44,6 +44,14 @@ public class AssignCustomerDeniedError : Constructor
     public override int Status => 400;
 }
 
+public class EditDeniedError : Constructor
+{
+    public override string Identity => "EditDeniedError";
+    public override Type Resource => typeof(Error);
+
+    public override int Status => 400;
+}
+
 public class GrantPermissionDeniedError : Constructor
 {
     public override string Identity => "GrantPermissionDeniedError";

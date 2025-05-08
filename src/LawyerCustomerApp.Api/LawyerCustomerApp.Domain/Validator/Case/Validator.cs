@@ -12,7 +12,7 @@ public class SearchParametersDtoValidator : AbstractValidator<SearchParametersDt
             .WithMessage("NotNull")
             .WithState(new string[] { "UserId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "UserId", "0" });
 
         RuleFor(a => a.AttributeId)
@@ -20,7 +20,7 @@ public class SearchParametersDtoValidator : AbstractValidator<SearchParametersDt
             .WithMessage("NotNull")
             .WithState(new string[] { "AttributeId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "AttributeId", "0" });
 
         RuleFor(a => a.RoleId)
@@ -28,7 +28,7 @@ public class SearchParametersDtoValidator : AbstractValidator<SearchParametersDt
             .WithMessage("NotNull")
             .WithState(new string[] { "RoleId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "RoleId", "0" });
 
         RuleFor(a => a.Query)
@@ -58,6 +58,82 @@ public class SearchParametersDtoValidator : AbstractValidator<SearchParametersDt
     }
 }
 
+public class CountParametersDtoValidator : AbstractValidator<CountParametersDto>
+{
+    public CountParametersDtoValidator()
+    {
+        RuleFor(a => a.UserId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "UserId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("GreaterThanOrEqualTo")
+            .WithState(new string[] { "UserId", "0" });
+
+        RuleFor(a => a.AttributeId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "AttributeId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("GreaterThanOrEqualTo")
+            .WithState(new string[] { "AttributeId", "0" });
+
+        RuleFor(a => a.RoleId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "RoleId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("GreaterThanOrEqualTo")
+            .WithState(new string[] { "RoleId", "0" });
+
+        RuleFor(a => a.Query)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "Title" })
+            .MaxLength(50)
+            .WithMessage("MaxLength")
+            .WithState(new string[] { "Title", "100" });
+    }
+}
+
+public class DetailsParametersDtoValidator : AbstractValidator<DetailsParametersDto>
+{
+    public DetailsParametersDtoValidator()
+    {
+        RuleFor(a => a.UserId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "UserId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("GreaterThanOrEqualTo")
+            .WithState(new string[] { "UserId", "0" });
+
+        RuleFor(a => a.CaseId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "CaseId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("GreaterThanOrEqualTo")
+            .WithState(new string[] { "CaseId", "0" });
+
+        RuleFor(a => a.AttributeId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "AttributeId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("GreaterThanOrEqualTo")
+            .WithState(new string[] { "AttributeId", "0" });
+
+        RuleFor(a => a.RoleId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "RoleId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("GreaterThanOrEqualTo")
+            .WithState(new string[] { "RoleId", "0" });
+    }
+}
+
 public class RegisterParametersDtoValidator : AbstractValidator<RegisterParametersDto>
 {
     public RegisterParametersDtoValidator()
@@ -67,7 +143,7 @@ public class RegisterParametersDtoValidator : AbstractValidator<RegisterParamete
             .WithMessage("NotNull")
             .WithState(new string[] { "UserId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "UserId", "0" });
 
         RuleFor(a => a.AttributeId)
@@ -75,7 +151,7 @@ public class RegisterParametersDtoValidator : AbstractValidator<RegisterParamete
             .WithMessage("NotNull")
             .WithState(new string[] { "AttributeId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "AttributeId", "0" });
 
         RuleFor(a => a.RoleId)
@@ -83,7 +159,7 @@ public class RegisterParametersDtoValidator : AbstractValidator<RegisterParamete
             .WithMessage("NotNull")
             .WithState(new string[] { "RoleId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "RoleId", "0" });
 
         RuleFor(a => a.Title)
@@ -119,7 +195,7 @@ public class AssignLawyerParametersDtoValidator : AbstractValidator<AssignLawyer
             .WithMessage("NotNull")
             .WithState(new string[] { "UserId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "UserId", "0" });
 
         RuleFor(a => a.AttributeId)
@@ -127,7 +203,7 @@ public class AssignLawyerParametersDtoValidator : AbstractValidator<AssignLawyer
             .WithMessage("NotNull")
             .WithState(new string[] { "AttributeId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "AttributeId", "0" });
 
         RuleFor(a => a.RoleId)
@@ -135,7 +211,7 @@ public class AssignLawyerParametersDtoValidator : AbstractValidator<AssignLawyer
             .WithMessage("NotNull")
             .WithState(new string[] { "RoleId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "RoleId", "0" });
 
         RuleFor(a => a.CaseId)
@@ -165,7 +241,7 @@ public class AssignCustomerParametersDtoValidator : AbstractValidator<AssignCust
             .WithMessage("NotNull")
             .WithState(new string[] { "UserId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "UserId", "0" });
 
         RuleFor(a => a.AttributeId)
@@ -173,7 +249,7 @@ public class AssignCustomerParametersDtoValidator : AbstractValidator<AssignCust
             .WithMessage("NotNull")
             .WithState(new string[] { "AttributeId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "AttributeId", "0" });
 
         RuleFor(a => a.RoleId)
@@ -181,7 +257,7 @@ public class AssignCustomerParametersDtoValidator : AbstractValidator<AssignCust
             .WithMessage("NotNull")
             .WithState(new string[] { "RoleId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "RoleId", "0" });
 
         RuleFor(a => a.CaseId)
@@ -202,6 +278,36 @@ public class AssignCustomerParametersDtoValidator : AbstractValidator<AssignCust
     }
 }
 
+public class EditParametersDtoValidator : AbstractValidator<EditParametersDto>
+{
+    public EditParametersDtoValidator()
+    {
+        RuleFor(a => a.RelatedCaseId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "RelatedCaseId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("GreaterThanOrEqualTo")
+            .WithState(new string[] { "RelatedCaseId", "0" });
+
+        RuleFor(a => a.UserId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "UserId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("GreaterThanOrEqualTo")
+            .WithState(new string[] { "UserId", "0" });
+
+        RuleFor(a => a.RoleId)
+            .NotNull()
+            .WithMessage("NotNull")
+            .WithState(new string[] { "RoleId" })
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("GreaterThanOrEqualTo")
+            .WithState(new string[] { "RoleId", "0" });
+    }
+}
+
 public class GrantPermissionsParametersDtoValidator : AbstractValidator<GrantPermissionsParametersDto>
 {
     public GrantPermissionsParametersDtoValidator()
@@ -211,7 +317,7 @@ public class GrantPermissionsParametersDtoValidator : AbstractValidator<GrantPer
             .WithMessage("NotNull")
             .WithState(new string[] { "UserId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "UserId", "0" });
 
         RuleFor(a => a.AttributeId)
@@ -219,7 +325,7 @@ public class GrantPermissionsParametersDtoValidator : AbstractValidator<GrantPer
             .WithMessage("NotNull")
             .WithState(new string[] { "AttributeId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "AttributeId", "0" });
 
         RuleFor(a => a.RoleId)
@@ -227,7 +333,7 @@ public class GrantPermissionsParametersDtoValidator : AbstractValidator<GrantPer
             .WithMessage("NotNull")
             .WithState(new string[] { "RoleId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "RoleId", "0" });
 
         RuleFor(a => a.CaseId)
@@ -273,32 +379,32 @@ public class GrantPermissionsParametersDtoValidator : AbstractValidator<GrantPer
                 .NotNull()
                 .WithMessage("NotNull")
                 .WithState((Identifier: identifier, Parameters: new string[] { "UserId" }))
-                .GreaterThan(0)
-                .WithMessage("GreaterThan")
+                .GreaterThanOrEqualTo(0)
+                .WithMessage("GreaterThanOrEqualTo")
                 .WithState((Identifier: identifier, Parameters: new string[] { "UserId", "0" }));
 
             RuleFor(a => a.AttributeId)
                 .NotNull()
                 .WithMessage("NotNull")
                 .WithState((Identifier: identifier, Parameters: new string[] { "AttributeId" }))
-                .GreaterThan(0)
-                .WithMessage("GreaterThan")
+                .GreaterThanOrEqualTo(0)
+                .WithMessage("GreaterThanOrEqualTo")
                 .WithState((Identifier: identifier, Parameters: new string[] { "AttributeId", "0" }));
 
             RuleFor(a => a.RoleId)
                 .NotNull()
                 .WithMessage("NotNull")
                 .WithState((Identifier: identifier, Parameters: new string[] { "RoleId" }))
-                .GreaterThan(0)
-                .WithMessage("GreaterThan")
+                .GreaterThanOrEqualTo(0)
+                .WithMessage("GreaterThanOrEqualTo")
                 .WithState((Identifier: identifier, Parameters: new string[] { "RoleId", "0" }));
 
             RuleFor(a => a.PermissionId)
                 .NotNull()
                 .WithMessage("NotNull")
                 .WithState((Identifier: identifier, Parameters: new string[] { "PermissionId" }))
-                .GreaterThan(0)
-                .WithMessage("GreaterThan")
+                .GreaterThanOrEqualTo(0)
+                .WithMessage("GreaterThanOrEqualTo")
                 .WithState((Identifier: identifier, Parameters: new string[] { "PermissionId", "0" }));
 
         }
@@ -314,7 +420,7 @@ public class RevokePermissionsParametersDtoValidator : AbstractValidator<RevokeP
             .WithMessage("NotNull")
             .WithState(new string[] { "UserId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "UserId", "0" });
 
         RuleFor(a => a.AttributeId)
@@ -322,7 +428,7 @@ public class RevokePermissionsParametersDtoValidator : AbstractValidator<RevokeP
             .WithMessage("NotNull")
             .WithState(new string[] { "AttributeId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "AttributeId", "0" });
 
         RuleFor(a => a.RoleId)
@@ -330,7 +436,7 @@ public class RevokePermissionsParametersDtoValidator : AbstractValidator<RevokeP
             .WithMessage("NotNull")
             .WithState(new string[] { "RoleId" })
             .GreaterThanOrEqualTo(0)
-            .WithMessage("MaxLength")
+            .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "RoleId", "0" });
 
         RuleFor(a => a.CaseId)
@@ -376,32 +482,32 @@ public class RevokePermissionsParametersDtoValidator : AbstractValidator<RevokeP
                 .NotNull()
                 .WithMessage("NotNull")
                 .WithState((Identifier: identifier, Parameters: new string[] { "UserId" }))
-                .GreaterThan(0)
-                .WithMessage("GreaterThan")
+                .GreaterThanOrEqualTo(0)
+                .WithMessage("GreaterThanOrEqualTo")
                 .WithState((Identifier: identifier, Parameters: new string[] { "UserId", "0" }));
 
             RuleFor(a => a.AttributeId)
                 .NotNull()
                 .WithMessage("NotNull")
                 .WithState((Identifier: identifier, Parameters: new string[] { "AttributeId" }))
-                .GreaterThan(0)
-                .WithMessage("GreaterThan")
+                .GreaterThanOrEqualTo(0)
+                .WithMessage("GreaterThanOrEqualTo")
                 .WithState((Identifier: identifier, Parameters: new string[] { "AttributeId", "0" }));
 
             RuleFor(a => a.RoleId)
                 .NotNull()
                 .WithMessage("NotNull")
                 .WithState((Identifier: identifier, Parameters: new string[] { "RoleId" }))
-                .GreaterThan(0)
-                .WithMessage("GreaterThan")
+                .GreaterThanOrEqualTo(0)
+                .WithMessage("GreaterThanOrEqualTo")
                 .WithState((Identifier: identifier, Parameters: new string[] { "RoleId", "0" }));
 
             RuleFor(a => a.PermissionId)
                 .NotNull()
                 .WithMessage("NotNull")
                 .WithState((Identifier: identifier, Parameters: new string[] { "PermissionId" }))
-                .GreaterThan(0)
-                .WithMessage("GreaterThan")
+                .GreaterThanOrEqualTo(0)
+                .WithMessage("GreaterThanOrEqualTo")
                 .WithState((Identifier: identifier, Parameters: new string[] { "PermissionId", "0" }));
 
         }

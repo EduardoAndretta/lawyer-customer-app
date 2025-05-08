@@ -1,0 +1,1 @@
+﻿namespace LawyerCustomerApp.Domain.Models.Common;

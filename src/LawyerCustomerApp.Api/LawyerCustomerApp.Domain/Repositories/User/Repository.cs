@@ -115,11 +115,6 @@ internal class Repository : IRepository
         {
             // [Permissions Queries]
 
-            var information = new SearchInformation
-            {
-                Items = new List<SearchInformation.ItemProperties>(),
-            };
-
             // [Check Permission Objects Permissions]
 
             const string queryPermissions = @"
@@ -686,8 +681,10 @@ WHERE
         ))
     )
 
-ORDER BY [C].[id] DESC
+ORDER BY [U].[id] DESC
 LIMIT @Limit OFFSET @Offset;";
+
+            SearchInformation information;
 
             using (var multiple = await connection.Connection.QueryMultipleAsync(
                 new CommandDefinition(
@@ -698,7 +695,7 @@ LIMIT @Limit OFFSET @Offset;";
                     commandTimeout:    TimeSpan.FromHours(1).Milliseconds
                     )))
             {
-                information = information with
+                information = new SearchInformation
                 {
                     Items = await multiple.ReadAsync<SearchInformation.ItemProperties>()
                 };
@@ -708,6 +705,942 @@ LIMIT @Limit OFFSET @Offset;";
         });
 
         return resultConstructor.Build<SearchInformation>(information);
+    }
+
+    public async Task<Result<CountInformation>> CountAsync(CountParameters parameters, Contextualizer contextualizer)
+    {
+        var resultConstructor = new ResultConstructor();
+
+        var sqliteConnectionString = _configuration.GetConnectionString("Sqlite");
+
+        if (string.IsNullOrWhiteSpace(sqliteConnectionString))
+        {
+            resultConstructor.SetConstructor(new NotFoundDatabaseConnectionStringError());
+
+            return resultConstructor.Build<CountInformation>();
+        }
+
+        _databaseService.AppendConnectionStringWithIdentifier("local-sqlite", sqliteConnectionString, ProviderType.Sqlite);
+
+        var connection = await _databaseService.GetConnection("local-sqlite", ProviderType.Sqlite);
+
+        contextualizer.AssignContextualizedConnection(connection);
+
+        // [Principal Object Validations]
+
+        // [User Id]
+        var userIdResult = await ValidateUserId(
+            parameters.UserId,
+            contextualizer);
+
+        if (userIdResult.IsFinished)
+            return resultConstructor.Build<CountInformation>().Incorporate(userIdResult);
+
+        // [Attribute Id]
+        var attributeIdResult = await ValidateAttributeId(
+            parameters.AttributeId,
+            contextualizer);
+
+        if (attributeIdResult.IsFinished)
+            return resultConstructor.Build<CountInformation>().Incorporate(attributeIdResult);
+
+        // [Role Id]
+        var roleIdResult = await ValidateRoleId(
+            parameters.RoleId,
+            contextualizer);
+
+        if (roleIdResult.IsFinished)
+            return resultConstructor.Build<CountInformation>().Incorporate(roleIdResult);
+
+        // [Attribute Account]
+        var attributeAccountResult = await ValidateAttributeAccount(
+            parameters.UserId,
+            parameters.AttributeId,
+            contextualizer);
+
+        if (attributeAccountResult.IsFinished)
+            return resultConstructor.Build<CountInformation>().Incorporate(attributeAccountResult);
+
+        var permission = new
+        {
+            // [Related to RELATIONSHIP WITH (USER OR ROLE) specific permission assigned]
+            
+            ViewUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_USER, contextualizer),
+
+            // [Related to USER or ROLE permission]
+
+            ViewPublicUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_USER, contextualizer),
+            ViewOwnUserPermissionId    = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_USER, contextualizer),
+
+            // [Related to SUPER USER or ADMIN permission]
+
+            ViewAnyUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_USER, contextualizer)
+        };
+
+        var information = await ValuesExtensions.GetValue(async () =>
+        {
+            // [Permissions Queries]
+
+            // [Check Permission Objects Permissions]
+
+            const string queryPermissions = @"
+SELECT
+
+/* ---------------------------------------------- [VIEW_OWN_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_OWN_USER]
+
+    (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                  AND
+            [PGU].[permission_id] = @ViewOwnUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                  AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_USER]
+
+    (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewOwnUserPermissionId AND
+            [PG].[role_id]       = @RoleId                  AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewOwnUserPermission]
+
+/* ---------------------------------------------- [VIEW_ANY_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_USER]
+
+    (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                  AND
+            [PGU].[permission_id] = @ViewAnyUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                  AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_USER]
+
+    (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewAnyUserPermissionId AND
+            [PG].[role_id]       = @RoleId                  AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewAnyUserPermission]
+
+/* ---------------------------------------------- [VIEW_PUBLIC_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_USER]
+
+    (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
+        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
+        WHERE 
+            [PGU_PUB].[user_id]       = @UserId                     AND
+            [PGU_PUB].[permission_id] = @ViewPublicUserPermissionId AND
+            [PGU_PUB].[role_id]       = @RoleId                     AND
+            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_USER]
+
+    (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG_PUB]
+        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
+        WHERE 
+            [PG_PUB].[permission_id] = @ViewPublicUserPermissionId AND
+            [PG_PUB].[role_id]       = @RoleId                     AND
+            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewPublicUserPermission]";
+
+            var queryPermissionsParameters = new 
+            { 
+                ViewOwnUserPermissionId    = permission.ViewOwnUserPermissionId,               
+                ViewPublicUserPermissionId = permission.ViewPublicUserPermissionId,               
+                ViewAnyUserPermissionId    = permission.ViewAnyUserPermissionId,
+
+                AttributeId = parameters.UserId,
+                UserId      = parameters.UserId,
+                RoleId      = parameters.RoleId
+            };
+
+            var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Search>(queryPermissions, queryPermissionsParameters);
+
+            // [Principal Query]
+
+            var queryParameters = new
+            {
+                 // [NOT ACL]
+
+                 HasViewOwnUserPermission    = permissionsResult.HasViewOwnUserPermission,
+                 HasViewAnyUserPermission    = permissionsResult.HasViewAnyUserPermission,
+                 HasViewPublicUserPermission = permissionsResult.HasViewPublicUserPermission,
+                 
+                 // [ACL]
+                 
+                 ViewUserPermissionId = permission.ViewUserPermissionId,
+                                                  
+                 AttributeId  = parameters.AttributeId,
+                 UserId       = parameters.UserId,
+                 RoleId       = parameters.RoleId
+            };
+
+            var queryText = $@"
+SELECT 
+    COUNT(*)
+FROM [users] [U]
+LEFT JOIN [lawyers] [L] ON [L].[user_id] = [U].[id]
+LEFT JOIN [customers] [C] ON [C].[user_id] = [U].[id]
+
+WHERE
+    (@NameFilter IS NULL OR [U].[name] LIKE @NameFilter)
+    AND (
+
+        -- [Block 1: Has Specific or Global Grant for VIEW_ANY_USER | VIEW_USER]
+
+        ([U].[id] = @UserId AND @HasViewOwnUserPermission = 1)
+
+        OR
+
+        (@ViewUserPermissionId IS NOT NULL AND EXISTS (
+            SELECT 1
+            FROM [permission_grants_relationship] [PGR]
+            LEFT JOIN [attributes] [A_PGR] ON [A_PGR].[id] = [PGR].[attribute_id]
+            WHERE
+                [PGR].[related_user_id] = [U].[id]            AND
+                [PGR].[user_id]       = @UserId               AND
+                [PGR].[permission_id] = @ViewUserPermissionId AND
+                [PGR].[role_id]       = @RoleId               AND
+                ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
+        ))
+        OR
+
+        @HasViewAnyUserPermission = 1
+
+        OR
+
+        -- [Block 2: User is Public AND User Has Public View Grant]
+
+        ([U].[private] = 0 AND (
+            @HasViewPublicUserPermission = 1
+            OR @HasViewAnyUserPermission = 1
+        ))
+    )";
+
+            return new CountInformation()
+            {
+                Count = await connection.Connection.QueryFirstAsync<long>(new CommandDefinition(
+                    commandText:       queryText,
+                    parameters:        queryParameters,
+                    transaction:       connection.Transaction,
+                    cancellationToken: contextualizer.CancellationToken,
+                    commandTimeout:    TimeSpan.FromHours(1).Milliseconds
+                    ))
+            };
+        });
+
+        return resultConstructor.Build<CountInformation>(information);
+    }
+
+    public async Task<Result<DetailsInformation>> DetailsAsync(DetailsParameters parameters, Contextualizer contextualizer)
+    {
+        var resultConstructor = new ResultConstructor();
+
+        var sqliteConnectionString = _configuration.GetConnectionString("Sqlite");
+
+        if (string.IsNullOrWhiteSpace(sqliteConnectionString))
+        {
+            resultConstructor.SetConstructor(new NotFoundDatabaseConnectionStringError());
+
+            return resultConstructor.Build<DetailsInformation>();
+        }
+
+        _databaseService.AppendConnectionStringWithIdentifier("local-sqlite", sqliteConnectionString, ProviderType.Sqlite);
+
+        var connection = await _databaseService.GetConnection("local-sqlite", ProviderType.Sqlite);
+
+        contextualizer.AssignContextualizedConnection(connection);
+
+        // [Principal Object Validations]
+
+        // [User Id]
+        var userIdResult = await ValidateUserId(
+            parameters.UserId,
+            contextualizer);
+
+        if (userIdResult.IsFinished)
+            return resultConstructor.Build<DetailsInformation>().Incorporate(userIdResult);
+
+        // [Attribute Id]
+        var attributeIdResult = await ValidateAttributeId(
+            parameters.AttributeId,
+            contextualizer);
+
+        if (attributeIdResult.IsFinished)
+            return resultConstructor.Build<DetailsInformation>().Incorporate(attributeIdResult);
+
+        // [Role Id]
+        var roleIdResult = await ValidateRoleId(
+            parameters.RoleId,
+            contextualizer);
+
+        if (roleIdResult.IsFinished)
+            return resultConstructor.Build<DetailsInformation>().Incorporate(roleIdResult);
+
+        // [Attribute Account]
+        var attributeAccountResult = await ValidateAttributeAccount(
+            parameters.UserId,
+            parameters.AttributeId,
+            contextualizer);
+
+        if (attributeAccountResult.IsFinished)
+            return resultConstructor.Build<DetailsInformation>().Incorporate(attributeAccountResult);
+
+        var permission = new
+        {
+            // [Related to RELATIONSHIP WITH (USER OR ROLE) specific permission assigned]
+            
+            ViewUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_USER, contextualizer),
+            ViewLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_LAWYER_ACCOUNT_USER, contextualizer),
+            ViewCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_CUSTOMER_ACCOUNT_USER, contextualizer),
+
+            // [Related to USER or ROLE permission]
+
+            ViewPublicUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_USER, contextualizer),
+            ViewPublicLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_LAWYER_ACCOUNT_USER, contextualizer),
+            ViewPublicCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER, contextualizer),
+            
+            ViewOwnUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_USER, contextualizer),
+            ViewOwnLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_LAWYER_ACCOUNT_USER, contextualizer),
+            ViewOwnCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_CUSTOMER_ACCOUNT_USER, contextualizer), 
+
+            // [Related to SUPER USER or ADMIN permission]
+
+            ViewAnyUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_USER, contextualizer),
+            ViewAnyLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_LAWYER_ACCOUNT_USER, contextualizer),
+            ViewAnyCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_CUSTOMER_ACCOUNT_USER, contextualizer)
+        };
+
+        var information = await ValuesExtensions.GetValue(async () =>
+        {
+            // [Permissions Queries]
+
+            // [Check Permission Objects Permissions]
+
+            const string queryPermissions = @"
+SELECT
+
+/* ---------------------------------------------- [VIEW_OWN_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_OWN_USER]
+
+    (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                  AND
+            [PGU].[permission_id] = @ViewOwnUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                  AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_USER]
+
+    (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewOwnUserPermissionId AND
+            [PG].[role_id]       = @RoleId                  AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewOwnUserPermission],
+
+/* ---------------------------------------------- [VIEW_OWN_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_OWN_LAWYER_ACCOUNT_USER]
+
+    (@ViewOwnLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                               AND
+            [PGU].[permission_id] = @ViewOwnLawyerAccountUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                               AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_LAWYER_ACCOUNT_USER]
+
+    (@ViewOwnLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewOwnLawyerAccountUserPermissionId AND
+            [PG].[role_id]       = @RoleId                               AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewOwnLawyerAccountUserPermission],
+
+/* ---------------------------------------------- [VIEW_OWN_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_OWN_CUSTOMER_ACCOUNT_USER]
+
+    (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                                 AND
+            [PGU].[permission_id] = @ViewOwnCustomerAccountUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                                 AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_CUSTOMER_ACCOUNT_USER]
+
+    (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewOwnCustomerAccountUserPermissionId AND
+            [PG].[role_id]       = @RoleId                                 AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewOwnCustomerAccountUserPermission],
+
+/* ---------------------------------------------- [VIEW_ANY_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_USER]
+
+    (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                  AND
+            [PGU].[permission_id] = @ViewAnyUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                  AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_USER]
+
+    (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewAnyUserPermissionId AND
+            [PG].[role_id]       = @RoleId                  AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewAnyUserPermission],
+
+/* ---------------------------------------------- [VIEW_ANY_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_LAWYER_ACCOUNT_USER]
+
+    (@ViewAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                               AND
+            [PGU].[permission_id] = @ViewAnyLawyerAccountUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                               AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_LAWYER_ACCOUNT_USER]
+
+    (@ViewAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewAnyLawyerAccountUserPermissionId AND
+            [PG].[role_id]       = @RoleId                               AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewAnyLawyerAccountUserPermission],
+
+/* ---------------------------------------------- [VIEW_ANY_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_CUSTOMER_ACCOUNT_USER]
+
+    (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                                 AND
+            [PGU].[permission_id] = @ViewAnyCustomerAccountUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                                 AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_CUSTOMER_ACCOUNT_USER]
+
+    (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewAnyCustomerAccountUserPermissionId AND
+            [PG].[role_id]       = @RoleId                                 AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewAnyCustomerAccountUserPermission],
+
+/* ---------------------------------------------- [VIEW_PUBLIC_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_USER]
+
+    (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
+        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
+        WHERE 
+            [PGU_PUB].[user_id]       = @UserId                     AND
+            [PGU_PUB].[permission_id] = @ViewPublicUserPermissionId AND
+            [PGU_PUB].[role_id]       = @RoleId                     AND
+            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_USER]
+
+    (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG_PUB]
+        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
+        WHERE 
+            [PG_PUB].[permission_id] = @ViewPublicUserPermissionId AND
+            [PG_PUB].[role_id]       = @RoleId                     AND
+            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewPublicUserPermission],
+
+/* ---------------------------------------------- [VIEW_PUBLIC_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_LAWYER_ACCOUNT_USER]
+
+    (@ViewPublicLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
+        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
+        WHERE 
+            [PGU_PUB].[user_id]       = @UserId                                  AND
+            [PGU_PUB].[permission_id] = @ViewPublicLawyerAccountUserPermissionId AND
+            [PGU_PUB].[role_id]       = @RoleId                                  AND
+            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_LAWYER_ACCOUNT_USER]
+
+    (@ViewPublicLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG_PUB]
+        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
+        WHERE 
+            [PG_PUB].[permission_id] = @ViewPublicLawyerAccountUserPermissionId AND
+            [PG_PUB].[role_id]       = @RoleId                                  AND
+            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewPublicLawyerAccountUserPermission],
+
+/* ---------------------------------------------- [VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER]
+
+    (@ViewPublicCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
+        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
+        WHERE 
+            [PGU_PUB].[user_id]       = @UserId                                    AND
+            [PGU_PUB].[permission_id] = @ViewPublicCustomerAccountUserPermissionId AND
+            [PGU_PUB].[role_id]       = @RoleId                                    AND
+            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER]
+
+    (@ViewPublicCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG_PUB]
+        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
+        WHERE 
+            [PG_PUB].[permission_id] = @ViewPublicCustomerAccountUserPermissionId AND
+            [PG_PUB].[role_id]       = @RoleId                                    AND
+            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewPublicCustomerAccountUserPermission]";
+
+            var queryPermissionsParameters = new 
+            { 
+                ViewOwnUserPermissionId                = permission.ViewOwnUserPermissionId,               
+                ViewOwnLawyerAccountUserPermissionId   = permission.ViewOwnLawyerAccountUserPermissionId,            
+                ViewOwnCustomerAccountUserPermissionId = permission.ViewOwnCustomerAccountUserPermissionId,
+
+                ViewPublicUserPermissionId                = permission.ViewPublicUserPermissionId,               
+                ViewPublicLawyerAccountUserPermissionId   = permission.ViewPublicLawyerAccountUserPermissionId,            
+                ViewPublicCustomerAccountUserPermissionId = permission.ViewPublicCustomerAccountUserPermissionId,
+
+                ViewAnyUserPermissionId                = permission.ViewAnyUserPermissionId,
+                ViewAnyLawyerAccountUserPermissionId   = permission.ViewAnyLawyerAccountUserPermissionId,
+                ViewAnyCustomerAccountUserPermissionId = permission.ViewAnyCustomerAccountUserPermissionId,
+
+                AttributeId = parameters.UserId,
+                UserId      = parameters.UserId,
+                RoleId      = parameters.RoleId
+            };
+
+            var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Search>(queryPermissions, queryPermissionsParameters);
+
+            // [Principal Query]
+
+            var queryParameters = new
+            {
+                 // [NOT ACL]
+
+                 HasViewOwnUserPermission                = permissionsResult.HasViewOwnUserPermission,
+                 HasViewOwnLawyerAccountUserPermission   = permissionsResult.HasViewOwnLawyerAccountUserPermission,
+                 HasViewOwnCustomerAccountUserPermission = permissionsResult.HasViewOwnCustomerAccountUserPermission,
+                 
+                 HasViewAnyUserPermission                = permissionsResult.HasViewAnyUserPermission,
+                 HasViewAnyLawyerAccountUserPermission   = permissionsResult.HasViewAnyLawyerAccountUserPermission,
+                 HasViewAnyCustomerAccountUserPermission = permissionsResult.HasViewAnyCustomerAccountUserPermission,
+                 
+                 HasViewPublicUserPermission                = permissionsResult.HasViewPublicUserPermission,
+                 HasViewPublicLawyerAccountUserPermission   = permissionsResult.HasViewPublicLawyerAccountUserPermission,
+                 HasViewPublicCustomerAccountUserPermission = permissionsResult.HasViewPublicCustomerAccountUserPermission,
+                 
+                 // [ACL]
+                 
+                 ViewUserPermissionId                = permission.ViewUserPermissionId,
+                 ViewLawyerAccountUserPermissionId   = permission.ViewUserPermissionId,
+                 ViewCustomerAccountUserPermissionId = permission.ViewUserPermissionId,
+                                                  
+                 AttributeId   = parameters.AttributeId,
+                 UserId        = parameters.UserId,
+                 RelatedUserId = parameters.RelatedUserId,
+                 RoleId        = parameters.RoleId
+            };
+
+            var queryText = $@"
+SELECT
+    [U].[id],
+    [U].[name],
+
+    CASE
+        WHEN
+            (
+                ([U].[private] = 1 AND (
+                    @ViewUserPermissionId IS NOT NULL AND EXISTS (
+                        SELECT 1
+                        FROM [permission_grants_relationship] [PGRu]
+                        LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
+                        WHERE
+                            [PGRu].[related_user_id] = @UserId               AND 
+                            [PGRu].[user_id]         = @ExternalUserId       AND 
+                            [PGRu].[role_id]         = @RoleId               AND 
+                            [PGRu].[permission_id]   = @ViewUserPermissionId AND 
+                            ([PGRu].[attribute_id] IS NULL OR [Au].[id] = @AttributeId)
+                    )
+                    OR @HasViewAnyUserPermission = 1
+                ))
+                OR ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
+            )
+            AND
+            (
+                CASE
+                    WHEN [L].[private] = 1 AND (
+                        @ViewLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
+                            SELECT 1
+                            FROM [permission_grants_relationship] [PGRl]
+                            LEFT JOIN [attributes] [Al] ON [Al].[id] = [PGRl].[attribute_id]
+                            WHERE
+                                [PGRl].[related_user_id] = @UserId                            AND 
+                                [PGRl].[user_id]         = @ExternalUserId                    AND 
+                                [PGRl].[role_id]         = @RoleId                            AND 
+                                [PGRl].[permission_id]   = @ViewLawyerAccountUserPermissionId AND 
+                                ([PGRl].[attribute_id] IS NULL OR [Al].[id] = @AttributeId)
+                        )
+                        OR @HasViewAnyLawyerAccountUserPermission = 1
+                    ) THEN 1
+                    WHEN [L].[private] = 0 AND (
+                        @HasViewPublicLawyerAccountUserPermission = 1
+                        OR @HasViewAnyLawyerAccountUserPermission = 1
+                    ) THEN 1
+                    ELSE 0
+                END = 1
+            )
+        THEN [L].[id]
+        ELSE NULL
+    END AS [LawyerId],
+
+    CASE
+        WHEN
+            (
+                ([U].[private] = 1 AND (
+                    @ViewUserPermissionId IS NOT NULL AND EXISTS (
+                        SELECT 1
+                        FROM [permission_grants_relationship] [PGRu]
+                        LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
+                        WHERE
+                            [PGRu].[related_user_id] = @UserId               AND 
+                            [PGRu].[user_id]         = @ExternalUserId       AND 
+                            [PGRu].[role_id]         = @RoleId               AND 
+                            [PGRu].[permission_id]   = @ViewUserPermissionId AND 
+                            ([PGRu].[attribute_id] IS NULL OR [Au].[id] = @AttributeId)
+                    )
+                    OR @HasViewAnyUserPermission = 1
+                ))
+                OR ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
+            )
+            AND
+            (
+                CASE
+                    WHEN [C].[private] = 1 AND (
+                        @ViewCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
+                            SELECT 1
+                            FROM [permission_grants_relationship] [PGRc]
+                            LEFT JOIN [attributes] [Ac] ON [Ac].[id] = [PGRc].[attribute_id]
+                            WHERE
+                                [PGRc].[related_user_id] = @UserId                              AND 
+                                [PGRc].[user_id]         = @ExternalUserId                      AND 
+                                [PGRc].[role_id]         = @RoleId                              AND 
+                                [PGRc].[permission_id]   = @ViewCustomerAccountUserPermissionId AND 
+                                ([PGRc].[attribute_id] IS NULL OR [Ac].[id] = @AttributeId)
+                        )
+                        OR @HasViewAnyCustomerAccountUserPermission = 1
+                    ) THEN 1
+                    WHEN [C].[private] = 0 AND (
+                        @HasViewPublicCustomerAccountUserPermission = 1
+                        OR @HasViewAnyCustomerAccountUserPermission = 1
+                    ) THEN 1
+                    ELSE 0
+                END = 1
+            )
+        THEN [C].[id]
+        ELSE NULL
+    END AS [CustomerId],
+
+    CASE
+        WHEN
+            (
+                ([U].[private] = 1 AND (
+                    @ViewUserPermissionId IS NOT NULL AND EXISTS (
+                        SELECT 1
+                        FROM [permission_grants_relationship] [PGRu]
+                        LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
+                        WHERE
+                            [PGRu].[related_user_id] = @UserId                AND 
+                            [PGRu].[user_id]         = @ExternalUserId        AND 
+                            [PGRu].[role_id]         = @RoleId                AND 
+                            [PGRu].[permission_id]   = @ViewUserPermissionId  AND 
+                            ([PGRu].[attribute_id] IS NULL OR [Au].[id] = @AttributeId)
+                    )
+                    OR @HasViewAnyUserPermission = 1
+                ))
+                OR ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
+            )
+            AND
+            (
+                CASE
+                    WHEN [L].[private] = 1 AND (
+                        @ViewLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
+                            SELECT 1
+                            FROM [permission_grants_relationship] [PGRl]
+                            LEFT JOIN [attributes] [Al] ON [Al].[id] = [PGRl].[attribute_id]
+                            WHERE
+                                [PGRl].[related_user_id] = @UserId                            AND 
+                                [PGRl].[user_id]         = @ExternalUserId                    AND 
+                                [PGRl].[role_id]         = @RoleId                            AND 
+                                [PGRl].[permission_id]   = @ViewLawyerAccountUserPermissionId AND 
+                                ([PGRl].[attribute_id] IS NULL OR [Al].[id] = @AttributeId)
+                        )
+                        OR @HasViewAnyLawyerAccountUserPermission = 1
+                    ) THEN 1
+                    WHEN [L].[private] = 0 AND (
+                        @HasViewPublicLawyerAccountUserPermission = 1
+                        OR @HasViewAnyLawyerAccountUserPermission = 1
+                    ) THEN 1
+                    ELSE 0
+                END = 1
+            )
+        THEN 1
+        ELSE 0
+    END AS [HasLawyerAccount],
+
+    CASE
+        WHEN
+            (
+                ([U].[private] = 1 AND (
+                    @ViewUserPermissionId IS NOT NULL AND EXISTS (
+                        SELECT 1
+                        FROM [permission_grants_relationship] [PGRu]
+                        LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
+                        WHERE
+                            [PGRu].[related_user_id] = @UserId               AND 
+                            [PGRu].[user_id]         = @ExternalUserId       AND 
+                            [PGRu].[role_id]         = @RoleId               AND 
+                            [PGRu].[permission_id]   = @ViewUserPermissionId AND 
+                            ([PGRu].[attribute_id] IS NULL OR [Au].[id] = @AttributeId)
+                    )
+                    OR @HasViewAnyUserPermission = 1
+                ))
+                OR ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
+            )
+            AND
+            (
+                CASE
+                    WHEN [C].[private] = 1 AND (
+                        @ViewCustomerAccountUserPermissionId IS NOT NULL AND EXISTS  (
+                            SELECT 1
+                            FROM [permission_grants_relationship] [PGRc]
+                            LEFT JOIN [attributes] [Ac] ON [Ac].[id] = [PGRc].[attribute_id]
+                            WHERE
+                                [PGRc].[related_user_id] = @UserId                              AND 
+                                [PGRc].[user_id]         = @ExternalUserId                      AND 
+                                [PGRc].[role_id]         = @RoleId                              AND 
+                                [PGRc].[permission_id]   = @ViewCustomerAccountUserPermissionId AND 
+                                ([PGRc].[attribute_id] IS NULL OR [Ac].[id] = @AttributeId)
+                        )
+                        OR @HasViewAnyCustomerAccountUserPermission = 1
+                    ) THEN 1
+                    WHEN [C].[private] = 0 AND (
+                        @HasViewPublicCustomerAccountUserPermission = 1
+                        OR @HasViewAnyCustomerAccountUserPermission = 1
+                    ) THEN 1
+                    ELSE 0
+                END = 1
+            )
+        THEN 1
+        ELSE 0
+    END AS [HasCustomerAccount]
+
+FROM [users] [U]
+LEFT JOIN [lawyers] [L] ON [L].[user_id] = [U].[id]
+LEFT JOIN [customers] [C] ON [C].[user_id] = [U].[id]
+
+WHERE
+    (@NameFilter IS NULL OR [U].[name] LIKE @NameFilter)
+    AND (
+
+        -- [Block 1: Has Specific or Global Grant for VIEW_ANY_USER | VIEW_USER]
+
+        ([U].[id] = @UserId AND @HasViewOwnUserPermission = 1)
+
+        OR
+
+        (@ViewUserPermissionId IS NOT NULL AND EXISTS (
+            SELECT 1
+            FROM [permission_grants_relationship] [PGR]
+            LEFT JOIN [attributes] [A_PGR] ON [A_PGR].[id] = [PGR].[attribute_id]
+            WHERE
+                [PGR].[related_user_id] = [U].[id]            AND
+                [PGR].[user_id]       = @UserId               AND
+                [PGR].[permission_id] = @ViewUserPermissionId AND
+                [PGR].[role_id]       = @RoleId               AND
+                ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
+        ))
+        OR
+
+        @HasViewAnyUserPermission = 1
+
+        OR
+
+        -- [Block 2: User is Public AND User Has Public View Grant]
+
+        ([U].[private] = 0 AND (
+            @HasViewPublicUserPermission = 1
+            OR @HasViewAnyUserPermission = 1
+        ))
+    )
+
+WHERE [U].[id] = @RelatedUserId;";
+
+            DetailsInformation information;
+
+            using (var multiple = await connection.Connection.QueryMultipleAsync(
+                new CommandDefinition(
+                    commandText:       queryText,
+                    parameters:        queryParameters,
+                    transaction:       connection.Transaction,
+                    cancellationToken: contextualizer.CancellationToken,
+                    commandTimeout:    TimeSpan.FromHours(1).Milliseconds
+                    )))
+            {
+                information = new DetailsInformation
+                {
+                    Item = await multiple.ReadFirstAsync<DetailsInformation.ItemProperties>()
+                };
+            }
+
+            return information;
+        });
+
+        return resultConstructor.Build<DetailsInformation>(information);
     }
 
     public async Task<Result> RegisterAsync(RegisterParameters parameters, Contextualizer contextualizer)
@@ -1492,8 +2425,9 @@ END AS [HasViewCustomerAccountUserPermission]";
             ViewLawyerAccountUserPermissionId   = permission.ViewLawyerAccountUserPermissionId,
             ViewCustomerAccountUserPermissionId = permission.ViewCustomerAccountUserPermissionId,
 
-            UserId = parameters.UserId,
-            RoleId = parameters.RoleId
+            RelatedUserId = parameters.RelatedUserId,
+            UserId        = parameters.UserId,
+            RoleId        = parameters.RoleId
         };
 
         var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Edit>(queryPermissions, queryPermissionsParameters);
@@ -1585,7 +2519,7 @@ FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
 
                 if (parameters.HasChanges)
                 {
-                    queryParameters.Add("@UserId", parameters.UserId);
+                    queryParameters.Add("@UserId", parameters.RelatedUserId);
 
                     // [Private]
                     if (parameters.Private.Received)
@@ -1621,10 +2555,10 @@ FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
 
                     if (!userInformationResult.HasAddress.HasValue || !userInformationResult.HasAddress.Value)
                     {
-                        queryParameters.Add("@UserId", parameters.UserId);
-
                         dynamicInsertStattement.Add("[user_id]");
                         dynamicValuesStattement.Add("@UserId");
+
+                        queryParameters.Add("@UserId", parameters.RelatedUserId);
 
                         // [ZipCode]
                         if (parameters.Address.ZipCode.Received)
@@ -1774,7 +2708,10 @@ FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
 
                     if (!userInformationResult.HasAddress.HasValue || !userInformationResult.HasAddress.Value)
                     {
-                        queryParameters.Add("@UserId", parameters.UserId);
+                        dynamicInsertStattement.Add("[user_id]");
+                        dynamicValuesStattement.Add("@UserId");
+
+                        queryParameters.Add("@UserId", parameters.RelatedUserId);
 
                         // [Type]
                         if (parameters.Document.Type.Received)
@@ -1843,6 +2780,40 @@ FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
                 if ((permissionsResult.HasEditLawyerAccountUserPermission || permissionsResult.HasEditAnyLawyerAccountUserPermission) &&
                     ((userInformationResult.HasLawyerAccount.HasValue && userInformationResult.LawyerId.HasValue) && userInformationResult.HasLawyerAccount.Value))
                 {
+                    // [Lawyer Information]
+
+                    const string queryLawyerInformations = @"
+SELECT 
+
+[L].[private] AS [Private], 
+
+CASE WHEN [L].[user_id] = @UserId THEN 1, ELSE 0 END AS [Owner],
+
+SELECT 
+CASE 
+    WHEN (EXISTS (SELECT 1 FROM [address_users] [AL] WHERE [AL].[user_id] = @RelatedUserId AND [AL].[lawyer_id] = @LawyerId))
+    THEN 1
+    ELSE 0
+END AS [HasAddress],
+
+SELECT 
+CASE 
+    WHEN (EXISTS (SELECT 1 FROM [documents_users] [DL] WHERE [DL].[user_id] = @RelatedUserId AND [DL].[lawyer_id] = @LawyerId))
+    THEN 1
+    ELSE 0
+END AS [HasDocument],
+
+FROM [lawyers] [L] WHERE [L].[user_id] = @RelatedUserId AND [L].[id] = @LawyerId";
+
+                    var queryLawyerInformationParameters = new
+                    {
+                        RelatedUserId = parameters.RelatedUserId,
+                        UserId        = parameters.UserId,
+                        LawyerId      = userInformationResult.LawyerId
+                    };
+
+                    var lawyerInformationResult = await connection.Connection.QueryFirstOrDefaultAsync<(bool? Private, bool? Owner, bool? HasAddress, bool? HasDocument)>(queryLawyerInformations, queryLawyerInformationParameters);
+
                     // =================== [Table - lawyers] =================== //
 
                     if (parameters.Accounts.Lawyer.HasChanges)
@@ -1887,113 +2858,251 @@ FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
                     if (parameters.Accounts.Lawyer.Address.HasChanges)
                     {
                         queryParameters = new DynamicParameters();
-                
-                        queryParameters.Add("@UserId", parameters.UserId);
-                        queryParameters.Add("@LawyerId", userInformationResult.LawyerId.Value);
-                
+
+                        dynamicInsertStattement.Clear();
+                        dynamicValuesStattement.Clear();
+
                         dynamicSetStattement.Clear();
-                
-                        // [ZipCode]
-                        if (parameters.Accounts.Lawyer.Address.ZipCode.Received)
+
+                        if (!lawyerInformationResult.HasAddress.HasValue || !lawyerInformationResult.HasAddress.Value)
                         {
-                            dynamicSetStattement.Add("SET [zip_code] = @ZipCode");
-                            queryParameters.Add("@ZipCode", parameters.Accounts.Lawyer.Address.ZipCode.Value);
+                            dynamicInsertStattement.Add("[user_id]");
+                            dynamicValuesStattement.Add("@UserId");
+
+                            queryParameters.Add("@UserId", parameters.UserId);
+
+                            dynamicInsertStattement.Add("[lawyer_id]");
+                            dynamicValuesStattement.Add("@LawyerId");
+
+                            queryParameters.Add("@LawyerId", userInformationResult.LawyerId.Value);
+
+                            // [ZipCode]
+                            if (parameters.Address.ZipCode.Received)
+                            {
+                                dynamicInsertStattement.Add("[zip_code]");
+                                dynamicValuesStattement.Add("@ZipCode");
+                                queryParameters.Add("@ZipCode", parameters.Address.ZipCode.Value);
+                            }
+
+                            // [HouseNumber]
+                            if (parameters.Address.HouseNumber.Received)
+                            {
+                                dynamicInsertStattement.Add("[house_number]");
+                                dynamicValuesStattement.Add("@HouseNumber");
+                                queryParameters.Add("@HouseNumber", parameters.Address.HouseNumber.Value);
+                            }
+
+                            // [Complement]
+                            if (parameters.Address.Complement.Received)
+                            {
+                                dynamicInsertStattement.Add("[complement]");
+                                dynamicValuesStattement.Add("@Complement");
+                                queryParameters.Add("@Complement", parameters.Address.Complement.Value);
+                            }
+
+                            // [District]
+                            if (parameters.Address.District.Received)
+                            {
+                                dynamicInsertStattement.Add("[district]");
+                                dynamicValuesStattement.Add("@District");
+                                queryParameters.Add("@District", parameters.Address.District.Value);
+                            }
+
+                            // [City]
+                            if (parameters.Address.City.Received)
+                            {
+                                dynamicInsertStattement.Add("[city]");
+                                dynamicValuesStattement.Add("@City");
+                                queryParameters.Add("@City", parameters.Address.City.Value);
+                            }
+
+                            // [State]
+                            if (parameters.Address.State.Received)
+                            {
+                                dynamicInsertStattement.Add("[state]");
+                                dynamicValuesStattement.Add("@State");
+                                queryParameters.Add("@State", parameters.Address.State.Value);
+                            }
+
+                            // [Country]
+                            if (parameters.Address.Country.Received)
+                            {
+                                dynamicInsertStattement.Add("[country]");
+                                dynamicValuesStattement.Add("@Country");
+                                queryParameters.Add("@Country", parameters.Address.Country.Value);
+                            }
+
+                            if (!dynamicSetStattement.Any())
+                            {
+                                var query = $"INSERT INTO [address_lawyers] ({string.Join(",", dynamicInsertStattement)}) VALUES ({string.Join(",", dynamicValuesStattement)})";
+
+                                await connection.Connection.ExecuteAsync(
+                                    new CommandDefinition(
+                                            commandText:       query,
+                                            parameters:        queryParameters,
+                                            transaction:       connection.Transaction,
+                                            cancellationToken: contextualizer.CancellationToken,
+                                            commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
+                            }
                         }
-                
-                        // [HouseNumber]
-                        if (parameters.Accounts.Lawyer.Address.HouseNumber.Received)
+                        else
                         {
-                            dynamicSetStattement.Add("SET [house_number] = @HouseNumber");
-                            queryParameters.Add("@HouseNumber", parameters.Accounts.Lawyer.Address.HouseNumber.Value);
-                        }
+                            queryParameters = new DynamicParameters();
                 
-                        // [Complement]
-                        if (parameters.Accounts.Lawyer.Address.Complement.Received)
-                        {
-                            dynamicSetStattement.Add("SET [complement] = @Complement");
-                            queryParameters.Add("@Complement", parameters.Accounts.Lawyer.Address.Complement.Value);
-                        }
+                            queryParameters.Add("@UserId", parameters.UserId);
+                            queryParameters.Add("@LawyerId", userInformationResult.LawyerId.Value);
+
+                            dynamicSetStattement.Clear();
                 
-                        // [District]
-                        if (parameters.Accounts.Lawyer.Address.District.Received)
-                        {
-                            dynamicSetStattement.Add("SET [district] = @District");
-                            queryParameters.Add("@District", parameters.Accounts.Lawyer.Address.District.Value);
-                        }
+                            // [ZipCode]
+                            if (parameters.Accounts.Lawyer.Address.ZipCode.Received)
+                            {
+                                dynamicSetStattement.Add("SET [zip_code] = @ZipCode");
+                                queryParameters.Add("@ZipCode", parameters.Accounts.Lawyer.Address.ZipCode.Value);
+                            }
                 
-                        // [City]
-                        if (parameters.Accounts.Lawyer.Address.City.Received)
-                        {
-                            dynamicSetStattement.Add("SET [city] = @City");
-                            queryParameters.Add("@City", parameters.Accounts.Lawyer.Address.City.Value);
-                        }
+                            // [HouseNumber]
+                            if (parameters.Accounts.Lawyer.Address.HouseNumber.Received)
+                            {
+                                dynamicSetStattement.Add("SET [house_number] = @HouseNumber");
+                                queryParameters.Add("@HouseNumber", parameters.Accounts.Lawyer.Address.HouseNumber.Value);
+                            }
                 
-                        // [State]
-                        if (parameters.Accounts.Lawyer.Address.State.Received)
-                        {
-                            dynamicSetStattement.Add("SET [state] = @State");
-                            queryParameters.Add("@State", parameters.Accounts.Lawyer.Address.State.Value);
-                        }
+                            // [Complement]
+                            if (parameters.Accounts.Lawyer.Address.Complement.Received)
+                            {
+                                dynamicSetStattement.Add("SET [complement] = @Complement");
+                                queryParameters.Add("@Complement", parameters.Accounts.Lawyer.Address.Complement.Value);
+                            }
                 
-                        // [Country]
-                        if (parameters.Accounts.Lawyer.Address.Country.Received)
-                        {
-                            dynamicSetStattement.Add("SET [country] = @Country");
-                            queryParameters.Add("@Country", parameters.Accounts.Lawyer.Address.Country.Value);
-                        }
+                            // [District]
+                            if (parameters.Accounts.Lawyer.Address.District.Received)
+                            {
+                                dynamicSetStattement.Add("SET [district] = @District");
+                                queryParameters.Add("@District", parameters.Accounts.Lawyer.Address.District.Value);
+                            }
                 
-                        if (!dynamicSetStattement.Any())
-                        {
-                            var query = $"UPDATE [address_lawyers] {string.Join("AND", dynamicSetStattement)} WHERE [user_id] = @UserId AND [lawyer_id] = @LawyerId";
+                            // [City]
+                            if (parameters.Accounts.Lawyer.Address.City.Received)
+                            {
+                                dynamicSetStattement.Add("SET [city] = @City");
+                                queryParameters.Add("@City", parameters.Accounts.Lawyer.Address.City.Value);
+                            }
                 
-                            var includedItems = await connection.Connection.ExecuteAsync(
-                                new CommandDefinition(
-                                        commandText:       query,
-                                        parameters:        queryParameters,
-                                        transaction:       connection.Transaction,
-                                        cancellationToken: contextualizer.CancellationToken,
-                                        commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
-                        }
+                            // [State]
+                            if (parameters.Accounts.Lawyer.Address.State.Received)
+                            {
+                                dynamicSetStattement.Add("SET [state] = @State");
+                                queryParameters.Add("@State", parameters.Accounts.Lawyer.Address.State.Value);
+                            }
+                
+                            // [Country]
+                            if (parameters.Accounts.Lawyer.Address.Country.Received)
+                            {
+                                dynamicSetStattement.Add("SET [country] = @Country");
+                                queryParameters.Add("@Country", parameters.Accounts.Lawyer.Address.Country.Value);
+                            }
+                
+                            if (!dynamicSetStattement.Any())
+                            {
+                                var query = $"UPDATE [address_lawyers] {string.Join("AND", dynamicSetStattement)} WHERE [user_id] = @UserId AND [lawyer_id] = @LawyerId";
+                
+                                var includedItems = await connection.Connection.ExecuteAsync(
+                                    new CommandDefinition(
+                                            commandText:       query,
+                                            parameters:        queryParameters,
+                                            transaction:       connection.Transaction,
+                                            cancellationToken: contextualizer.CancellationToken,
+                                            commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
+                            }
+                        }                         
                     }
-                
+
                     // =================== [Table - documents_lawyers] =================== //
-                
+
                     if (parameters.Accounts.Lawyer.Document.HasChanges)
                     {
                         queryParameters = new DynamicParameters();
-                
-                        queryParameters.Add("@UserId", parameters.UserId);
-                        queryParameters.Add("@LawyerId", userInformationResult.LawyerId.Value);
-                
+
+                        dynamicInsertStattement.Clear();
+                        dynamicValuesStattement.Clear();
+
                         dynamicSetStattement.Clear();
-                
-                        // [Type]
-                        if (parameters.Accounts.Lawyer.Document.Type.Received)
+
+                        if (!userInformationResult.HasAddress.HasValue || !userInformationResult.HasAddress.Value)
                         {
-                            dynamicSetStattement.Add("SET [type] = @Type");
-                            queryParameters.Add("@Type", parameters.Accounts.Lawyer.Document.Type.Value);
+                            dynamicInsertStattement.Add("[user_id]");
+                            dynamicValuesStattement.Add("@UserId");
+
+                            queryParameters.Add("@UserId", parameters.RelatedUserId);
+
+                            dynamicInsertStattement.Add("[lawyer_id]");
+                            dynamicValuesStattement.Add("@LawyerId");
+
+                            queryParameters.Add("@LawyerId", userInformationResult.LawyerId);
+
+                            // [Type]
+                            if (parameters.Document.Type.Received)
+                            {
+                                dynamicInsertStattement.Add("[type]");
+                                dynamicValuesStattement.Add("@Type");
+                                queryParameters.Add("@Type", parameters.Document.Type.Value);
+                            }
+
+                            // [HouseNumber]
+                            if (parameters.Document.IdentifierDocument.Received)
+                            {
+                                dynamicInsertStattement.Add("[identifier_document]");
+                                dynamicValuesStattement.Add("@IdentifierDocument");
+                                queryParameters.Add("@IdentifierDocument", parameters.Document.IdentifierDocument.Value);
+                            }
+
+                            if (!dynamicSetStattement.Any())
+                            {
+                                var query = $"INSERT INTO [documents_lawyers] ({string.Join(",", dynamicInsertStattement)}) VALUES ({string.Join(",", dynamicValuesStattement)})";
+
+                                await connection.Connection.ExecuteAsync(
+                                    new CommandDefinition(
+                                            commandText:       query,
+                                            parameters:        queryParameters,
+                                            transaction:       connection.Transaction,
+                                            cancellationToken: contextualizer.CancellationToken,
+                                            commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
+                            }
                         }
-                
-                        // [IdentifierDocument]
-                        if (parameters.Accounts.Lawyer.Document.IdentifierDocument.Received)
+                        else
                         {
-                            dynamicSetStattement.Add("SET [identifier_document] = @IdentifierDocument");
-                            queryParameters.Add("@IdentifierDocument", parameters.Document.IdentifierDocument.Value);
+                            queryParameters.Add("@UserId",   parameters.UserId);
+                            queryParameters.Add("@LawyerId", userInformationResult.LawyerId);
+
+                            // [Type]
+                            if (parameters.Document.Type.Received)
+                            {
+                                dynamicSetStattement.Add("SET [type] = @Type");
+                                queryParameters.Add("@Type", parameters.Document.Type.Value);
+                            }
+
+                            // [HouseNumber]
+                            if (parameters.Document.IdentifierDocument.Received)
+                            {
+                                dynamicSetStattement.Add("SET [identifier_document] = @IdentifierDocument");
+                                queryParameters.Add("@IdentifierDocument", parameters.Document.IdentifierDocument.Value);
+                            }
+
+                            if (!dynamicSetStattement.Any())
+                            {
+                                var query = $"UPDATE [documents_lawyers] {string.Join("AND", dynamicSetStattement)} WHERE [user_id] = @UserId AND [lawyer_id] = @LawyerId";
+
+                                await connection.Connection.ExecuteAsync(
+                                    new CommandDefinition(
+                                            commandText:       query,
+                                            parameters:        queryParameters,
+                                            transaction:       connection.Transaction,
+                                            cancellationToken: contextualizer.CancellationToken,
+                                            commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
+                            }
                         }
-                
-                        if (!dynamicSetStattement.Any())
-                        {
-                            var query = $"UPDATE [documents_lawyers] {string.Join("AND", dynamicSetStattement)} WHERE [user_id] = @UserId AND [lawyer_id] = @LawyerId";
-                
-                            var includedItems = await connection.Connection.ExecuteAsync(
-                                new CommandDefinition(
-                                        commandText:       query,
-                                        parameters:        queryParameters,
-                                        transaction:       connection.Transaction,
-                                        cancellationToken: contextualizer.CancellationToken,
-                                        commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
-                        }
-                    }
+                    }                         
                 }
                 
                 // =================== [CUSTOMER] =================== //
@@ -2001,6 +3110,40 @@ FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
                 if ((permissionsResult.HasEditCustomerAccountUserPermission || permissionsResult.HasEditAnyCustomerAccountUserPermission) &&
                    ((userInformationResult.HasCustomerAccount.HasValue && userInformationResult.CustomerId.HasValue) && userInformationResult.HasCustomerAccount.Value))
                 {
+                    // [Customer Information]
+
+                    const string queryCustomerInformations = @"
+SELECT 
+
+[C].[private] AS [Private], 
+
+CASE WHEN [C].[user_id] = @UserId THEN 1, ELSE 0 END AS [Owner],
+
+SELECT 
+CASE 
+    WHEN (EXISTS (SELECT 1 FROM [address_users] [AC] WHERE [AC].[user_id] = @RelatedUserId AND [AC].[customer_id] = @CustomerId))
+    THEN 1
+    ELSE 0
+END AS [HasAddress],
+
+SELECT 
+CASE 
+    WHEN (EXISTS (SELECT 1 FROM [documents_users] [DC] WHERE [DC].[user_id] = @RelatedUserId AND [DC].[customer_id] = @CustomerId))
+    THEN 1
+    ELSE 0
+END AS [HasDocument],
+
+FROM [customers] [C] WHERE [C].[user_id] = @RelatedUserId AND [C].[id] = @CustomerId";
+
+                    var queryCustomerInformationParameters = new
+                    {
+                        RelatedUserId = parameters.RelatedUserId,
+                        UserId        = parameters.UserId,
+                        CustomerId    = userInformationResult.CustomerId
+                    };
+
+                    var customerInformationResult = await connection.Connection.QueryFirstOrDefaultAsync<(bool? Private, bool? Owner, bool? HasAddress, bool? HasDocument)>(queryCustomerInformations, queryCustomerInformationParameters);
+
                     // =================== [Table - customers] =================== //
 
                     if (parameters.Accounts.Customer.HasChanges)
@@ -2044,74 +3187,165 @@ FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
                 
                     if (parameters.Accounts.Lawyer.Address.HasChanges)
                     {
-                        queryParameters = new DynamicParameters();
-                
-                        queryParameters.Add("@UserId", parameters.UserId);
-                        queryParameters.Add("@CustomerId", userInformationResult.CustomerId.Value);
-                
+                         queryParameters = new DynamicParameters();
+
+                        dynamicInsertStattement.Clear();
+                        dynamicValuesStattement.Clear();
+
                         dynamicSetStattement.Clear();
-                
-                        // [ZipCode]
-                        if (parameters.Accounts.Customer.Address.ZipCode.Received)
+
+                        if (!customerInformationResult.HasAddress.HasValue || !customerInformationResult.HasAddress.Value)
                         {
-                            dynamicSetStattement.Add("SET [zip_code] = @ZipCode");
-                            queryParameters.Add("@ZipCode", parameters.Accounts.Customer.Address.ZipCode.Value);
+                            dynamicInsertStattement.Add("[user_id]");
+                            dynamicValuesStattement.Add("@UserId");
+
+                            queryParameters.Add("@UserId", parameters.UserId);
+
+                            dynamicInsertStattement.Add("[customer_id]");
+                            dynamicValuesStattement.Add("@CustomerId");
+
+                            queryParameters.Add("@CustomerId", userInformationResult.CustomerId.Value);
+
+                            // [ZipCode]
+                            if (parameters.Address.ZipCode.Received)
+                            {
+                                dynamicInsertStattement.Add("[zip_code]");
+                                dynamicValuesStattement.Add("@ZipCode");
+                                queryParameters.Add("@ZipCode", parameters.Address.ZipCode.Value);
+                            }
+
+                            // [HouseNumber]
+                            if (parameters.Address.HouseNumber.Received)
+                            {
+                                dynamicInsertStattement.Add("[house_number]");
+                                dynamicValuesStattement.Add("@HouseNumber");
+                                queryParameters.Add("@HouseNumber", parameters.Address.HouseNumber.Value);
+                            }
+
+                            // [Complement]
+                            if (parameters.Address.Complement.Received)
+                            {
+                                dynamicInsertStattement.Add("[complement]");
+                                dynamicValuesStattement.Add("@Complement");
+                                queryParameters.Add("@Complement", parameters.Address.Complement.Value);
+                            }
+
+                            // [District]
+                            if (parameters.Address.District.Received)
+                            {
+                                dynamicInsertStattement.Add("[district]");
+                                dynamicValuesStattement.Add("@District");
+                                queryParameters.Add("@District", parameters.Address.District.Value);
+                            }
+
+                            // [City]
+                            if (parameters.Address.City.Received)
+                            {
+                                dynamicInsertStattement.Add("[city]");
+                                dynamicValuesStattement.Add("@City");
+                                queryParameters.Add("@City", parameters.Address.City.Value);
+                            }
+
+                            // [State]
+                            if (parameters.Address.State.Received)
+                            {
+                                dynamicInsertStattement.Add("[state]");
+                                dynamicValuesStattement.Add("@State");
+                                queryParameters.Add("@State", parameters.Address.State.Value);
+                            }
+
+                            // [Country]
+                            if (parameters.Address.Country.Received)
+                            {
+                                dynamicInsertStattement.Add("[country]");
+                                dynamicValuesStattement.Add("@Country");
+                                queryParameters.Add("@Country", parameters.Address.Country.Value);
+                            }
+
+                            if (!dynamicSetStattement.Any())
+                            {
+                                var query = $"INSERT INTO [address_customers] ({string.Join(",", dynamicInsertStattement)}) VALUES ({string.Join(",", dynamicValuesStattement)})";
+
+                                await connection.Connection.ExecuteAsync(
+                                    new CommandDefinition(
+                                            commandText:       query,
+                                            parameters:        queryParameters,
+                                            transaction:       connection.Transaction,
+                                            cancellationToken: contextualizer.CancellationToken,
+                                            commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
+                            }
                         }
-                
-                        // [HouseNumber]
-                        if (parameters.Accounts.Customer.Address.HouseNumber.Received)
+                        else
                         {
-                            dynamicSetStattement.Add("SET [house_number] = @HouseNumber");
-                            queryParameters.Add("@HouseNumber", parameters.Accounts.Customer.Address.HouseNumber.Value);
-                        }
+                            queryParameters = new DynamicParameters();
                 
-                        // [Complement]
-                        if (parameters.Accounts.Customer.Address.Complement.Received)
-                        {
-                            dynamicSetStattement.Add("SET [complement] = @Complement");
-                            queryParameters.Add("@Complement", parameters.Accounts.Customer.Address.Complement.Value);
-                        }
+                            queryParameters.Add("@UserId", parameters.UserId);
+                            queryParameters.Add("@CustomerId", userInformationResult.CustomerId.Value);
+
+                            dynamicSetStattement.Clear();
                 
-                        // [District]
-                        if (parameters.Accounts.Customer.Address.District.Received)
-                        {
-                            dynamicSetStattement.Add("SET [district] = @District");
-                            queryParameters.Add("@District", parameters.Accounts.Customer.Address.District.Value);
-                        }
+                            // [ZipCode]
+                            if (parameters.Accounts.Lawyer.Address.ZipCode.Received)
+                            {
+                                dynamicSetStattement.Add("SET [zip_code] = @ZipCode");
+                                queryParameters.Add("@ZipCode", parameters.Accounts.Lawyer.Address.ZipCode.Value);
+                            }
                 
-                        // [City]
-                        if (parameters.Accounts.Customer.Address.City.Received)
-                        {
-                            dynamicSetStattement.Add("SET [city] = @City");
-                            queryParameters.Add("@City", parameters.Accounts.Customer.Address.City.Value);
-                        }
+                            // [HouseNumber]
+                            if (parameters.Accounts.Lawyer.Address.HouseNumber.Received)
+                            {
+                                dynamicSetStattement.Add("SET [house_number] = @HouseNumber");
+                                queryParameters.Add("@HouseNumber", parameters.Accounts.Lawyer.Address.HouseNumber.Value);
+                            }
                 
-                        // [State]
-                        if (parameters.Accounts.Customer.Address.State.Received)
-                        {
-                            dynamicSetStattement.Add("SET [state] = @State");
-                            queryParameters.Add("@State", parameters.Accounts.Customer.Address.State.Value);
-                        }
+                            // [Complement]
+                            if (parameters.Accounts.Lawyer.Address.Complement.Received)
+                            {
+                                dynamicSetStattement.Add("SET [complement] = @Complement");
+                                queryParameters.Add("@Complement", parameters.Accounts.Lawyer.Address.Complement.Value);
+                            }
                 
-                        // [Country]
-                        if (parameters.Accounts.Customer.Address.Country.Received)
-                        {
-                            dynamicSetStattement.Add("SET [country] = @Country");
-                            queryParameters.Add("@Country", parameters.Accounts.Customer.Address.Country.Value);
-                        }
+                            // [District]
+                            if (parameters.Accounts.Lawyer.Address.District.Received)
+                            {
+                                dynamicSetStattement.Add("SET [district] = @District");
+                                queryParameters.Add("@District", parameters.Accounts.Lawyer.Address.District.Value);
+                            }
                 
-                        if (!dynamicSetStattement.Any())
-                        {
-                            var query = $"UPDATE [address_customers] {string.Join("AND", dynamicSetStattement)} WHERE [user_id] = @UserId AND [customer_id] = @CustomerId";
+                            // [City]
+                            if (parameters.Accounts.Lawyer.Address.City.Received)
+                            {
+                                dynamicSetStattement.Add("SET [city] = @City");
+                                queryParameters.Add("@City", parameters.Accounts.Lawyer.Address.City.Value);
+                            }
                 
-                            var includedItems = await connection.Connection.ExecuteAsync(
-                                new CommandDefinition(
-                                        commandText:       query,
-                                        parameters:        queryParameters,
-                                        transaction:       connection.Transaction,
-                                        cancellationToken: contextualizer.CancellationToken,
-                                        commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
-                        }
+                            // [State]
+                            if (parameters.Accounts.Lawyer.Address.State.Received)
+                            {
+                                dynamicSetStattement.Add("SET [state] = @State");
+                                queryParameters.Add("@State", parameters.Accounts.Lawyer.Address.State.Value);
+                            }
+                
+                            // [Country]
+                            if (parameters.Accounts.Lawyer.Address.Country.Received)
+                            {
+                                dynamicSetStattement.Add("SET [country] = @Country");
+                                queryParameters.Add("@Country", parameters.Accounts.Lawyer.Address.Country.Value);
+                            }
+                
+                            if (!dynamicSetStattement.Any())
+                            {
+                                var query = $"UPDATE [address_customers] {string.Join("AND", dynamicSetStattement)} WHERE [user_id] = @UserId AND [customer_id] = @CustomerId";
+                
+                                var includedItems = await connection.Connection.ExecuteAsync(
+                                    new CommandDefinition(
+                                            commandText:       query,
+                                            parameters:        queryParameters,
+                                            transaction:       connection.Transaction,
+                                            cancellationToken: contextualizer.CancellationToken,
+                                            commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
+                            }
+                        }     
                     }
                 
                     // =================== [Table - documents_customers] =================== //
@@ -2119,37 +3353,84 @@ FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
                     if (parameters.Accounts.Customer.Document.HasChanges)
                     {
                         queryParameters = new DynamicParameters();
-                
-                        queryParameters.Add("@UserId", parameters.UserId);
-                        queryParameters.Add("@CustomerId", userInformationResult.CustomerId.Value);
-                
+
+                        dynamicInsertStattement.Clear();
+                        dynamicValuesStattement.Clear();
+
                         dynamicSetStattement.Clear();
-                
-                        // [Type]
-                        if (parameters.Accounts.Customer.Document.Type.Received)
+
+                        if (!userInformationResult.HasAddress.HasValue || !userInformationResult.HasAddress.Value)
                         {
-                            dynamicSetStattement.Add("SET [type] = @Type");
-                            queryParameters.Add("@Type", parameters.Accounts.Customer.Document.Type.Value);
+                            dynamicInsertStattement.Add("[user_id]");
+                            dynamicValuesStattement.Add("@UserId");
+
+                            queryParameters.Add("@UserId", parameters.RelatedUserId);
+
+                            dynamicInsertStattement.Add("[customer_id]");
+                            dynamicValuesStattement.Add("@CustomerId");
+
+                            queryParameters.Add("@CustomerId", userInformationResult.CustomerId);
+
+                            // [Type]
+                            if (parameters.Document.Type.Received)
+                            {
+                                dynamicInsertStattement.Add("[type]");
+                                dynamicValuesStattement.Add("@Type");
+                                queryParameters.Add("@Type", parameters.Document.Type.Value);
+                            }
+
+                            // [HouseNumber]
+                            if (parameters.Document.IdentifierDocument.Received)
+                            {
+                                dynamicInsertStattement.Add("[identifier_document]");
+                                dynamicValuesStattement.Add("@IdentifierDocument");
+                                queryParameters.Add("@IdentifierDocument", parameters.Document.IdentifierDocument.Value);
+                            }
+
+                            if (!dynamicSetStattement.Any())
+                            {
+                                var query = $"INSERT INTO [documents_customers] ({string.Join(",", dynamicInsertStattement)}) VALUES ({string.Join(",", dynamicValuesStattement)})";
+
+                                await connection.Connection.ExecuteAsync(
+                                    new CommandDefinition(
+                                            commandText:       query,
+                                            parameters:        queryParameters,
+                                            transaction:       connection.Transaction,
+                                            cancellationToken: contextualizer.CancellationToken,
+                                            commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
+                            }
                         }
-                
-                        // [IdentifierDocument]
-                        if (parameters.Accounts.Customer.Document.IdentifierDocument.Received)
+                        else
                         {
-                            dynamicSetStattement.Add("SET [identifier_document] = @IdentifierDocument");
-                            queryParameters.Add("@IdentifierDocument", parameters.Accounts.Customer.Document.IdentifierDocument.Value);
-                        }
-                
-                        if (!dynamicSetStattement.Any())
-                        {
-                            var query = $"UPDATE [documents_customers] {string.Join("AND", dynamicSetStattement)} WHERE [user_id] = @UserId AND [customer_id] = @CustomerId";
-                
-                            var includedItems = await connection.Connection.ExecuteAsync(
-                                new CommandDefinition(
-                                        commandText:       query,
-                                        parameters:        queryParameters,
-                                        transaction:       connection.Transaction,
-                                        cancellationToken: contextualizer.CancellationToken,
-                                        commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
+                            queryParameters.Add("@UserId",   parameters.UserId);
+                            queryParameters.Add("@CustomerId", userInformationResult.CustomerId);
+
+                            // [Type]
+                            if (parameters.Document.Type.Received)
+                            {
+                                dynamicSetStattement.Add("SET [type] = @Type");
+                                queryParameters.Add("@Type", parameters.Document.Type.Value);
+                            }
+
+                            // [HouseNumber]
+                            if (parameters.Document.IdentifierDocument.Received)
+                            {
+                                dynamicSetStattement.Add("SET [identifier_document] = @IdentifierDocument");
+                                queryParameters.Add("@IdentifierDocument", parameters.Document.IdentifierDocument.Value);
+                            }
+
+                            if (!dynamicSetStattement.Any())
+                            {
+                                var query = $"UPDATE [documents_customers] {string.Join("AND", dynamicSetStattement)} WHERE [user_id] = @UserId AND [customer_id] = @CustomerId";
+
+                                await connection.Connection.ExecuteAsync(
+                                    new CommandDefinition(
+                                            commandText:       query,
+                                            parameters:        queryParameters,
+                                            transaction:       connection.Transaction,
+                                            cancellationToken: contextualizer.CancellationToken,
+                                            commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
+                            }
                         }
                     }
                 }
@@ -2189,29 +3470,34 @@ FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
             GrantPermissionsUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_USER, contextualizer),
             GrantPermissionsLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_LAWYER_ACCOUNT_USER, contextualizer),
             GrantPermissionsCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_CUSTOMER_ACCOUNT_USER, contextualizer),
-            
-            ViewUserPermissionId                           = await GetPermissionIdAsync(PermissionSymbols.VIEW_USER, contextualizer),
-            ViewLawyerAccountUserPermissionId              = await GetPermissionIdAsync(PermissionSymbols.VIEW_LAWYER_ACCOUNT_USER, contextualizer),
-            ViewCustomerAccountUserPermissionId            = await GetPermissionIdAsync(PermissionSymbols.VIEW_CUSTOMER_ACCOUNT_USER, contextualizer),
+
+            ViewUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_USER, contextualizer),
+            ViewLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_LAWYER_ACCOUNT_USER, contextualizer),
+            ViewCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_CUSTOMER_ACCOUNT_USER, contextualizer),
 
             // [Related to USER or ROLE permission]
 
-            GrantPermissionOwnUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_OWN_USER, contextualizer),
+            GrantPermissionsOwnUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_OWN_USER, contextualizer),
+            GrantPermissionsOwnLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER, contextualizer),
+            GrantPermissionsOwnCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER, contextualizer),
 
             ViewPublicUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_USER, contextualizer),
             ViewPublicLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_LAWYER_ACCOUNT_USER, contextualizer),
             ViewPublicCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER, contextualizer),
-            
+
+            ViewOwnUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_USER, contextualizer),
+            ViewOwnLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_LAWYER_ACCOUNT_USER, contextualizer),
+            ViewOwnCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_CUSTOMER_ACCOUNT_USER, contextualizer),
+
             // [Related to SUPER USER or ADMIN permission]
 
-            GrantPermissionsAnyUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_ANY_USER, contextualizer),
+            GrantPermissionsAnyUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_ANY_USER, contextualizer),
             GrantPermissionsAnyLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER, contextualizer),
             GrantPermissionsAnyCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER, contextualizer),
-            
-            ViewAnyUserPermissionId                           = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_USER, contextualizer),
-            ViewAnyLawyerAccountUserPermissionId              = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_LAWYER_ACCOUNT_USER, contextualizer),
-            ViewAnyCustomerAccountUserPermissionId            = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_CUSTOMER_ACCOUNT_USER, contextualizer),
 
+            ViewAnyUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_USER, contextualizer),
+            ViewAnyLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_LAWYER_ACCOUNT_USER, contextualizer),
+            ViewAnyCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_CUSTOMER_ACCOUNT_USER, contextualizer),
         };
 
         //var isUserOwnerOfTheRelatedUser = parameters.RelatedUserId == parameters.UserId;
@@ -2293,7 +3579,7 @@ CASE
             ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasGrantPermissionsOwnUserPermission]
+END AS [HasGrantPermissionsOwnUserPermission],
 
 /* ---------------------------------------------- [GRANT_PERMISSION_USER] ---------------------------------------------- */
 
@@ -2314,7 +3600,7 @@ CASE
             ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasGrantPermissionsUserPermission]
+END AS [HasGrantPermissionsUserPermission],
 
 /* ---------------------------------------------- [GRANT_PERMISSIONS_ANY_USER] ---------------------------------------------- */
 
@@ -2345,14 +3631,132 @@ CASE
             ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasGrantPermissionsAnyUserPermission]
-";
+END AS [HasGrantPermissionsAnyUserPermission],
+
+/* ---------------------------------------------- [VIEW_OWN_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_OWN_USER]
+
+    (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                  AND
+            [PGU].[permission_id] = @ViewOwnUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                  AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_USER]
+
+    (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewOwnUserPermissionId AND
+            [PG].[role_id]       = @RoleId                  AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewOwnUserPermission],
+
+/* ---------------------------------------------- [VIEW_ANY_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_USER]
+
+    (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                  AND
+            [PGU].[permission_id] = @ViewAnyUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                  AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_USER]
+
+    (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewAnyUserPermissionId AND
+            [PG].[role_id]       = @RoleId                  AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewAnyUserPermission],
+
+/* ---------------------------------------------- [VIEW_PUBLIC_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_USER]
+
+    (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
+        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
+        WHERE 
+            [PGU_PUB].[user_id]       = @UserId                     AND
+            [PGU_PUB].[permission_id] = @ViewPublicUserPermissionId AND
+            [PGU_PUB].[role_id]       = @RoleId                     AND
+            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_USER]
+
+    (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG_PUB]
+        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
+        WHERE 
+            [PG_PUB].[permission_id] = @ViewPublicUserPermissionId AND
+            [PG_PUB].[role_id]       = @RoleId                     AND
+            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewPublicUserPermission],
+
+/* ---------------------------------------------- [VIEW_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_relationship (ACL Grant)] [VIEW_USER]
+
+    (@ViewUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_relationship] [PGR]
+        LEFT JOIN [attributes] [A_PGR] ON [PGR].[attribute_id] = [A_PGR].[id]
+        WHERE 
+            [PGR].[related_user_id] = @RelatedUserId        AND
+            [PGR].[user_id]         = @UserId               AND
+            [PGR].[permission_id]   = @ViewUserPermissionId AND
+            [PGR].[role_id]         = @RoleId               AND
+            ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewUserPermission]";
 
         var queryPermissionsParameters = new
         {
             GrantPermissionsUserPermissionId    = permission.GrantPermissionsUserPermissionId,
-            GrantPermissionOwnUserPermissionId  = permission.GrantPermissionOwnUserPermissionId,
+            GrantPermissionOwnUserPermissionId  = permission.GrantPermissionsOwnUserPermissionId,
             GrantPermissionsAnyUserPermissionId = permission.GrantPermissionsAnyUserPermissionId,
+
+            ViewOwnUserPermissionId    = permission.ViewOwnUserPermissionId,
+            ViewAnyUserPermissionId    = permission.ViewAnyUserPermissionId,
+            ViewPublicUserPermissionId = permission.ViewPublicUserPermissionId,
+            ViewUserPermissionId       = permission.ViewUserPermissionId,
 
             UserId        = parameters.UserId,
             RelatedUserId = parameters.RelatedUserId,
@@ -2360,11 +3764,42 @@ END AS [HasGrantPermissionsAnyUserPermission]
             RoleId        = parameters.RoleId
         };
 
-        var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.GrantPermission>(queryPermissions, queryPermissionsParameters);
+        var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.GrantPermissions>(queryPermissions, queryPermissionsParameters);
 
-        if (!permissionsResult.HasGrantPermissionsUserPermission    &&
-            !permissionsResult.HasGrantPermissionsAnyUserPermission &&
-            !permissionsResult.HasGrantPermissionsOwnUserPermission)
+        // [User Information]
+
+        const string queryUserInformations = @"
+SELECT 
+
+[U].[private] AS [Private], 
+
+CASE WHEN [U].[id] = @UserId THEN 1, ELSE 0 END AS [Owner],
+
+FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
+
+        var queryUserInformationParameters = new
+        {
+            RelatedUserId = parameters.RelatedUserId,
+            UserId        = parameters.UserId
+        };
+
+        var userInformationResult = await connection.Connection.QueryFirstOrDefaultAsync<(bool? Private, bool? Owner)>(queryUserInformations, queryUserInformationParameters);
+
+        // [VIEW]
+        if (((userInformationResult.Private.HasValue && userInformationResult.Private.Value) && !permissionsResult.HasViewPublicUserPermission) &&
+            ((userInformationResult.Owner.HasValue   && userInformationResult.Owner.Value)   && !permissionsResult.HasViewOwnUserPermission)    &&
+            !permissionsResult.HasViewUserPermission &&
+            !permissionsResult.HasViewAnyUserPermission)
+        {
+            resultConstructor.SetConstructor(new UserNotFoundError());
+
+            return resultConstructor.Build();
+        }
+
+        // [GRANT_PERMISSIONS]
+        if (((userInformationResult.Owner.HasValue && userInformationResult.Owner.Value) && !permissionsResult.HasGrantPermissionsOwnUserPermission) &&
+            !permissionsResult.HasGrantPermissionsUserPermission &&
+            !permissionsResult.HasGrantPermissionsAnyUserPermission)
         {
             resultConstructor.SetConstructor(new GrantPermissionDeniedError());
 
@@ -2529,7 +3964,7 @@ CASE
             ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasGrantPermissionsAnyUserPermission]
+END AS [HasGrantPermissionsAnyUserPermission],
 
 /* ---------------------------------------------- [GRANT_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
 
@@ -2560,7 +3995,7 @@ CASE
             ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasGrantPermissionsAnyLawyerAccountUserPermission]
+END AS [HasGrantPermissionsAnyLawyerAccountUserPermission],
 
 /* ---------------------------------------------- [GRANT_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
 
@@ -2591,7 +4026,103 @@ CASE
             ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasGrantPermissionsAnyCustomerAccountUserPermission]
+END AS [HasGrantPermissionsAnyCustomerAccountUserPermission],
+
+
+/* ---------------------------------------------- [GRANT_PERMISSIONS_OWN_USER] ---------------------------------------------- */
+
+SELECT
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [GRANT_PERMISSIONS_OWN_USER]
+
+    (@GrantPermissionsOwnUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                              AND
+            [PGU].[permission_id] = @GrantPermissionsOwnUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                              AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [GRANT_PERMISSIONS_OWN_USER]
+
+    (@GrantPermissionsOwnUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @GrantPermissionsOwnUserPermissionId AND
+            [PG].[role_id]       = @RoleId                              AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasGrantPermissionsOwnUserPermission],
+
+/* ---------------------------------------------- [GRANT_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [GRANT_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER]
+
+    (@GrantPermissionsOwnLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                                           AND
+            [PGU].[permission_id] = @GrantPermissionsOwnLawyerAccountUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                                           AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [GRANT_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER]
+
+    (@GrantPermissionsOwnLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @GrantPermissionsOwnLawyerAccountUserPermissionId AND
+            [PG].[role_id]       = @RoleId                                           AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasGrantPermissionsOwnLawyerAccountUserPermission],
+
+/* ---------------------------------------------- [GRANT_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [GRANT_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER]
+
+    (@GrantPermissionsOwnCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                                             AND
+            [PGU].[permission_id] = @GrantPermissionsOwnCustomerAccountUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                                             AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [GRANT_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER]
+
+    (@GrantPermissionsOwnCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @GrantPermissionsOwnCustomerAccountUserPermissionId AND
+            [PG].[role_id]       = @RoleId                                             AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasGrantPermissionsOwnCustomerAccountUserPermission],
 
 /* ---------------------------------------------- [VIEW_ANY_USER] ---------------------------------------------- */
 
@@ -2622,7 +4153,7 @@ CASE
             ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasViewAnyUserPermission]
+END AS [HasViewAnyUserPermission],
 
 /* ---------------------------------------------- [VIEW_ANY_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
 
@@ -2653,7 +4184,7 @@ CASE
             ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasViewAnyLawyerAccountUserPermission]
+END AS [HasViewAnyLawyerAccountUserPermission],
 
 /* ---------------------------------------------- [VIEW_ANY_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
 
@@ -2684,7 +4215,7 @@ CASE
             ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasViewAnyCustomerAccountUserPermission]
+END AS [HasViewAnyCustomerAccountUserPermission],
 
 /* ---------------------------------------------- [VIEW_PUBLIC_USER] ---------------------------------------------- */
 
@@ -2715,7 +4246,7 @@ CASE
             ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasViewPublicUserPermission]
+END AS [HasViewPublicUserPermission],
 
 /* ---------------------------------------------- [VIEW_PUBLIC_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
 
@@ -2746,7 +4277,7 @@ CASE
             ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasViewPublicLawyerAccountUserPermission]
+END AS [HasViewPublicLawyerAccountUserPermission],
 
 /* ---------------------------------------------- [VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
 
@@ -2789,6 +4320,10 @@ END AS [HasViewPublicCustomerAccountUserPermission]";
             GrantPermissionsAnyLawyerAccountUserPermissionId   = permission.GrantPermissionsAnyLawyerAccountUserPermissionId,
             GrantPermissionsAnyCustomerAccountUserPermissionId = permission.GrantPermissionsAnyCustomerAccountUserPermissionId,
             
+            GrantPermissionsOwnUserPermissionId                = permission.GrantPermissionsOwnUserPermissionId,
+            GrantPermissionsOwnLawyerAccountUserPermissionId   = permission.GrantPermissionsOwnLawyerAccountUserPermissionId,
+            GrantPermissionsOwnCustomerAccountUserPermissionId = permission.GrantPermissionsOwnCustomerAccountUserPermissionId,
+
             ViewAnyUserPermissionId                = permission.ViewAnyUserPermissionId,
             ViewAnyLawyerAccountUserPermissionId   = permission.ViewAnyLawyerAccountUserPermissionId,
             ViewAnyCustomerAccountUserPermissionId = permission.ViewAnyCustomerAccountUserPermissionId,
@@ -2798,7 +4333,7 @@ END AS [HasViewPublicCustomerAccountUserPermission]";
             RoleId      = parameters.RoleId
         };
 
-        var permissionsResultSpecificUser = await connection.Connection.QueryFirstAsync<PermissionResult.GrantPermission.SpecificUser>(queryPermissionsSpecificUser, queryPermissionsParametersSpecificUser);
+        var permissionsResultSpecificUser = await connection.Connection.QueryFirstAsync<PermissionResult.GrantPermissions.SpecificUser>(queryPermissionsSpecificUser, queryPermissionsParametersSpecificUser);
 
         const string queryAttributes = "SELECT [A].[id] AS [Id], [A].[name] AS [Name] FROM [Attributes]";
 
@@ -2813,21 +4348,6 @@ SELECT [P].[id] AS [Id] FROM [Permissions] WHERE [P].[name] IN
         foreach (var item in internalValues.Data.Items.Values)
         {
             var resultContructor = new ResultConstructor();
-
-            //if (item.UserId == parameters.UserId && isUserOwnerOfTheRelatedUser)
-            //{
-            //    resultContructor.SetConstructor(new UserOwnerOfTheRelatedUserCannotBeGrantPermissionError()
-            //    {
-            //        Status = 400
-            //    });
-            //
-            //    internalValues.Data.Items[item.Id].Result = resultContructor.Build();
-            //
-            //    internalValues.Data.Finish(item.Id);
-            //
-            //    continue;
-            //}
-
 
             if (!allowedPermissions.Contains(item.PermissionId))
             {
@@ -2849,6 +4369,10 @@ SELECT [P].[id] AS [Id] FROM [Permissions] WHERE [P].[name] IN
                     HasGrantPermissionsAnyUserPermission                = permissionsResultSpecificUser.HasGrantPermissionsAnyUserPermission,
                     HasGrantPermissionsAnyLawyerAccountUserPermission   = permissionsResultSpecificUser.HasGrantPermissionsAnyLawyerAccountUserPermission,
                     HasGrantPermissionsAnyCustomerAccountUserPermission = permissionsResultSpecificUser.HasGrantPermissionsAnyCustomerAccountUserPermission,
+
+                    HasGrantPermissionsOwnUserPermission                = permissionsResultSpecificUser.HasGrantPermissionsOwnUserPermission,
+                    HasGrantPermissionsOwnLawyerAccountUserPermission   = permissionsResultSpecificUser.HasGrantPermissionsOwnLawyerAccountUserPermission,
+                    HasGrantPermissionsOwnCustomerAccountUserPermission = permissionsResultSpecificUser.HasGrantPermissionsOwnCustomerAccountUserPermission,
 
                     HasViewAnyUserPermission                = permissionsResultSpecificUser.HasViewAnyUserPermission,
                     HasViewAnyLawyerAccountUserPermission   = permissionsResultSpecificUser.HasViewAnyLawyerAccountUserPermission,
@@ -2881,11 +4405,19 @@ WITH [view_permission] AS (
         CASE
             WHEN
 
-                -- [Layer 1: User Level]
+                -- [Block 1: User Level]
 
                 (
+                    -- [Layer 1: Ownership]
+
+                    ([U].[id] = @ExternalUserId AND (@HasViewOwnUserPermission OR @HasViewAnyUserPermission = 1))
+
+                    OR
+
+                    -- [Layer 2: permission_grants_relationship (ACL Grant)] [VIEW_USER]
+
                     ([U].[private] = 1 AND (
-                        EXISTS (
+                        @ViewUserPermissionId IS NOT NULL AND EXISTS (
                             SELECT 1 FROM [permission_grants_relationship] [PGRu]
                             LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
                             WHERE
@@ -2897,19 +4429,30 @@ WITH [view_permission] AS (
                         )
                         OR @HasViewAnyUserPermission = 1
                     ))
-                    OR ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
+
+                    OR 
+
+                    -- [Layer 3: Public]
+
+                    ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
                 )
 
                 AND
 
-                -- [Layer 2: account-level check (LAWYER vs CUSTOMER)]
+                -- [Block 2: account-level check (LAWYER vs CUSTOMER)]
 
                 (
                     CASE 
                         WHEN @AttributeName = 'LAWYER' THEN
                             CASE
+                                -- [Layer 1: Ownership]
+
+                                WHEN ([L].[user_id] = @ExternalUserId AND (@HasViewOwnLawyerAccountUserPermission OR @HasViewAnyLawyerAccountUserPermission = 1)) THEN 1
+
+                                -- [Layer 2: permission_grants_relationship (ACL Grant)] [VIEW_LAWYER_ACCOUNT_USER]
+
                                 WHEN [L].[private] = 1 AND (
-                                    EXISTS (
+                                    @ViewLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
                                         SELECT 1 FROM [permission_grants_relationship] [PGRl]
                                         LEFT JOIN [attributes] [Al] ON [Al].[id] = [PGRl].[attribute_id]
                                         WHERE
@@ -2921,17 +4464,27 @@ WITH [view_permission] AS (
                                     )
                                     OR @HasViewAnyLawyerAccountUserPermission = 1
                                 ) THEN 1
+
+                                -- [Layer 3: Public]
+
                                 WHEN ([L].[private] = 0 AND (@HasViewPublicLawyerAccountUserPermission = 1 OR @HasViewAnyLawyerAccountUserPermission = 1)) THEN 1
+
                                 ELSE 0
                             END
                         WHEN @AttributeName = 'CUSTOMER' THEN
                             CASE
+                                -- [Layer 1: Ownership]
+
+                                WHEN ([C].[user_id] = @ExternalUserId AND (@HasViewOwnCustomerAccountUserPermission OR @HasViewAnyCustomerAccountUserPermission = 1)) THEN 1
+
+                                -- [Layer 2: permission_grants_relationship (ACL Grant)] [VIEW_CUSTOMER_ACCOUNT_USER]
+
                                 WHEN [C].[private] = 1 AND (
-                                    EXISTS (
+                                    @ViewCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
                                         SELECT 1 FROM [permission_grants_relationship] [PGRc]
                                         LEFT JOIN [attributes] [Ac] ON [Ac].[id] = [PGRc].[attribute_id]
                                         WHERE
-                                            [PGRc].[related_user_id] = @UserId                              AND 
+                                            [PGRc].[related_user_id] = @UserId                             AND 
                                             [PGRc].[user_id]         = @ExternalUserId                      AND 
                                             [PGRc].[role_id]         = @RoleId                              AND 
                                             [PGRc].[permission_id]   = @ViewCustomerAccountUserPermissionId AND 
@@ -2939,7 +4492,11 @@ WITH [view_permission] AS (
                                     )
                                     OR @HasViewAnyCustomerAccountUserPermission = 1
                                 ) THEN 1
+
+                                -- [Layer 3: Public]
+
                                 WHEN ([C].[private] = 0 AND (@HasViewPublicCustomerAccountUserPermission = 1 OR @HasViewAnyCustomerAccountUserPermission = 1)) THEN 1
+                                
                                 ELSE 0
                             END
                         ELSE 0
@@ -2956,35 +4513,47 @@ WITH [view_permission] AS (
     SELECT
         CASE
             WHEN
-
-                -- [Layer 1: User Level]
+                -- [Block 1: User Level]
 
                 (
-                    (
-                        EXISTS (
-                            SELECT 1 FROM [permission_grants_relationship] [PGRu2]
-                            LEFT JOIN [attributes] [Au2] ON [Au2].[id] = [PGRu2].[attribute_id]
-                            WHERE
-                                [PGRu2].[related_user_id] = @UserId                           AND 
-                                [PGRu2].[user_id]         = @ExternalUserId                   AND 
-                                [PGRu2].[role_id]         = @RoleId                           AND 
-                                [PGRu2].[permission_id]   = @GrantPermissionsUserPermissionId AND 
-                                ([PGRu2].[attribute_id] IS NULL OR [Au2].[id] = @AttributeId)
-                        )
-                        OR @HasGrantPermissionsAnyUserPermission = 1
+                    -- [Layer 1: Ownership]
+
+                    ([U].[id] = @ExternalUserId AND (@HasGrantPermissionsOwnUserPermission OR @HasGrantPermissionsAnyUserPermission = 1))
+
+                    OR
+
+                    -- [Layer 2: permission_grants_relationship (ACL Grant)] [GRANT_PERMISSIONS_USER]
+
+                    (@GrantPermissionsUserPermissionId IS NOT NULL AND EXISTS (
+                        SELECT 1 FROM [permission_grants_relationship] [PGRu2]
+                        LEFT JOIN [attributes] [Au2] ON [Au2].[id] = [PGRu2].[attribute_id]
+                        WHERE
+                            [PGRu2].[related_user_id] = @UserId                           AND 
+                            [PGRu2].[user_id]         = @ExternalUserId                   AND 
+                            [PGRu2].[role_id]         = @RoleId                           AND 
+                            [PGRu2].[permission_id]   = @GrantPermissionsUserPermissionId AND 
+                            ([PGRu2].[attribute_id] IS NULL OR [Au2].[id] = @AttributeId)
                     )
+                    OR @HasGrantPermissionsAnyUserPermission = 1)   
                 )
 
                 AND
 
-                -- [Layer 2: account-level check (LAWYER vs CUSTOMER)]
+                -- [Block 2: account-level check (LAWYER vs CUSTOMER)]
 
                 (
                     CASE 
                         WHEN @AttributeName = 'LAWYER' THEN
                             CASE 
+
+                                -- [Layer 1: Ownership]
+
+                                WHEN ([L].[user_id] = @ExternalUserId AND (@HasGrantPermissionsOwnLawyerAccountUserPermission OR @HasGrantPermissionsAnyLawyerAccountUserPermission = 1)) THEN 1
+
+                                -- [Layer 2: permission_grants_relationship (ACL Grant)] [GRANT_PERMISSIONS_LAWYER_ACCOUNT_USER]
+
                                 WHEN (
-                                    EXISTS (
+                                    @GrantPermissionsLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
                                         SELECT 1 FROM [permission_grants_relationship] [PGRu2]
                                         LEFT JOIN [attributes] [Au2] ON [Au2].[id] = [PGRu2].[attribute_id]
                                         WHERE
@@ -2995,12 +4564,21 @@ WITH [view_permission] AS (
                                             ([PGRu2].[attribute_id] IS NULL OR [Au2].[id] = @AttributeId)
                                     )
                                     OR @HasGrantPermissionsAnyLawyerAccountUserPermission = 1
-                                ) THEN 1 ELSE 0
+                                ) THEN 1 
+
+                                ELSE 0
                             END
                         WHEN @AttributeName = 'CUSTOMER' THEN
                             CASE 
+
+                                -- [Layer 1: Ownership]
+
+                                WHEN ([C].[user_id] = @ExternalUserId AND (@HasGrantPermissionsOwnCustomerAccountUserPermission OR @HasGrantPermissionsAnyCustomerAccountUserPermission = 1)) THEN 1
+
+                                -- [Layer 2: permission_grants_relationship (ACL Grant)] [GRANT_PERMISSIONS_CUSTOMER_ACCOUNT_USER]
+
                                 WHEN (
-                                    EXISTS (
+                                    @GrantPermissionsCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
                                         SELECT 1 FROM [permission_grants_relationship] [PGRu2]
                                         LEFT JOIN [attributes] [Au2] ON [Au2].[id] = [PGRu2].[attribute_id]
                                         WHERE
@@ -3011,7 +4589,9 @@ WITH [view_permission] AS (
                                             ([PGRu2].[attribute_id] IS NULL OR [Au2].[id] = @AttributeId)
                                     )
                                     OR @HasGrantPermissionsAnyCustomerAccountUserPermission = 1
-                                ) THEN 1 ELSE 0
+                                ) THEN 1 
+
+                                ELSE 0
                             END
                         ELSE 0
                     END = 1
@@ -3025,7 +4605,8 @@ WITH [view_permission] AS (
 )
 
 SELECT
-    CASE WHEN [view_permission].[apply] = 1 AND [grant_permission].[apply] = 1 THEN 1 ELSE 0 END AS [result]
+    CASE WHEN [view_permission].[apply] = 1 AND [grant_permission].[apply] = 1 THEN 1 
+    ELSE 0 END AS [result]
 FROM [view_permission], [grant_permission];";
 
                     var result = await connection.Connection.QueryFirstAsync<bool>(
@@ -3149,29 +4730,34 @@ FROM [view_permission], [grant_permission];";
             RevokePermissionsUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_USER, contextualizer),
             RevokePermissionsLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_LAWYER_ACCOUNT_USER, contextualizer),
             RevokePermissionsCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_CUSTOMER_ACCOUNT_USER, contextualizer),
-           
-            ViewUserPermissionId                           = await GetPermissionIdAsync(PermissionSymbols.VIEW_USER, contextualizer),
-            ViewLawyerAccountUserPermissionId              = await GetPermissionIdAsync(PermissionSymbols.VIEW_LAWYER_ACCOUNT_USER, contextualizer),
-            ViewCustomerAccountUserPermissionId            = await GetPermissionIdAsync(PermissionSymbols.VIEW_CUSTOMER_ACCOUNT_USER, contextualizer),
+
+            ViewUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_USER, contextualizer),
+            ViewLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_LAWYER_ACCOUNT_USER, contextualizer),
+            ViewCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_CUSTOMER_ACCOUNT_USER, contextualizer),
 
             // [Related to USER or ROLE permission]
 
-            RevokePermissionsOwnUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_OWN_USER, contextualizer),
+            RevokePermissionsOwnUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_OWN_USER, contextualizer),
+            RevokePermissionsOwnLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER, contextualizer),
+            RevokePermissionsOwnCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER, contextualizer),
 
-            ViewPublicUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_USER, contextualizer),
+            ViewPublicUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_USER, contextualizer),
             ViewPublicLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_LAWYER_ACCOUNT_USER, contextualizer),
             ViewPublicCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER, contextualizer),
-            
+
+            ViewOwnUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_USER, contextualizer),
+            ViewOwnLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_LAWYER_ACCOUNT_USER, contextualizer),
+            ViewOwnCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_CUSTOMER_ACCOUNT_USER, contextualizer),
+
             // [Related to SUPER USER or ADMIN permission]
 
             RevokePermissionsAnyUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_ANY_USER, contextualizer),
             RevokePermissionsAnyLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER, contextualizer),
             RevokePermissionsAnyCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER, contextualizer),
             
-            ViewAnyUserPermissionId                           = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_USER, contextualizer),
-            ViewAnyLawyerAccountUserPermissionId              = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_LAWYER_ACCOUNT_USER, contextualizer),
-            ViewAnyCustomerAccountUserPermissionId            = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_CUSTOMER_ACCOUNT_USER, contextualizer),
-
+            ViewAnyUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_USER, contextualizer),
+            ViewAnyLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_LAWYER_ACCOUNT_USER, contextualizer),
+            ViewAnyCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_CUSTOMER_ACCOUNT_USER, contextualizer)
         };
 
         //var isUserOwnerOfTheRelatedUser = parameters.RelatedUserId == parameters.UserId;
@@ -3253,7 +4839,7 @@ CASE
             ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasRevokePermissionsOwnUserPermission]
+END AS [HasRevokePermissionsOwnUserPermission],
 
 /* ---------------------------------------------- [REVOKE_PERMISSIONS_USER] ---------------------------------------------- */
 
@@ -3274,7 +4860,7 @@ CASE
             ([PGC].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasRevokePermissionsUserPermission]
+END AS [HasRevokePermissionsUserPermission],
 
 /* ---------------------------------------------- [REVOKE_PERMISSIONS_ANY_USER] ---------------------------------------------- */
 
@@ -3305,7 +4891,121 @@ CASE
             ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasRevokePermissionsAnyUserPermission]";
+END AS [HasRevokePermissionsAnyUserPermission],
+
+/* ---------------------------------------------- [VIEW_OWN_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_OWN_USER]
+
+    (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                  AND
+            [PGU].[permission_id] = @ViewOwnUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                  AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_USER]
+
+    (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewOwnUserPermissionId AND
+            [PG].[role_id]       = @RoleId                  AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewOwnUserPermission],
+
+/* ---------------------------------------------- [VIEW_ANY_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_USER]
+
+    (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                  AND
+            [PGU].[permission_id] = @ViewAnyUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                  AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_USER]
+
+    (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewAnyUserPermissionId AND
+            [PG].[role_id]       = @RoleId                  AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewAnyUserPermission],
+
+/* ---------------------------------------------- [VIEW_PUBLIC_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_USER]
+
+    (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
+        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
+        WHERE 
+            [PGU_PUB].[user_id]       = @UserId                     AND
+            [PGU_PUB].[permission_id] = @ViewPublicUserPermissionId AND
+            [PGU_PUB].[role_id]       = @RoleId                     AND
+            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_USER]
+
+    (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG_PUB]
+        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
+        WHERE 
+            [PG_PUB].[permission_id] = @ViewPublicUserPermissionId AND
+            [PG_PUB].[role_id]       = @RoleId                     AND
+            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewPublicUserPermission],
+
+/* ---------------------------------------------- [VIEW_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_relationship (ACL Grant)] [VIEW_USER]
+
+    (@ViewUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_relationship] [PGR]
+        LEFT JOIN [attributes] [A_PGR] ON [PGR].[attribute_id] = [A_PGR].[id]
+        WHERE 
+            [PGR].[related_user_id] = @RelatedUserId        AND
+            [PGR].[user_id]         = @UserId               AND
+            [PGR].[permission_id]   = @ViewUserPermissionId AND
+            [PGR].[role_id]         = @RoleId               AND
+            ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewUserPermission]";
 
         var queryPermissionsParameters = new
         {
@@ -3313,23 +5013,58 @@ END AS [HasRevokePermissionsAnyUserPermission]";
             RevokePermissionOwnUserPermissionId  = permission.RevokePermissionsOwnUserPermissionId,
             RevokePermissionsAnyUserPermissionId = permission.RevokePermissionsAnyUserPermissionId,
 
+            ViewOwnUserPermissionId    = permission.ViewOwnUserPermissionId,
+            ViewAnyUserPermissionId    = permission.ViewAnyUserPermissionId,
+            ViewPublicUserPermissionId = permission.ViewPublicUserPermissionId,
+            ViewUserPermissionId       = permission.ViewUserPermissionId,
+
             UserId        = parameters.UserId,
             RelatedUserId = parameters.RelatedUserId,
             AttributeId   = parameters.AttributeId,
             RoleId        = parameters.RoleId
         };
 
-        var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.RevokePermission>(queryPermissions, queryPermissionsParameters);
+        var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.RevokePermissions>(queryPermissions, queryPermissionsParameters);
 
-        if (!permissionsResult.HasRevokePermissionsUserPermission    &&
-            !permissionsResult.HasRevokePermissionsAnyUserPermission &&
-            !permissionsResult.HasRevokePermissionsOwnUserPermission)
+        // [User Information]
+
+        const string queryUserInformations = @"
+SELECT 
+
+[U].[private] AS [Private], 
+
+CASE WHEN [U].[id] = @UserId THEN 1, ELSE 0 END AS [Owner],
+
+FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
+
+        var queryUserInformationParameters = new
+        {
+            RelatedUserId = parameters.RelatedUserId,
+            UserId        = parameters.UserId
+        };
+
+        var userInformationResult = await connection.Connection.QueryFirstOrDefaultAsync<(bool? Private, bool? Owner)>(queryUserInformations, queryUserInformationParameters);
+
+        // [VIEW]
+        if (((userInformationResult.Private.HasValue && userInformationResult.Private.Value) && !permissionsResult.HasViewPublicUserPermission) &&
+            ((userInformationResult.Owner.HasValue   && userInformationResult.Owner.Value)   && !permissionsResult.HasViewOwnUserPermission)    &&
+            !permissionsResult.HasViewUserPermission &&
+            !permissionsResult.HasViewAnyUserPermission)
+        {
+            resultConstructor.SetConstructor(new UserNotFoundError());
+
+            return resultConstructor.Build();
+        }
+
+        // [GRANT_PERMISSIONS]
+        if (((userInformationResult.Owner.HasValue && userInformationResult.Owner.Value) && !permissionsResult.HasRevokePermissionsOwnUserPermission) &&
+            !permissionsResult.HasRevokePermissionsUserPermission &&
+            !permissionsResult.HasRevokePermissionsAnyUserPermission)
         {
             resultConstructor.SetConstructor(new RevokePermissionDeniedError());
 
             return resultConstructor.Build();
         }
-
         // [Permission Objects Validations]
 
         var distinctPermission = parameters.Permissions.Distinct();
@@ -3490,7 +5225,7 @@ CASE
             ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasRevokePermissionsAnyUserPermission]
+END AS [HasRevokePermissionsAnyUserPermission],
 
 /* ---------------------------------------------- [REVOKE_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
 
@@ -3521,7 +5256,7 @@ CASE
             ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasRevokePermissionsAnyLawyerAccountUserPermission]
+END AS [HasRevokePermissionsAnyLawyerAccountUserPermission],
 
 /* ---------------------------------------------- [REVOKE_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
 
@@ -3552,7 +5287,102 @@ CASE
             ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasRevokePermissionsAnyCustomerAccountUserPermission]
+END AS [HasRevokePermissionsAnyCustomerAccountUserPermission],
+
+/* ---------------------------------------------- [REVOKE_PERMISSIONS_OWN_USER] ---------------------------------------------- */
+
+SELECT
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [REVOKE_PERMISSIONS_OWN_USER]
+
+    (@RevokePermissionsOwnUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                               AND
+            [PGU].[permission_id] = @RevokePermissionsOwnUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                               AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [REVOKE_PERMISSIONS_OWN_USER]
+
+    (@RevokePermissionsOwnUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @RevokePermissionsOwnUserPermissionId AND
+            [PG].[role_id]       = @RoleId                               AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasRevokePermissionsOwnUserPermission],
+
+/* ---------------------------------------------- [REVOKE_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [REVOKE_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER]
+
+    (@RevokePermissionsOwnLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                                            AND
+            [PGU].[permission_id] = @RevokePermissionsOwnLawyerAccountUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                                            AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [REVOKE_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER]
+
+    (@RevokePermissionsOwnLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @RevokePermissionsOwnLawyerAccountUserPermissionId AND
+            [PG].[role_id]       = @RoleId                                            AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasRevokePermissionsOwnLawyerAccountUserPermission],
+
+/* ---------------------------------------------- [REVOKE_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [REVOKE_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER]
+
+    (@RevokePermissionsOwnCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                                              AND
+            [PGU].[permission_id] = @RevokePermissionsOwnCustomerAccountUserPermissionId AND
+            [PGU].[role_id]       = @RoleId                                              AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [REVOKE_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER]
+
+    (@RevokePermissionsOwnCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @RevokePermissionsOwnCustomerAccountUserPermissionId AND
+            [PG].[role_id]       = @RoleId                                              AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasRevokePermissionsOwnCustomerAccountUserPermission],
 
 /* ---------------------------------------------- [VIEW_ANY_USER] ---------------------------------------------- */
 
@@ -3583,7 +5413,7 @@ CASE
             ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasViewAnyUserPermission]
+END AS [HasViewAnyUserPermission],
 
 /* ---------------------------------------------- [VIEW_ANY_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
 
@@ -3614,7 +5444,7 @@ CASE
             ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasViewAnyLawyerAccountUserPermission]
+END AS [HasViewAnyLawyerAccountUserPermission],
 
 /* ---------------------------------------------- [VIEW_ANY_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
 
@@ -3645,7 +5475,7 @@ CASE
             ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasViewAnyCustomerAccountUserPermission]
+END AS [HasViewAnyCustomerAccountUserPermission],
 
 /* ---------------------------------------------- [VIEW_PUBLIC_USER] ---------------------------------------------- */
 
@@ -3676,7 +5506,7 @@ CASE
             ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasViewPublicUserPermission]
+END AS [HasViewPublicUserPermission],
 
 /* ---------------------------------------------- [VIEW_PUBLIC_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
 
@@ -3707,7 +5537,7 @@ CASE
             ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
     )) THEN 1
     ELSE 0
-END AS [HasViewPublicLawyerAccountUserPermission]
+END AS [HasViewPublicLawyerAccountUserPermission],
 
 /* ---------------------------------------------- [VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
 
@@ -3750,6 +5580,10 @@ END AS [HasViewPublicCustomerAccountUserPermission]";
             RevokePermissionsAnyLawyerAccountUserPermissionId   = permission.RevokePermissionsAnyLawyerAccountUserPermissionId,
             RevokePermissionsAnyCustomerAccountUserPermissionId = permission.RevokePermissionsAnyCustomerAccountUserPermissionId,
             
+            RevokePermissionsOwnUserPermissionId                = permission.RevokePermissionsOwnUserPermissionId,
+            RevokePermissionsOwnLawyerAccountUserPermissionId   = permission.RevokePermissionsOwnLawyerAccountUserPermissionId,
+            RevokePermissionsOwnCustomerAccountUserPermissionId = permission.RevokePermissionsOwnCustomerAccountUserPermissionId,
+            
             ViewAnyUserPermissionId                = permission.ViewAnyUserPermissionId,
             ViewAnyLawyerAccountUserPermissionId   = permission.ViewAnyLawyerAccountUserPermissionId,
             ViewAnyCustomerAccountUserPermissionId = permission.ViewAnyCustomerAccountUserPermissionId,
@@ -3759,7 +5593,7 @@ END AS [HasViewPublicCustomerAccountUserPermission]";
             RoleId      = parameters.RoleId
         };
 
-        var permissionsResultSpecificUser = await connection.Connection.QueryFirstAsync<PermissionResult.RevokePermission.SpecificUser>(queryPermissionsSpecificUser, queryPermissionsParametersSpecificUser);
+        var permissionsResultSpecificUser = await connection.Connection.QueryFirstAsync<PermissionResult.RevokePermissions.SpecificUser>(queryPermissionsSpecificUser, queryPermissionsParametersSpecificUser);
 
         const string queryAttributes = "SELECT [A].[id] AS [Id], [A].[name] AS [Name] FROM [Attributes]";
 
@@ -3774,17 +5608,6 @@ SELECT [P].[id] AS [Id] FROM [Permissions] WHERE [P].[name] IN
         foreach (var item in internalValues.Data.Items.Values)
         {
             var resultContructor = new ResultConstructor();
-
-            //if (item.UserId == parameters.UserId && isUserOwnerOfTheRelatedUser)
-            //{
-            //    resultContructor.SetConstructor(new UserOwnerOfTheRelatedUserCannotBeGrantPermissionError());
-            //
-            //    internalValues.Data.Items[item.Id].Result = resultContructor.Build();
-            //
-            //    internalValues.Data.Finish(item.Id);
-            //
-            //    continue;
-            //}
 
             if (!allowedPermissions.Contains(item.PermissionId))
             {
@@ -3838,11 +5661,19 @@ WITH [view_permission] AS (
         CASE
             WHEN
 
-                -- [Layer 1: User Level]
+                -- [Block 1: User Level]
 
                 (
+                    -- [Layer 1: Ownership]
+
+                    ([U].[id] = @ExternalUserId AND (@HasViewOwnUserPermission OR @HasViewAnyUserPermission = 1))
+
+                    OR
+
+                    -- [Layer 2: permission_grants_relationship (ACL Grant)] [VIEW_USER]
+
                     ([U].[private] = 1 AND (
-                        EXISTS (
+                        @ViewUserPermissionId IS NOT NULL AND EXISTS (
                             SELECT 1 FROM [permission_grants_relationship] [PGRu]
                             LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
                             WHERE
@@ -3854,19 +5685,30 @@ WITH [view_permission] AS (
                         )
                         OR @HasViewAnyUserPermission = 1
                     ))
-                    OR ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
+
+                    OR 
+
+                    -- [Layer 3: Public]
+
+                    ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
                 )
 
                 AND
 
-                -- [Layer 2: account-level check (LAWYER vs CUSTOMER)]
+                -- [Block 2: account-level check (LAWYER vs CUSTOMER)]
 
                 (
                     CASE 
                         WHEN @AttributeName = 'LAWYER' THEN
                             CASE
+                                -- [Layer 1: Ownership]
+
+                                WHEN ([L].[user_id] = @ExternalUserId AND (@HasViewOwnLawyerAccountUserPermission OR @HasViewAnyLawyerAccountUserPermission = 1)) THEN 1
+
+                                -- [Layer 2: permission_grants_relationship (ACL Grant)] [VIEW_LAWYER_ACCOUNT_USER]
+
                                 WHEN [L].[private] = 1 AND (
-                                    EXISTS (
+                                    @ViewLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
                                         SELECT 1 FROM [permission_grants_relationship] [PGRl]
                                         LEFT JOIN [attributes] [Al] ON [Al].[id] = [PGRl].[attribute_id]
                                         WHERE
@@ -3878,13 +5720,23 @@ WITH [view_permission] AS (
                                     )
                                     OR @HasViewAnyLawyerAccountUserPermission = 1
                                 ) THEN 1
+
+                                -- [Layer 3: Public]
+
                                 WHEN ([L].[private] = 0 AND (@HasViewPublicLawyerAccountUserPermission = 1 OR @HasViewAnyLawyerAccountUserPermission = 1)) THEN 1
+
                                 ELSE 0
                             END
                         WHEN @AttributeName = 'CUSTOMER' THEN
                             CASE
+                                -- [Layer 1: Ownership]
+
+                                WHEN ([C].[user_id] = @ExternalUserId AND (@HasViewOwnCustomerAccountUserPermission OR @HasViewAnyCustomerAccountUserPermission = 1)) THEN 1
+
+                                -- [Layer 2: permission_grants_relationship (ACL Grant)] [VIEW_CUSTOMER_ACCOUNT_USER]
+
                                 WHEN [C].[private] = 1 AND (
-                                    EXISTS (
+                                    @ViewCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
                                         SELECT 1 FROM [permission_grants_relationship] [PGRc]
                                         LEFT JOIN [attributes] [Ac] ON [Ac].[id] = [PGRc].[attribute_id]
                                         WHERE
@@ -3896,7 +5748,11 @@ WITH [view_permission] AS (
                                     )
                                     OR @HasViewAnyCustomerAccountUserPermission = 1
                                 ) THEN 1
+
+                                -- [Layer 3: Public]
+
                                 WHEN ([C].[private] = 0 AND (@HasViewPublicCustomerAccountUserPermission = 1 OR @HasViewAnyCustomerAccountUserPermission = 1)) THEN 1
+                                
                                 ELSE 0
                             END
                         ELSE 0
@@ -3913,35 +5769,47 @@ WITH [view_permission] AS (
     SELECT
         CASE
             WHEN
-
-                -- [Layer 1: User Level]
+                -- [Block 1: User Level]
 
                 (
-                    (
-                        EXISTS (
-                            SELECT 1 FROM [permission_grants_relationship] [PGRu2]
-                            LEFT JOIN [attributes] [Au2] ON [Au2].[id] = [PGRu2].[attribute_id]
-                            WHERE
-                                [PGRu2].[related_user_id] = @UserId                            AND 
-                                [PGRu2].[user_id]         = @ExternalUserId                    AND 
-                                [PGRu2].[role_id]         = @RoleId                            AND 
-                                [PGRu2].[permission_id]   = @RevokePermissionsUserPermissionId AND 
-                                ([PGRu2].[attribute_id] IS NULL OR [Au2].[id] = @AttributeId)
-                        )
-                        OR @HasRevokePermissionsAnyUserPermission = 1
+                    -- [Layer 1: Ownership]
+
+                    ([U].[id] = @ExternalUserId AND (@HasRevokePermissionsOwnUserPermission OR @HasRevokePermissionsAnyUserPermission = 1))
+
+                    OR
+
+                    -- [Layer 2: permission_grants_relationship (ACL Grant)] [REVOKE_PERMISSIONS_USER]
+
+                    (@RevokePermissionsUserPermissionId IS NOT NULL AND EXISTS (
+                        SELECT 1 FROM [permission_grants_relationship] [PGRu2]
+                        LEFT JOIN [attributes] [Au2] ON [Au2].[id] = [PGRu2].[attribute_id]
+                        WHERE
+                            [PGRu2].[related_user_id] = @UserId                            AND 
+                            [PGRu2].[user_id]         = @ExternalUserId                    AND 
+                            [PGRu2].[role_id]         = @RoleId                            AND 
+                            [PGRu2].[permission_id]   = @RevokePermissionsUserPermissionId AND 
+                            ([PGRu2].[attribute_id] IS NULL OR [Au2].[id] = @AttributeId)
                     )
+                    OR @HasRevokePermissionsAnyUserPermission = 1)   
                 )
 
                 AND
 
-                -- [Layer 2: account-level check (LAWYER vs CUSTOMER)]
+                -- [Block 2: account-level check (LAWYER vs CUSTOMER)]
 
                 (
                     CASE 
                         WHEN @AttributeName = 'LAWYER' THEN
                             CASE 
+
+                                -- [Layer 1: Ownership]
+
+                                WHEN ([L].[user_id] = @ExternalUserId AND (@HasRevokePermissionsOwnLawyerAccountUserPermission OR @HasRevokePermissionsAnyLawyerAccountUserPermission = 1)) THEN 1
+
+                                -- [Layer 2: permission_grants_relationship (ACL Grant)] [REVOKE_PERMISSIONS_LAWYER_ACCOUNT_USER]
+
                                 WHEN (
-                                    EXISTS (
+                                    @RevokePermissionsLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
                                         SELECT 1 FROM [permission_grants_relationship] [PGRu2]
                                         LEFT JOIN [attributes] [Au2] ON [Au2].[id] = [PGRu2].[attribute_id]
                                         WHERE
@@ -3952,12 +5820,21 @@ WITH [view_permission] AS (
                                             ([PGRu2].[attribute_id] IS NULL OR [Au2].[id] = @AttributeId)
                                     )
                                     OR @HasRevokePermissionsAnyLawyerAccountUserPermission = 1
-                                ) THEN 1 ELSE 0
+                                ) THEN 1 
+
+                                ELSE 0
                             END
                         WHEN @AttributeName = 'CUSTOMER' THEN
                             CASE 
+
+                                -- [Layer 1: Ownership]
+
+                                WHEN ([C].[user_id] = @ExternalUserId AND (@HasRevokePermissionsOwnCustomerAccountUserPermission OR @HasRevokePermissionsAnyCustomerAccountUserPermission = 1)) THEN 1
+
+                                -- [Layer 2: permission_grants_relationship (ACL Grant)] [REVOKE_PERMISSIONS_CUSTOMER_ACCOUNT_USER]
+
                                 WHEN (
-                                    EXISTS (
+                                    @RevokePermissionsCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
                                         SELECT 1 FROM [permission_grants_relationship] [PGRu2]
                                         LEFT JOIN [attributes] [Au2] ON [Au2].[id] = [PGRu2].[attribute_id]
                                         WHERE
@@ -3968,7 +5845,9 @@ WITH [view_permission] AS (
                                             ([PGRu2].[attribute_id] IS NULL OR [Au2].[id] = @AttributeId)
                                     )
                                     OR @HasRevokePermissionsAnyCustomerAccountUserPermission = 1
-                                ) THEN 1 ELSE 0
+                                ) THEN 1 
+
+                                ELSE 0
                             END
                         ELSE 0
                     END = 1
@@ -3982,7 +5861,8 @@ WITH [view_permission] AS (
 )
 
 SELECT
-    CASE WHEN [view_permission].[apply] = 1 AND [revoke_permission].[apply] = 1 THEN 1 ELSE 0 END AS [result]
+    CASE WHEN [view_permission].[apply] = 1 AND [revoke_permission].[apply] = 1 THEN 1 
+    ELSE 0 END AS [result]
 FROM [view_permission], [revoke_permission];";
 
                     var result = await connection.Connection.QueryFirstAsync<bool>(

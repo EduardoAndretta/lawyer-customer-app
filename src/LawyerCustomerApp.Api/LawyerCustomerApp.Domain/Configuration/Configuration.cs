@@ -27,30 +27,16 @@ public static class Configuration
         services.AddScoped<Case.Interfaces.Services.IRepository, Case.Repositories.Repository>();
 
         services.AddScoped<IValidator<Case.Common.Models.SearchParametersDto>, Case.Validator.SearchParametersDtoValidator>();
+        services.AddScoped<IValidator<Case.Common.Models.CountParametersDto>, Case.Validator.CountParametersDtoValidator>();
+        services.AddScoped<IValidator<Case.Common.Models.DetailsParametersDto>, Case.Validator.DetailsParametersDtoValidator>();
         services.AddScoped<IValidator<Case.Common.Models.RegisterParametersDto>, Case.Validator.RegisterParametersDtoValidator>();
         services.AddScoped<IValidator<Case.Common.Models.AssignLawyerParametersDto>, Case.Validator.AssignLawyerParametersDtoValidator>();
         services.AddScoped<IValidator<Case.Common.Models.AssignCustomerParametersDto>, Case.Validator.AssignCustomerParametersDtoValidator>();
+        services.AddScoped<IValidator<Case.Common.Models.EditParametersDto>, Case.Validator.EditParametersDtoValidator>();
         services.AddScoped<IValidator<Case.Common.Models.GrantPermissionsParametersDto>, Case.Validator.GrantPermissionsParametersDtoValidator>();
         services.AddScoped<IValidator<Case.Common.Models.RevokePermissionsParametersDto>, Case.Validator.RevokePermissionsParametersDtoValidator>();
 
-        #endregion
-
-        #region Chat
-
-        services.AddScoped<Chat.Interfaces.Services.IService, Chat.Services.Service>();
-
-        services.AddScoped<IValidator<Chat.Models.Common.GetParametersDto>, Chat.Validator.GetParametersDtoValidator>();
-
-        #endregion
-
-        #region Search
-
-        services.AddScoped<Search.Interfaces.Services.IService, Search.Services.Service>();
-
-        services.AddScoped<IValidator<Search.Models.Common.SearchCasesParametersDto>, Search.Validator.SearchCasesParametersDtoValidator>();
-        services.AddScoped<IValidator<Search.Models.Common.SearchLawyersParametersDto>, Search.Validator.SearchLawyersParametersDtoValidator>();
-
-        #endregion
+        #endregion   
 
         #region User
 
@@ -59,9 +45,22 @@ public static class Configuration
         services.AddScoped<User.Interfaces.Services.IRepository, User.Repositories.Repository>();
 
         services.AddScoped<IValidator<User.Common.Models.SearchParametersDto>, User.Validator.SearchParametersDtoValidator>();
+        services.AddScoped<IValidator<User.Common.Models.CountParametersDto>, User.Validator.CountParametersDtoValidator>();
+        services.AddScoped<IValidator<User.Common.Models.DetailsParametersDto>, User.Validator.DetailsParametersDtoValidator>();
         services.AddScoped<IValidator<User.Common.Models.RegisterParametersDto>, User.Validator.RegisterParametersDtoValidator>();
+        services.AddScoped<IValidator<User.Common.Models.EditParametersDto>, User.Validator.EditParametersDtoValidator>();
         services.AddScoped<IValidator<User.Common.Models.GrantPermissionsParametersDto>, User.Validator.GrantPermissionsParametersDtoValidator>();
         services.AddScoped<IValidator<User.Common.Models.RevokePermissionsParametersDto>, User.Validator.RevokePermissionsParametersDtoValidator>();
+
+        #endregion
+
+        #region Combo
+
+        services.AddScoped<Customer.Interfaces.Services.IService, Customer.Services.Service>();
+
+        services.AddScoped<Customer.Interfaces.Services.IRepository, Customer.Repositories.Repository>();
+
+        services.AddScoped<IValidator<Combo.Common.Models.KeyValueParametersDto>, Combo.Validator.KeyValueParametersDtoValidator>();
 
         #endregion
 
@@ -71,6 +70,9 @@ public static class Configuration
 
         services.AddScoped<Customer.Interfaces.Services.IRepository, Customer.Repositories.Repository>();
 
+        services.AddScoped<IValidator<Customer.Common.Models.SearchParametersDto>, Customer.Validator.SearchParametersDtoValidator>();
+        services.AddScoped<IValidator<Customer.Common.Models.CountParametersDto>, Customer.Validator.CountParametersDtoValidator>();
+        services.AddScoped<IValidator<Customer.Common.Models.DetailsParametersDto>, Customer.Validator.DetailsParametersDtoValidator>();
         services.AddScoped<IValidator<Customer.Common.Models.RegisterParametersDto>, Customer.Validator.RegisterParametersDtoValidator>();
 
         #endregion
@@ -81,6 +83,9 @@ public static class Configuration
 
         services.AddScoped<Lawyer.Interfaces.Services.IRepository, Lawyer.Repositories.Repository>();
 
+        services.AddScoped<IValidator<Lawyer.Common.Models.SearchParametersDto>, Lawyer.Validator.SearchParametersDtoValidator>();
+        services.AddScoped<IValidator<Lawyer.Common.Models.CountParametersDto>, Lawyer.Validator.CountParametersDtoValidator>();
+        services.AddScoped<IValidator<Lawyer.Common.Models.DetailsParametersDto>, Lawyer.Validator.DetailsParametersDtoValidator>();
         services.AddScoped<IValidator<Lawyer.Common.Models.RegisterParametersDto>, Lawyer.Validator.RegisterParametersDtoValidator>();
 
         #endregion

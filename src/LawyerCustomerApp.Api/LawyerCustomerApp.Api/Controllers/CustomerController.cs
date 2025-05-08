@@ -19,6 +19,93 @@ public class Controller : ControllerBase
         _service = service;
     }
 
+    [HttpPost("search"), Authorize(Policy = "internal-jwt-bearer")]
+    public async Task<ActionResult<SearchInformationDto>> Post(
+        [FromBody] SearchParametersDto parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var contextualizer = Contextualizer.Init(cancellationToken);
+
+        if (!ModelState.IsValid)
+        {
+            var resultContructor = new ResultConstructor();
+
+            resultContructor.SetConstructor(
+                new ModelStateError()
+                {
+                    Status     = 400,
+                    SourceCode = this.GetType().Name,
+                    Errors     = string.Join("; ", ModelState.Values.SelectMany(e => e.Errors).Select(em => em.ErrorMessage))
+                });
+
+            return resultContructor.Build<SearchInformationDto>().HandleActionResult(this);
+        }
+        var result = await _service.SearchAsync(parameters, contextualizer);
+
+        if (result.IsFinished)
+            return result.HandleActionResult(this);
+
+        return result.Value;
+    }
+    
+    [HttpPost("search/count"), Authorize(Policy = "internal-jwt-bearer")]
+    public async Task<ActionResult<CountInformationDto>> Post(
+        [FromBody] CountParametersDto parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var contextualizer = Contextualizer.Init(cancellationToken);
+
+        if (!ModelState.IsValid)
+        {
+            var resultContructor = new ResultConstructor();
+
+            resultContructor.SetConstructor(
+                new ModelStateError()
+                {
+                    Status     = 400,
+                    SourceCode = this.GetType().Name,
+                    Errors     = string.Join("; ", ModelState.Values.SelectMany(e => e.Errors).Select(em => em.ErrorMessage))
+                });
+
+            return resultContructor.Build<CountInformationDto>().HandleActionResult(this);
+        }
+        var result = await _service.CountAsync(parameters, contextualizer);
+
+        if (result.IsFinished)
+            return result.HandleActionResult(this);
+
+        return result.Value;
+    }
+    
+    [HttpPost("details"), Authorize(Policy = "internal-jwt-bearer")]
+    public async Task<ActionResult<DetailsInformationDto>> Post(
+        [FromBody] DetailsParametersDto parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var contextualizer = Contextualizer.Init(cancellationToken);
+
+        if (!ModelState.IsValid)
+        {
+            var resultContructor = new ResultConstructor();
+
+            resultContructor.SetConstructor(
+                new ModelStateError()
+                {
+                    Status     = 400,
+                    SourceCode = this.GetType().Name,
+                    Errors     = string.Join("; ", ModelState.Values.SelectMany(e => e.Errors).Select(em => em.ErrorMessage))
+                });
+
+            return resultContructor.Build<SearchInformationDto>().HandleActionResult(this);
+        }
+        var result = await _service.DetailsAsync(parameters, contextualizer);
+
+        if (result.IsFinished)
+            return result.HandleActionResult(this);
+
+        return result.Value;
+    }
+
     [HttpPost("register/account"), Authorize(Policy = "internal-jwt-bearer")]
     public async Task<ActionResult> Post(
         [FromBody] RegisterParametersDto parameters,

@@ -1,8 +1,8 @@
 ﻿namespace LawyerCustomerApp.External.Models.Permission;
 
+
 public static class Permissions
 {
-
     /*
  
      [TABLE OF HIERARCHY]
@@ -16,7 +16,9 @@ public static class Permissions
                                       | REVOKE_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER		| REVOKE_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER                          |
                                       | REVOKE_PERMISSIONS_OWN_USER							| REVOKE_PERMISSIONS_ANY_USER											|
                                       | REGISTER_USER										| REGISTER_USER													     	|
-                                      | EDIT_OWN_USER										| EDIT_ANY_USER											     			|
+                                      | REGISTER_CUSTOMER_ACCOUNT_USER						| REGISTER_CUSTOMER_ACCOUNT_USER									    |
+                                      | REGISTER_LAWYER_ACCOUNT_USER						| REGISTER_LAWYER_ACCOUNT_USER										    |
+                                      | EDIT_OWN_USER					                    | EDIT_ANY_USER											     			|
                                       | EDIT_OWN_LAWYER_ACCOUNT_USER						| EDIT_ANY_LAWYER_ACCOUNT_USER											|
                                       | EDIT_OWN_CUSTOMER_ACCOUNT_USER						| EDIT_ANY_CUSTOMER_ACCOUNT_USER										|
                                       | VIEW_OWN_USER										| VIEW_ANY_USER															|
@@ -41,6 +43,7 @@ public static class Permissions
                                       | EDIT_CUSTOMER_ACCOUNT_USER							| EDIT_ANY_CUSTOMER_ACCOUNT_USER										|
          [CASE (NOT ACL) PERMISSIONS] |-----------------------------------------------------------------------------------------------------------------------------|
                                       | REGISTER_CASE										| REGISTER_CASE															|
+                                      | EDIT_OWN_CASE										| EDIT_ANY_CASE															|
                                       | VIEW_OWN_CASE										| VIEW_ANY_CASE															|
                                       | VIEW_PUBLIC_CASE									| VIEW_PUBLIC_CASE														|
                                       | ASSIGN_LAWYER_OWN_CASE								| ASSIGN_LAWYER_ANY_CASE												|
@@ -48,6 +51,7 @@ public static class Permissions
                                       | GRANT_PERMISSIONS_OWN_CASE							| GRANT_PERMISSIONS_ANY_CASE											|
                                       | REVOKE_PERMISSIONS_OWN_CASE							| REVOKE_PERMISSIONS_ANY_CASE											|
              [CASE (ACL) PERMISSIONS] |-----------------------------------------------------------------------------------------------------------------------------|
+                                      | EDIT_CASE											| EDIT_ANY_CASE															|
                                       | VIEW_CASE											| VIEW_ANY_CASE															|
                                       | ASSIGN_LAWYER_CASE									| ASSIGN_LAWYER_ANY_CASE												|
                                       | ASSIGN_CUSTOMER_CASE								| ASSIGN_CUSTOMER_ANY_CASE												|
@@ -62,6 +66,8 @@ public static class Permissions
 
     // =================== [   ACL   ] =================== //
 
+    public const string EDIT_CASE = "EDIT_CASE";
+
     public const string VIEW_CASE = "VIEW_CASE";
 
     public const string ASSIGN_LAWYER_CASE = "ASSIGN_LAWYER_CASE";
@@ -75,6 +81,8 @@ public static class Permissions
     // =================== [ NOT ACL ] =================== //
 
     public const string REGISTER_CASE = "REGISTER_CASE";
+
+    public const string EDIT_OWN_CASE = "EDIT_OWN_CASE";
 
     public const string VIEW_OWN_CASE = "VIEW_OWN_CASE";
 
@@ -95,9 +103,9 @@ public static class Permissions
 
     // =================== [   ACL   ] =================== //
 
-    public const string VIEW_USER = "VIEW_USER"; 
+    public const string VIEW_USER = "VIEW_USER";
 
-    public const string VIEW_LAWYER_ACCOUNT_USER = "VIEW_LAWYER_ACCOUNT_USER"; 
+    public const string VIEW_LAWYER_ACCOUNT_USER = "VIEW_LAWYER_ACCOUNT_USER";
 
     public const string VIEW_CUSTOMER_ACCOUNT_USER = "VIEW_CUSTOMER_ACCOUNT_USER";
 
@@ -144,11 +152,15 @@ public static class Permissions
 
     public const string REGISTER_USER = "REGISTER_USER";
 
+    public const string REGISTER_CUSTOMER_ACCOUNT_USER = "REGISTER_CUSTOMER_ACCOUNT_USER";
+
+    public const string REGISTER_LAWYER_ACCOUNT_USER = "REGISTER_LAWYER_ACCOUNT_USER";
+
 
     public const string EDIT_OWN_USER = "EDIT_OWN_USER";
 
     public const string EDIT_OWN_LAWYER_ACCOUNT_USER = "EDIT_OWN_LAWYER_ACCOUNT_USER";
-                        
+
     public const string EDIT_OWN_CUSTOMER_ACCOUNT_USER = "EDIT_OWN_CUSTOMER_ACCOUNT_USER";
 
 
@@ -171,6 +183,8 @@ public static class Permissions
     /// </summary>
 
     // =================== [   ACL   ] =================== //
+
+    public const string EDIT_ANY_CASE = "EDIT_ANY_CASE";
 
     public const string VIEW_ANY_CASE = "VIEW_ANY_CASE";
 
@@ -198,7 +212,7 @@ public static class Permissions
     public const string EDIT_ANY_USER = "EDIT_ANY_USER";
 
     public const string EDIT_ANY_LAWYER_ACCOUNT_USER = "EDIT_ANY_LAWYER_ACCOUNT_USER";
-                             
+
     public const string EDIT_ANY_CUSTOMER_ACCOUNT_USER = "EDIT_ANY_CUSTOMER_ACCOUNT_USER";
 
 

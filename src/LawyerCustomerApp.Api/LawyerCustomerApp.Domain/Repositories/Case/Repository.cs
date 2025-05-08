@@ -11,6 +11,7 @@ using LawyerCustomerApp.External.Interfaces;
 using LawyerCustomerApp.External.Models;
 using LawyerCustomerApp.External.Models.Context;
 using Microsoft.Extensions.Configuration;
+using System.Collections.ObjectModel;
 using System.Text;
 
 using PermissionSymbols = LawyerCustomerApp.External.Models.Permission.Permissions;
@@ -259,11 +260,11 @@ WHERE
             FROM [permission_grants_case] [PGC]
             LEFT JOIN [attributes] [A_PGC] ON [PGC].[attribute_id] = [A_PGC].[id]
             WHERE
-                [PGC].[related_case_id] = [C].[id]
-                AND [PGC].[user_id] = @UserId
-                AND [PGC].[permission_id] = @ViewCasePermissionId
-                AND [PGC].[role_id] = @RoleId
-                AND ([PGC].[attribute_id] IS NULL OR [A_PGC].[id] = @AttributeId)
+                [PGC].[related_case_id] = [C].[id]              AND 
+                [PGC].[user_id]         = @UserId               AND 
+                [PGC].[permission_id]   = @ViewCasePermissionId AND 
+                [PGC].[role_id]         = @RoleId               AND 
+                ([PGC].[attribute_id] IS NULL OR [A_PGC].[id] = @AttributeId)
         ))
         OR
 
@@ -281,10 +282,7 @@ WHERE
 ORDER BY [C].[id] DESC
 LIMIT @Limit OFFSET @Offset;";
 
-            var information = new SearchInformation
-            {
-                Items = new List<SearchInformation.ItemProperties>(),
-            };
+            SearchInformation information;
 
             using (var multiple = await connection.Connection.QueryMultipleAsync(
                 new CommandDefinition(
@@ -295,7 +293,7 @@ LIMIT @Limit OFFSET @Offset;";
                     commandTimeout:    TimeSpan.FromHours(1).Milliseconds
                     )))
             {
-                information = information with
+                information = new SearchInformation
                 {
                     Items = await multiple.ReadAsync<SearchInformation.ItemProperties>()
                 };
@@ -305,6 +303,529 @@ LIMIT @Limit OFFSET @Offset;";
         });
 
         return resultConstructor.Build<SearchInformation>(information);
+    }
+
+    public async Task<Result<CountInformation>> CountAsync(CountParameters parameters, Contextualizer contextualizer)
+    {
+        var resultConstructor = new ResultConstructor();
+
+        var sqliteConnectionString = _configuration.GetConnectionString("Sqlite");
+
+        if (string.IsNullOrWhiteSpace(sqliteConnectionString))
+        {
+            resultConstructor.SetConstructor(new NotFoundDatabaseConnectionStringError());
+
+            return resultConstructor.Build<CountInformation>();
+        }
+
+        _databaseService.AppendConnectionStringWithIdentifier("local-sqlite", sqliteConnectionString, ProviderType.Sqlite);
+
+        var connection = await _databaseService.GetConnection("local-sqlite", ProviderType.Sqlite);
+
+        contextualizer.AssignContextualizedConnection(connection);
+
+        // [Principal Object Validations]
+
+        // [User Id]
+        var userIdResult = await ValidateUserId(
+            parameters.UserId,
+            contextualizer);
+
+        if (userIdResult.IsFinished)
+            return resultConstructor.Build<CountInformation>().Incorporate(userIdResult);
+
+        // [Attribute Id]
+        var attributeIdResult = await ValidateAttributeId(
+            parameters.AttributeId,
+            contextualizer);
+
+        if (attributeIdResult.IsFinished)
+            return resultConstructor.Build<CountInformation>().Incorporate(attributeIdResult);
+
+        // [Role Id]
+        var roleIdResult = await ValidateRoleId(
+            parameters.RoleId,
+            contextualizer);
+
+        if (roleIdResult.IsFinished)
+            return resultConstructor.Build<CountInformation>().Incorporate(roleIdResult);
+
+        // [Attribute Account]
+        var attributeAccountResult = await ValidateAttributeAccount(
+            parameters.UserId,
+            parameters.AttributeId,
+            contextualizer);
+
+        if (attributeAccountResult.IsFinished)
+            return resultConstructor.Build<CountInformation>().Incorporate(attributeAccountResult);
+
+        var permission = new
+        {
+            // [Related to CASE WITH (USER OR ROLE) specific permission assigned]
+
+            ViewCasePermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_CASE, contextualizer),
+
+            // [Related to USER or ROLE permission]
+
+            ViewOwnCasePermissionId    = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_CASE, contextualizer),
+            ViewPublicCasePermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_CASE, contextualizer),
+
+            // [Related to SUPER USER or ADMIN permission]
+
+            ViewAnyCasePermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_CASE, contextualizer)
+        };
+
+        var information = await ValuesExtensions.GetValue(async () =>
+        {
+            // [Permissions Queries]
+
+            const string queryPermissions = @"
+SELECT
+
+/* ---------------------------------------------- [VIEW_ANY_CASE] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_CASE]
+
+    (@ViewAnyCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                  AND
+            [PGU].[permission_id] = @ViewAnyCasePermissionId AND
+            [PGU].[role_id]       = @RoleId                  AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_CASE]
+
+    (@ViewAnyCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewAnyCasePermissionId AND
+            [PG].[role_id]       = @RoleId                  AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewAnyCasePermission],
+
+/* ---------------------------------------------- [VIEW_PUBLIC_CASE] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_CASE]
+
+    (@ViewPublicCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
+        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
+        WHERE 
+            [PGU_PUB].[user_id]       = @UserId                     AND
+            [PGU_PUB].[permission_id] = @ViewPublicCasePermissionId AND
+            [PGU_PUB].[role_id]       = @RoleId                     AND
+            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_CASE]
+
+    (@ViewPublicCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG_PUB]
+        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
+        WHERE 
+            [PG_PUB].[permission_id] = @ViewPublicCasePermissionId AND
+            [PG_PUB].[role_id]       = @RoleId                     AND
+            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewPublicCasePermission],
+
+/* ---------------------------------------------- [VIEW_OWN_CASE] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: Ownership (User Grant)] [VIEW_OWN_CASE]
+
+    (@ViewOwnCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                  AND
+            [PGU].[permission_id] = @ViewOwnCasePermissionId AND
+            [PGU].[role_id]       = @RoleId                  AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: Ownership (Role Grant)] [VIEW_OWN_CASE]
+
+    (@ViewOwnCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A_PG] ON [PG].[attribute_id] = [A_PG].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewOwnCasePermissionId AND
+            [PG].[role_id]       = @RoleId                  AND
+            ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewOwnCasePermission]";
+
+            var queryPermissionsParameters = new
+            {
+                UserId      = parameters.UserId,
+                AttributeId = parameters.AttributeId,
+                RoleId      = parameters.RoleId,
+
+                ViewOwnCasePermissionId    = permission.ViewOwnCasePermissionId,
+                ViewPublicCasePermissionId = permission.ViewPublicCasePermissionId,
+                ViewAnyCasePermissionId    = permission.ViewAnyCasePermissionId
+            };
+
+            var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Search>(queryPermissions, queryPermissionsParameters);
+
+            // [Principal Query]
+
+            var queryParameters = new
+            {
+                UserId      = parameters.UserId,
+                AttributeId = parameters.AttributeId,
+                RoleId      = parameters.RoleId,
+
+                ViewCasePermissionId = permission.ViewCasePermissionId,
+
+                HasViewAnyCasePermission    = permissionsResult.HasViewAnyCasePermission,
+                HasViewPublicCasePermission = permissionsResult.HasViewPublicCasePermission,
+                HasViewOwnCasePermission    = permissionsResult.HasViewOwnCasePermission
+            };
+
+            const string queryText = $@"
+SELECT
+    COUNT(*)
+FROM [cases] [C]
+WHERE
+
+    -- [Basic non-permission filter]
+
+    (@TitleFilter IS NULL OR [C].[title] LIKE @TitleFilter)
+    AND (
+       
+        -- [Block 1: User has permission to view the case]
+
+        ([C].[user_id] = @UserId AND @HasViewOwnCasePermission = 1)
+
+        OR
+
+        (@ViewCasePermissionId IS NOT NULL AND EXISTS (
+            SELECT 1
+            FROM [permission_grants_case] [PGC]
+            LEFT JOIN [attributes] [A_PGC] ON [PGC].[attribute_id] = [A_PGC].[id]
+            WHERE
+                [PGC].[related_case_id] = [C].[id]              AND 
+                [PGC].[user_id]         = @UserId               AND 
+                [PGC].[permission_id]   = @ViewCasePermissionId AND 
+                [PGC].[role_id]         = @RoleId               AND 
+                ([PGC].[attribute_id] IS NULL OR [A_PGC].[id] = @AttributeId)
+        ))
+        OR
+
+        @HasViewAnyCasePermission = 1
+
+        OR
+
+        -- [Block 2: Case is public and user has public view permission]
+
+        ([C].[private] = 0 AND (
+            @HasViewPublicCasePermission = 1
+            OR @HasViewAnyCasePermission = 1
+        ))
+    );";
+
+            return new CountInformation()
+            {
+                Count = await connection.Connection.QueryFirstAsync<long>(new CommandDefinition(
+                    commandText:       queryText,
+                    parameters:        queryParameters,
+                    transaction:       connection.Transaction,
+                    cancellationToken: contextualizer.CancellationToken,
+                    commandTimeout:    TimeSpan.FromHours(1).Milliseconds
+                    ))
+            };
+        });
+
+        return resultConstructor.Build<CountInformation>(information);
+    }
+
+    public async Task<Result<DetailsInformation>> DetailsAsync(DetailsParameters parameters, Contextualizer contextualizer)
+    {
+        var resultConstructor = new ResultConstructor();
+
+        var sqliteConnectionString = _configuration.GetConnectionString("Sqlite");
+
+        if (string.IsNullOrWhiteSpace(sqliteConnectionString))
+        {
+            resultConstructor.SetConstructor(new NotFoundDatabaseConnectionStringError());
+
+            return resultConstructor.Build<DetailsInformation>();
+        }
+
+        _databaseService.AppendConnectionStringWithIdentifier("local-sqlite", sqliteConnectionString, ProviderType.Sqlite);
+
+        var connection = await _databaseService.GetConnection("local-sqlite", ProviderType.Sqlite);
+
+        contextualizer.AssignContextualizedConnection(connection);
+
+        // [Principal Object Validations]
+
+        // [User Id]
+        var userIdResult = await ValidateUserId(
+            parameters.UserId,
+            contextualizer);
+
+        if (userIdResult.IsFinished)
+            return resultConstructor.Build<DetailsInformation>().Incorporate(userIdResult);
+
+        // [Attribute Id]
+        var attributeIdResult = await ValidateAttributeId(
+            parameters.AttributeId,
+            contextualizer);
+
+        if (attributeIdResult.IsFinished)
+            return resultConstructor.Build<DetailsInformation>().Incorporate(attributeIdResult);
+
+        // [Role Id]
+        var roleIdResult = await ValidateRoleId(
+            parameters.RoleId,
+            contextualizer);
+
+        if (roleIdResult.IsFinished)
+            return resultConstructor.Build<DetailsInformation>().Incorporate(roleIdResult);
+
+        // [Attribute Account]
+        var attributeAccountResult = await ValidateAttributeAccount(
+            parameters.UserId,
+            parameters.AttributeId,
+            contextualizer);
+
+        if (attributeAccountResult.IsFinished)
+            return resultConstructor.Build<DetailsInformation>().Incorporate(attributeAccountResult);
+
+        var permission = new
+        {
+            // [Related to CASE WITH (USER OR ROLE) specific permission assigned]
+
+            ViewCasePermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_CASE, contextualizer),
+
+            // [Related to USER or ROLE permission]
+
+            ViewOwnCasePermissionId    = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_CASE, contextualizer),
+            ViewPublicCasePermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_CASE, contextualizer),
+
+            // [Related to SUPER USER or ADMIN permission]
+
+            ViewAnyCasePermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_CASE, contextualizer)
+        };
+
+        var information = await ValuesExtensions.GetValue(async () =>
+        {
+            // [Permissions Queries]
+
+            const string queryPermissions = @"
+SELECT
+
+/* ---------------------------------------------- [VIEW_ANY_CASE] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_CASE]
+
+    (@ViewAnyCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                  AND
+            [PGU].[permission_id] = @ViewAnyCasePermissionId AND
+            [PGU].[role_id]       = @RoleId                  AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_CASE]
+
+    (@ViewAnyCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewAnyCasePermissionId AND
+            [PG].[role_id]       = @RoleId                  AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewAnyCasePermission],
+
+/* ---------------------------------------------- [VIEW_PUBLIC_CASE] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_CASE]
+
+    (@ViewPublicCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
+        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
+        WHERE 
+            [PGU_PUB].[user_id]       = @UserId                     AND
+            [PGU_PUB].[permission_id] = @ViewPublicCasePermissionId AND
+            [PGU_PUB].[role_id]       = @RoleId                     AND
+            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_CASE]
+
+    (@ViewPublicCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG_PUB]
+        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
+        WHERE 
+            [PG_PUB].[permission_id] = @ViewPublicCasePermissionId AND
+            [PG_PUB].[role_id]       = @RoleId                     AND
+            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewPublicCasePermission],
+
+/* ---------------------------------------------- [VIEW_OWN_CASE] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: Ownership (User Grant)] [VIEW_OWN_CASE]
+
+    (@ViewOwnCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                  AND
+            [PGU].[permission_id] = @ViewOwnCasePermissionId AND
+            [PGU].[role_id]       = @RoleId                  AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: Ownership (Role Grant)] [VIEW_OWN_CASE]
+
+    (@ViewOwnCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A_PG] ON [PG].[attribute_id] = [A_PG].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewOwnCasePermissionId AND
+            [PG].[role_id]       = @RoleId                  AND
+            ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewOwnCasePermission]";
+
+            var queryPermissionsParameters = new
+            {
+                UserId      = parameters.UserId,
+                AttributeId = parameters.AttributeId,
+                RoleId      = parameters.RoleId,
+
+                ViewOwnCasePermissionId    = permission.ViewOwnCasePermissionId,
+                ViewPublicCasePermissionId = permission.ViewPublicCasePermissionId,
+                ViewAnyCasePermissionId    = permission.ViewAnyCasePermissionId
+            };
+
+            var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Search>(queryPermissions, queryPermissionsParameters);
+
+            // [Principal Query]
+
+            var queryParameters = new
+            {
+                UserId      = parameters.UserId,
+                CaseId      = parameters.CaseId,
+                AttributeId = parameters.AttributeId,
+                RoleId      = parameters.RoleId,
+
+                ViewCasePermissionId = permission.ViewCasePermissionId,
+
+                HasViewAnyCasePermission    = permissionsResult.HasViewAnyCasePermission,
+                HasViewPublicCasePermission = permissionsResult.HasViewPublicCasePermission,
+                HasViewOwnCasePermission    = permissionsResult.HasViewOwnCasePermission
+            };
+
+            const string queryText = $@"
+SELECT
+    [C].[id],
+    [C].[title],
+    [C].[status],
+    [C].[begin_date] AS [BeginDate]
+FROM [cases] [C]
+WHERE
+
+    -- [Basic non-permission filter]
+
+    (@TitleFilter IS NULL OR [C].[title] LIKE @TitleFilter)
+    AND (
+       
+        -- [Block 1: User has permission to view the case]
+
+        ([C].[user_id] = @UserId AND @HasViewOwnCasePermission = 1)
+
+        OR
+
+        (@ViewCasePermissionId IS NOT NULL AND EXISTS (
+            SELECT 1
+            FROM [permission_grants_case] [PGC]
+            LEFT JOIN [attributes] [A_PGC] ON [PGC].[attribute_id] = [A_PGC].[id]
+            WHERE
+                [PGC].[related_case_id] = [C].[id]              AND 
+                [PGC].[user_id]         = @UserId               AND 
+                [PGC].[permission_id]   = @ViewCasePermissionId AND 
+                [PGC].[role_id]         = @RoleId               AND 
+                ([PGC].[attribute_id] IS NULL OR [A_PGC].[id] = @AttributeId)
+        ))
+        OR
+
+        @HasViewAnyCasePermission = 1
+
+        OR
+
+        -- [Block 2: Case is public and user has public view permission]
+
+        ([C].[private] = 0 AND (
+            @HasViewPublicCasePermission = 1
+            OR @HasViewAnyCasePermission = 1
+        ))
+    )
+WHERE [C].[id] = @CaseId AND [C].[user_id] = @UserId;";
+
+            DetailsInformation information;
+
+            using (var multiple = await connection.Connection.QueryMultipleAsync(
+                new CommandDefinition(
+                    commandText:       queryText,
+                    parameters:        queryParameters,
+                    transaction:       connection.Transaction,
+                    cancellationToken: contextualizer.CancellationToken,
+                    commandTimeout:    TimeSpan.FromHours(1).Milliseconds
+                    )))
+            {
+                information = new DetailsInformation
+                {
+                    Item = await multiple.ReadFirstAsync<DetailsInformation.ItemProperties>()
+                };
+            }
+
+            return information;
+        });
+
+        return resultConstructor.Build<DetailsInformation>(information);
     }
 
     public async Task<Result> RegisterAsync(RegisterParameters parameters, Contextualizer contextualizer)
@@ -433,15 +954,13 @@ END AS [HasRegisterCasePermission]";
                 Status      = "openned",
                 BeginDate   = actualDate,
     
-                UserId     = parameters.UserId,
-                CustomerId = parameters.CustomerId == 0 ? null : (int?)parameters.CustomerId,
-                LawyerId   = parameters.LawyerId   == 0 ? null : (int?)parameters.LawyerId
+                UserId = parameters.UserId
             };
     
             var stringBuilder = new StringBuilder();
     
-            stringBuilder.Append(@"INSERT INTO [cases] ([title], [description], [status], [begin_date], [user_id], [customer_id], [lawyer_id])
-                                                VALUES (@Title, @Description, @Status, @BeginDate, @UserId, @CustomerId, @LawyerId)");
+            stringBuilder.Append(@"INSERT INTO [cases] ([title], [description], [status], [begin_date], [user_id])
+                                                VALUES (@Title, @Description, @Status, @BeginDate, @UserId)");
     
             var includedItems = await connection.Connection.ExecuteAsync(
                 new CommandDefinition(
@@ -1203,6 +1722,386 @@ END AS [HasViewPublicCasePermission]";
 
             return resultConstructor.Build();
         }
+        return resultConstructor.Build();
+    }
+
+    public async Task<Result> EditAsync(EditParameters parameters, Contextualizer contextualizer)
+    {
+        var resultConstructor = new ResultConstructor();
+
+        var sqliteConnectionString = _configuration.GetConnectionString("Sqlite");
+
+        if (string.IsNullOrWhiteSpace(sqliteConnectionString))
+        {
+            resultConstructor.SetConstructor(new NotFoundDatabaseConnectionStringError());
+
+            return resultConstructor.Build();
+        }
+
+        _databaseService.AppendConnectionStringWithIdentifier("local-sqlite", sqliteConnectionString, ProviderType.Sqlite);
+
+        var connection = await _databaseService.GetConnection("local-sqlite", ProviderType.Sqlite);
+
+        contextualizer.AssignContextualizedConnection(connection);
+
+        var permission = new
+        {
+            // [Related to RELATIONSHIP WITH (USER OR ROLE) specific permission assigned]
+
+            EditCasePermissionId = await GetPermissionIdAsync(PermissionSymbols.EDIT_CASE, contextualizer),
+           
+            ViewCasePermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_CASE, contextualizer),
+            
+            // [Related to USER or ROLE permission]
+
+            EditOwnCasePermissionId = await GetPermissionIdAsync(PermissionSymbols.EDIT_OWN_CASE, contextualizer),
+
+            ViewPublicCasePermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_CASE, contextualizer),
+         
+            ViewOwnCasePermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_CASE, contextualizer),
+
+            // [Related to SUPER USER or ADMIN permission]
+
+            EditAnyCasePermissionId = await GetPermissionIdAsync(PermissionSymbols.EDIT_ANY_CASE, contextualizer),
+          
+            ViewAnyCasePermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_CASE, contextualizer)
+        };
+
+        // [Role Id]
+        var roleIdResult = await ValidateRoleId(
+            parameters.RoleId,
+            contextualizer);
+
+        if (roleIdResult.IsFinished)
+            return resultConstructor.Build().Incorporate(roleIdResult);
+
+        // [uSER Id]
+        var userIdResult = await ValidateUserId(
+            parameters.UserId,
+            contextualizer);
+
+        if (userIdResult.IsFinished)
+            return resultConstructor.Build().Incorporate(userIdResult);
+
+        // [Permission Validation]
+
+        const string queryPermissions = @"
+SELECT
+
+/* ---------------------------------------------- [EDIT_OWN_CASE] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: Ownership (User Grant)] [EDIT_OWN_CASE]
+
+    (@EditOwnCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                  AND
+            [PGU].[permission_id] = @EditOwnCasePermissionId AND
+            [PGU].[role_id]       = @RoleId                  AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: Ownership (Role Grant)] [EDIT_OWN_CASE]
+
+    (@EditOwnCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A_PG] ON [PG].[attribute_id] = [A_PG].[id]
+        WHERE 
+            [PG].[permission_id] = @EditOwnCasePermissionId AND
+            [PG].[role_id]       = @RoleId                  AND
+            ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasEditOwnCasePermission],
+
+/* ---------------------------------------------- [EDIT_CASE] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_cases (ACL Grant)] [EDIT_CASE]
+
+    (@EditCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_cases] [PGC]
+        LEFT JOIN [attributes] [A_PGC] ON [PGC].[attribute_id] = [A_PGC].[id]
+        WHERE 
+            [PGC].[related_case_id] = @RelatedCaseId        AND
+            [PGC].[user_id]         = @UserId               AND
+            [PGC].[permission_id]   = @EditCasePermissionId AND
+            [PGC].[role_id]         = @RoleId               AND
+            ([PGC].[attribute_id] IS NULL OR [A_PGC].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasEditCasePermission],
+
+/* ---------------------------------------------- [EDIT_ANY_CASE] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user (User Grant)] [EDIT_ANY_CASE]
+
+    (@EditAnyCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                  AND
+            [PGU].[permission_id] = @EditAnyCasePermissionId AND
+            [PGU].[role_id]       = @RoleId                  AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 1: permission_grants (Role Grant)] [EDIT_ANY_CASE]
+
+    (@EditAnyCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A_PG] ON [PG].[attribute_id] = [A_PG].[id]
+        WHERE 
+            [PG].[permission_id] = @EditAnyCasePermissionId AND
+            [PG].[role_id]       = @RoleId                  AND
+            ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasEditAnyCasePermission],
+
+/* ---------------------------------------------- [VIEW_OWN_CASE] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_OWN_CASE]
+
+    (@ViewOwnCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                  AND
+            [PGU].[permission_id] = @ViewOwnCasePermissionId AND
+            [PGU].[role_id]       = @RoleId                  AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_CASE]
+
+    (@ViewOwnCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewOwnCasePermissionId AND
+            [PG].[role_id]       = @RoleId                  AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewOwnCasePermission],
+
+/* ---------------------------------------------- [VIEW_ANY_CASE] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_CASE]
+
+    (@ViewAnyCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU]
+        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
+        WHERE 
+            [PGU].[user_id]       = @UserId                  AND
+            [PGU].[permission_id] = @ViewAnyCasePermissionId AND
+            [PGU].[role_id]       = @RoleId                  AND
+            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_CASE]
+
+    (@ViewAnyCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG]
+        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
+        WHERE 
+            [PG].[permission_id] = @ViewAnyCasePermissionId AND
+            [PG].[role_id]       = @RoleId                  AND
+            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewAnyCasePermission],
+
+/* ---------------------------------------------- [VIEW_PUBLIC_CASE] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_CASE]
+
+    (@ViewPublicCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
+        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
+        WHERE 
+            [PGU_PUB].[user_id]       = @UserId                     AND
+            [PGU_PUB].[permission_id] = @ViewPublicCasePermissionId AND
+            [PGU_PUB].[role_id]       = @RoleId                     AND
+            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+    )) OR 
+
+    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_CASE]
+
+    (@ViewPublicCasePermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants] [PG_PUB]
+        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
+        WHERE 
+            [PG_PUB].[permission_id] = @ViewPublicCasePermissionId AND
+            [PG_PUB].[role_id]       = @RoleId                     AND
+            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewPublicCasePermission],
+
+/* ---------------------------------------------- [VIEW_CASE] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_cases (ACL Grant)] [VIEW_CASE]
+
+    (@ViewUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_cases] [PGC]
+        LEFT JOIN [attributes] [A_PGC] ON [PGC].[attribute_id] = [A_PGC].[id]
+        WHERE 
+            [PGC].[related_case_id] = @RelatedCaseId        AND
+            [PGC].[user_id]         = @UserId               AND
+            [PGC].[permission_id]   = @ViewUserPermissionId AND
+            [PGC].[role_id]         = @RoleId               AND
+            ([PGC].[attribute_id] IS NULL OR [A_PGC].[id] = @AttributeId)
+    )) THEN 1
+    ELSE 0
+END AS [HasViewCasePermission]";
+
+        var queryPermissionsParameters = new
+        {
+            EditCasePermissionId    = permission.EditCasePermissionId,
+            EditOwnCasePermissionId = permission.EditOwnCasePermissionId,
+            EditAnyCasePermissionId = permission.EditAnyCasePermissionId,
+
+            ViewOwnCasePermissionId    = permission.ViewOwnCasePermissionId,               
+            ViewPublicCasePermissionId = permission.ViewPublicCasePermissionId,               
+            ViewAnyCasePermissionId    = permission.ViewAnyCasePermissionId,
+            ViewCasePermissionId       = permission.ViewCasePermissionId,
+         
+            RelatedCaseId = parameters.RelatedCaseId,
+            UserId        = parameters.UserId,
+            RoleId        = parameters.RoleId
+        };
+
+        var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Edit>(queryPermissions, queryPermissionsParameters);
+
+        // [Case Information]
+
+        const string queryCaseInformations = @"
+SELECT 
+
+[C].[private] AS [Private], 
+
+CASE WHEN [C].[id] = @UserId THEN 1, ELSE 0 END AS [Owner],
+
+FROM [cases] [C] WHERE [C].[id] = @RelatedCaseId AND [U].[user_id] = @UserId";
+
+        var queryCaseInformationParameters = new
+        {
+            RelatedCaseId = parameters.RelatedCaseId,
+            UserId        = parameters.UserId
+        };
+
+        var caseInformationResult = await connection.Connection.QueryFirstOrDefaultAsync<(bool? Private, bool? Owner)>(queryCaseInformations, queryCaseInformationParameters);
+
+        // [VIEW]
+        if (((caseInformationResult.Private.HasValue && caseInformationResult.Private.Value) && !permissionsResult.HasViewPublicCasePermission) &&
+            ((caseInformationResult.Owner.HasValue   && caseInformationResult.Owner.Value)   && !permissionsResult.HasViewOwnCasePermission)    &&
+            !permissionsResult.HasViewCasePermission &&
+            !permissionsResult.HasViewAnyCasePermission)
+        {
+            resultConstructor.SetConstructor(new CaseNotFoundError());
+
+            return resultConstructor.Build();
+        }
+
+        // [EDIT]
+        if (((caseInformationResult.Owner.HasValue && caseInformationResult.Owner.Value) && !permissionsResult.HasEditOwnCasePermission) &&
+            !permissionsResult.HasEditCasePermission &&
+            !permissionsResult.HasEditAnyCasePermission)
+        {
+            resultConstructor.SetConstructor(new EditDeniedError());
+
+            return resultConstructor.Build();
+        }
+
+        await _databaseService.Execute(
+            connection, 
+            async () =>
+            {
+                var queryParameters = new DynamicParameters();
+
+                var dynamicSetStattement = new Collection<string>();
+
+                // =================== [Table - cases] =================== //
+
+                if (parameters.HasChanges)
+                {
+                    queryParameters.Add("@CaseId", parameters.RelatedCaseId);
+                    queryParameters.Add("@UserId", parameters.UserId);
+
+                    // [Title]
+                    if (parameters.Title.Received)
+                    {
+                        dynamicSetStattement.Add("SET [title] = @Title");
+                        queryParameters.Add("@Title", parameters.Title.Value);
+                    }
+
+                    // [Description]
+                    if (parameters.Description.Received)
+                    {
+                        dynamicSetStattement.Add("SET [description] = @Description");
+                        queryParameters.Add("@Description", parameters.Description.Value);
+                    }
+
+                    // [Status]
+                    if (parameters.Status.Received)
+                    {
+                        dynamicSetStattement.Add("SET [status] = @Status");
+                        queryParameters.Add("@Status", parameters.Status.Value);
+                    }
+
+                    // [Private]
+                    if (parameters.Private.Received)
+                    {
+                        dynamicSetStattement.Add("SET [private] = @Private");
+                        queryParameters.Add("@Private", parameters.Private.Value);
+                    }
+
+                    if (!dynamicSetStattement.Any())
+                    {
+                        var query = $"UPDATE [cases] {string.Join("AND", dynamicSetStattement)} WHERE [id] = @CaseId AND [user_id] = @UserId";
+
+                        var includedItems = await connection.Connection.ExecuteAsync(
+                            new CommandDefinition(
+                                    commandText:       query,
+                                    parameters:        queryParameters,
+                                    transaction:       connection.Transaction,
+                                    cancellationToken: contextualizer.CancellationToken,
+                                    commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
+                    }
+                }  
+            },
+            transactionOptions: new() { ExecuteRollbackAndCommit = true });
+
         return resultConstructor.Build();
     }
 
@@ -2284,7 +3183,7 @@ WITH [view_permission] AS (
                     -- [Layer 2: permission_grants_relationship (ACL Grant)] [VIEW_USER]
 
                     ([U].[private] = 1 AND (
-                        @ViewUserPermissionId IS NOT NULL EXISTS (
+                        @ViewUserPermissionId IS NOT NULL AND EXISTS (
                             SELECT 1 FROM [permission_grants_relationship] [PGRu]
                             LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
                             WHERE
@@ -4433,28 +5332,6 @@ FROM [view_permission], [revoke_permission];";
         }
         return resultContructor.Build();
     }
-
-    //private async Task<bool> IsUserOwnerOfTheCaseAsync(
-    //    int caseId,
-    //    int userId,
-    //    Contextualizer contextualizer)
-    //{
-    //    var connection = await contextualizer.ConnectionContextualizer.GetConnection(_databaseService, ProviderType.Sqlite);
-    //
-    //    var queryParameters = new { CaseId = caseId, UserId = userId };
-    //
-    //    var queryText = "SELECT CASE WHEN EXISTS (SELECT 1 FROM [cases] C WHERE [C].[id] = @CaseId AND [C].[user_id] = @UserId) THEN 1 ELSE 0 END AS [Owner]";
-    //    
-    //    var result = await connection.Connection.QueryFirstAsync<bool>(
-    //        new CommandDefinition(
-    //                commandText:       queryText,
-    //                parameters:        queryParameters,
-    //                transaction:       connection.Transaction,
-    //                cancellationToken: contextualizer.CancellationToken,
-    //                commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
-    //    
-    //    return result;
-    //}
 
     private async Task<int> GetPermissionIdAsync(
         string permissionName,

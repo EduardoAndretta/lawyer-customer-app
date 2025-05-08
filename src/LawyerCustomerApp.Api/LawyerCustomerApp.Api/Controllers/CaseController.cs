@@ -5,6 +5,9 @@ using LawyerCustomerApp.External.Models;
 using LawyerCustomerApp.External.Models.Context;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.OpenApi.Any;
+using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace LawyerCustomerApp.Application.Case.Controllers;
 
@@ -48,6 +51,64 @@ public class Controller : ControllerBase
         return result.Value;
     }
 
+    [HttpPost("search/count"), Authorize(Policy = "internal-jwt-bearer")]
+    public async Task<ActionResult<CountInformationDto>> Post(
+        [FromBody] CountParametersDto parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var contextualizer = Contextualizer.Init(cancellationToken);
+
+        if (!ModelState.IsValid)
+        {
+            var resultContructor = new ResultConstructor();
+
+            resultContructor.SetConstructor(
+                new ModelStateError()
+                {
+                    Status     = 400,
+                    SourceCode = this.GetType().Name,
+                    Errors     = string.Join("; ", ModelState.Values.SelectMany(e => e.Errors).Select(em => em.ErrorMessage))
+                });
+
+            return resultContructor.Build<CountInformationDto>().HandleActionResult(this);
+        }
+        var result = await _service.CountAsync(parameters, contextualizer);
+
+        if (result.IsFinished)
+            return result.HandleActionResult(this);
+
+        return result.Value;
+    }
+
+    [HttpPost("details"), Authorize(Policy = "internal-jwt-bearer")]
+    public async Task<ActionResult<DetailsInformationDto>> Post(
+        [FromBody] DetailsParametersDto parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var contextualizer = Contextualizer.Init(cancellationToken);
+
+        if (!ModelState.IsValid)
+        {
+            var resultContructor = new ResultConstructor();
+
+            resultContructor.SetConstructor(
+                new ModelStateError()
+                {
+                    Status     = 400,
+                    SourceCode = this.GetType().Name,
+                    Errors     = string.Join("; ", ModelState.Values.SelectMany(e => e.Errors).Select(em => em.ErrorMessage))
+                });
+
+            return resultContructor.Build<DetailsInformationDto>().HandleActionResult(this);
+        }
+        var result = await _service.DetailsAsync(parameters, contextualizer);
+
+        if (result.IsFinished)
+            return result.HandleActionResult(this);
+
+        return result.Value;
+    }
+
     [HttpPost("register"), Authorize(Policy = "internal-jwt-bearer")]
     public async Task<ActionResult> Post(
         [FromBody] RegisterParametersDto parameters,
@@ -76,6 +137,64 @@ public class Controller : ControllerBase
 
         return NoContent();
     }
+
+    public class EditPatchExampleOperationFilter : IOperationFilter
+    {
+        public void Apply(OpenApiOperation operation, OperationFilterContext context)
+        {
+            // [Only apply to the PATCH /edit endpoint]
+            if (context.ApiDescription.HttpMethod == "PATCH" && (context.ApiDescription.RelativePath?.Contains("api/case/edit") ?? false))
+            {
+                var requestBody = operation.RequestBody?.Content["application/json"];
+                if (requestBody != null)
+                {
+                    requestBody.Example = new OpenApiObject
+                    {
+                        ["relatedCaseId"] = new OpenApiInteger(0),
+                        ["userId"]        = new OpenApiInteger(0),
+                        ["roleId"]        = new OpenApiInteger(0),
+                        ["values"]        = new OpenApiObject
+                        {
+                            ["title"]       = new OpenApiString("string"),
+                            ["description"] = new OpenApiString("string"),
+                            ["status"]      = new OpenApiString("string"),
+                            ["private"]     = new OpenApiBoolean(false)
+                        }
+                    };
+                }
+            }
+        }
+    }
+
+    [HttpPatch("edit"), Authorize(Policy = "internal-jwt-bearer")]
+    public async Task<ActionResult> Patch(
+        [FromBody] EditParametersDto parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var contextualizer = Contextualizer.Init(cancellationToken);
+    
+        if (!ModelState.IsValid)
+        {
+            var resultContructor = new ResultConstructor();
+    
+            resultContructor.SetConstructor(
+                new ModelStateError()
+                {
+                    Status     = 400,
+                    SourceCode = this.GetType().Name,
+                    Errors     = string.Join("; ", ModelState.Values.SelectMany(e => e.Errors).Select(em => em.ErrorMessage))
+                });
+    
+            return resultContructor.Build().HandleActionResult(this);
+        }
+        var result = await _service.EditAsync(parameters, contextualizer);
+    
+        if (result.IsFinished)
+            return result.HandleActionResult(this);
+    
+        return NoContent();
+    }
+
 
     [HttpPut("assign-lawyer"), Authorize(Policy = "internal-jwt-bearer")]
     public async Task<ActionResult> Put(

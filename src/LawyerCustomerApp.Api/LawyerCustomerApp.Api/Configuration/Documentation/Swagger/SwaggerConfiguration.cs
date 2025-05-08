@@ -1,4 +1,5 @@
 ﻿using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.Filters;
 
 namespace LawyerCustomerApp.Application.Configuration;
 
@@ -34,6 +35,9 @@ public static class SwaggerConfiguration
 
                 return fullName;
             });
+
+            options.OperationFilter<Case.Controllers.Controller.EditPatchExampleOperationFilter>();
+            options.OperationFilter<User.Controllers.Controller.EditPatchExampleOperationFilter>();
 
             bool jwtBearerIsConfigured = services.Any(service =>
                 service.ServiceType.FullName?.Contains("JwtBearerHandler") == true);

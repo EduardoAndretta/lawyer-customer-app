@@ -22,18 +22,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Models\Auth\Variations\Services\" />
-    <Folder Include="Models\Case\Variations\Services\" />
-    <Folder Include="Models\Chat\Variations\Repositories\" />
-    <Folder Include="Models\Chat\Variations\Services\" />
-    <Folder Include="Models\Customer\Variations\Repositories\" />
-    <Folder Include="Models\Customer\Variations\Services\" />
-    <Folder Include="Models\Lawyer\Variations\Repositories\" />
-    <Folder Include="Models\Lawyer\Variations\Services\" />
-    <Folder Include="Models\Search\Variations\Repositories\" />
-    <Folder Include="Models\Search\Variations\Services\" />
-    <Folder Include="Models\User\Variations\Repositories\" />
-    <Folder Include="Models\User\Variations\Services\" />
+    <Folder Include="Models\Variations\Auth\Variations\Services\" />
+    <Folder Include="Models\Variations\Case\Variations\Services\" />
+    <Folder Include="Models\Variations\Combo\Variations\Repositories\" />
+    <Folder Include="Models\Variations\Combo\Variations\Services\" />
+    <Folder Include="Models\Variations\Customer\Variations\Services\" />
+    <Folder Include="Models\Variations\Lawyer\Variations\Services\" />
+    <Folder Include="Models\Variations\User\Variations\Services\" />
   </ItemGroup>
 
 </Project>
