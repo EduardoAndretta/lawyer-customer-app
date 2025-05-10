@@ -13,6 +13,4 @@ public interface IRepository
     Task<Result> AssignLawyerAsync(AssignLawyerParameters parameters, Contextualizer contextualizer);
     Task<Result> AssignCustomerAsync(AssignCustomerParameters parameters, Contextualizer contextualizer);
     Task<Result> EditAsync(EditParameters parameters, Contextualizer contextualizer);
-    Task<Result> GrantPermissionsAsync(GrantPermissionsParameters parameters, Contextualizer contextualizer);
-    Task<Result> RevokePermissionsAsync(RevokePermissionsParameters parameters, Contextualizer contextualizer);
 }

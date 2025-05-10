@@ -1,0 +1,45 @@
+.lca-input-wrapper {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+  }
+  
+  .lca-input-label {
+    margin-bottom: 5px;
+    font-size: 0.9em;
+    color: #333;
+    font-weight: bold;
+  }
+  
+  .lca-input-field {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+    transition: border-color 0.2s ease-in-out;
+  }
+  
+  .lca-input-field:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+  }
+  
+  .lca-input-field[disabled] {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+  }
+  
+  .lca-input-error-message {
+    font-size: 0.8em;
+    color: #dc3545;
+    margin-top: 4px;
+  }
+  
+  .lca-input-field.lca-input-error-state {
+    border-color: #dc3545;
+  }
+  
+  .lca-input-field.lca-input-error-state:focus {
+    box-shadow: 0 0 0 0.2rem rgba(220,53,69,.25);
+  }

@@ -32,6 +32,8 @@ internal class Repository : IRepository
         _databaseService = databaseService;
     }
 
+    #region SearchAsync
+
     public async Task<Result<SearchInformation>> SearchAsync(SearchParameters parameters, Contextualizer contextualizer)
     {
         var resultConstructor = new ResultConstructor();
@@ -61,14 +63,6 @@ internal class Repository : IRepository
         if (userIdResult.IsFinished)
             return resultConstructor.Build<SearchInformation>().Incorporate(userIdResult);
 
-        // [Attribute Id]
-        var attributeIdResult = await ValidateAttributeId(
-            parameters.AttributeId,
-            contextualizer);
-
-        if (attributeIdResult.IsFinished)
-            return resultConstructor.Build<SearchInformation>().Incorporate(attributeIdResult);
-
         // [Role Id]
         var roleIdResult = await ValidateRoleId(
             parameters.RoleId,
@@ -76,15 +70,6 @@ internal class Repository : IRepository
 
         if (roleIdResult.IsFinished)
             return resultConstructor.Build<SearchInformation>().Incorporate(roleIdResult);
-
-        // [Attribute Account]
-        var attributeAccountResult = await ValidateAttributeAccount(
-            parameters.UserId,
-            parameters.AttributeId,
-            contextualizer);
-
-        if (attributeAccountResult.IsFinished)
-            return resultConstructor.Build<SearchInformation>().Incorporate(attributeAccountResult);
 
         var permission = new
         {
@@ -130,23 +115,19 @@ CASE
 
     (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                  AND
             [PGU].[permission_id] = @ViewOwnUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                  AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_USER]
 
     (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewOwnUserPermissionId AND
-            [PG].[role_id]       = @RoleId                  AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewOwnUserPermission],
@@ -161,23 +142,19 @@ CASE
 
     (@ViewOwnLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                               AND
             [PGU].[permission_id] = @ViewOwnLawyerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                               AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_LAWYER_ACCOUNT_USER]
 
     (@ViewOwnLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewOwnLawyerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                               AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewOwnLawyerAccountUserPermission],
@@ -192,23 +169,19 @@ CASE
 
     (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                                 AND
             [PGU].[permission_id] = @ViewOwnCustomerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                 AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_CUSTOMER_ACCOUNT_USER]
 
     (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewOwnCustomerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                 AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewOwnCustomerAccountUserPermission],
@@ -223,23 +196,19 @@ CASE
 
     (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                  AND
             [PGU].[permission_id] = @ViewAnyUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                  AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_USER]
 
     (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewAnyUserPermissionId AND
-            [PG].[role_id]       = @RoleId                  AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewAnyUserPermission],
@@ -254,23 +223,19 @@ CASE
 
     (@ViewAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                               AND
             [PGU].[permission_id] = @ViewAnyLawyerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                               AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_LAWYER_ACCOUNT_USER]
 
     (@ViewAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewAnyLawyerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                               AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewAnyLawyerAccountUserPermission],
@@ -285,23 +250,19 @@ CASE
 
     (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                                 AND
             [PGU].[permission_id] = @ViewAnyCustomerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                 AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_CUSTOMER_ACCOUNT_USER]
 
     (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewAnyCustomerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                 AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewAnyCustomerAccountUserPermission],
@@ -316,23 +277,19 @@ CASE
 
     (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
         WHERE 
             [PGU_PUB].[user_id]       = @UserId                     AND
             [PGU_PUB].[permission_id] = @ViewPublicUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                     AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+            [PGU_PUB].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_USER]
 
     (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
         WHERE 
             [PG_PUB].[permission_id] = @ViewPublicUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                     AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+            [PG_PUB].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewPublicUserPermission],
@@ -347,23 +304,19 @@ CASE
 
     (@ViewPublicLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
         WHERE 
             [PGU_PUB].[user_id]       = @UserId                                  AND
             [PGU_PUB].[permission_id] = @ViewPublicLawyerAccountUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                                  AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+            [PGU_PUB].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_LAWYER_ACCOUNT_USER]
 
     (@ViewPublicLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
         WHERE 
             [PG_PUB].[permission_id] = @ViewPublicLawyerAccountUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                                  AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+            [PG_PUB].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewPublicLawyerAccountUserPermission],
@@ -378,23 +331,19 @@ CASE
 
     (@ViewPublicCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
         WHERE 
             [PGU_PUB].[user_id]       = @UserId                                    AND
             [PGU_PUB].[permission_id] = @ViewPublicCustomerAccountUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                                    AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+            [PGU_PUB].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER]
 
     (@ViewPublicCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
         WHERE 
             [PG_PUB].[permission_id] = @ViewPublicCustomerAccountUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                                    AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+            [PG_PUB].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewPublicCustomerAccountUserPermission]";
@@ -413,7 +362,6 @@ END AS [HasViewPublicCustomerAccountUserPermission]";
                 ViewAnyLawyerAccountUserPermissionId   = permission.ViewAnyLawyerAccountUserPermissionId,
                 ViewAnyCustomerAccountUserPermissionId = permission.ViewAnyCustomerAccountUserPermissionId,
 
-                AttributeId = parameters.UserId,
                 UserId      = parameters.UserId,
                 RoleId      = parameters.RoleId
             };
@@ -444,9 +392,8 @@ END AS [HasViewPublicCustomerAccountUserPermission]";
                  ViewLawyerAccountUserPermissionId   = permission.ViewUserPermissionId,
                  ViewCustomerAccountUserPermissionId = permission.ViewUserPermissionId,
                                                   
-                 AttributeId  = parameters.AttributeId,
-                 UserId       = parameters.UserId,
-                 RoleId       = parameters.RoleId
+                 UserId = parameters.UserId,
+                 RoleId = parameters.RoleId
             };
 
             var queryText = $@"
@@ -461,13 +408,11 @@ SELECT
                     @ViewUserPermissionId IS NOT NULL AND EXISTS (
                         SELECT 1
                         FROM [permission_grants_relationship] [PGRu]
-                        LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
                         WHERE
                             [PGRu].[related_user_id] = @UserId               AND 
                             [PGRu].[user_id]         = @ExternalUserId       AND 
                             [PGRu].[role_id]         = @RoleId               AND 
-                            [PGRu].[permission_id]   = @ViewUserPermissionId AND 
-                            ([PGRu].[attribute_id] IS NULL OR [Au].[id] = @AttributeId)
+                            [PGRu].[permission_id]   = @ViewUserPermissionId
                     )
                     OR @HasViewAnyUserPermission = 1
                 ))
@@ -480,13 +425,11 @@ SELECT
                         @ViewLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
                             SELECT 1
                             FROM [permission_grants_relationship] [PGRl]
-                            LEFT JOIN [attributes] [Al] ON [Al].[id] = [PGRl].[attribute_id]
                             WHERE
                                 [PGRl].[related_user_id] = @UserId                            AND 
                                 [PGRl].[user_id]         = @ExternalUserId                    AND 
                                 [PGRl].[role_id]         = @RoleId                            AND 
-                                [PGRl].[permission_id]   = @ViewLawyerAccountUserPermissionId AND 
-                                ([PGRl].[attribute_id] IS NULL OR [Al].[id] = @AttributeId)
+                                [PGRl].[permission_id]   = @ViewLawyerAccountUserPermissionId
                         )
                         OR @HasViewAnyLawyerAccountUserPermission = 1
                     ) THEN 1
@@ -508,13 +451,11 @@ SELECT
                     @ViewUserPermissionId IS NOT NULL AND EXISTS (
                         SELECT 1
                         FROM [permission_grants_relationship] [PGRu]
-                        LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
                         WHERE
                             [PGRu].[related_user_id] = @UserId               AND 
                             [PGRu].[user_id]         = @ExternalUserId       AND 
                             [PGRu].[role_id]         = @RoleId               AND 
-                            [PGRu].[permission_id]   = @ViewUserPermissionId AND 
-                            ([PGRu].[attribute_id] IS NULL OR [Au].[id] = @AttributeId)
+                            [PGRu].[permission_id]   = @ViewUserPermissionId
                     )
                     OR @HasViewAnyUserPermission = 1
                 ))
@@ -527,13 +468,11 @@ SELECT
                         @ViewCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
                             SELECT 1
                             FROM [permission_grants_relationship] [PGRc]
-                            LEFT JOIN [attributes] [Ac] ON [Ac].[id] = [PGRc].[attribute_id]
                             WHERE
                                 [PGRc].[related_user_id] = @UserId                              AND 
                                 [PGRc].[user_id]         = @ExternalUserId                      AND 
                                 [PGRc].[role_id]         = @RoleId                              AND 
-                                [PGRc].[permission_id]   = @ViewCustomerAccountUserPermissionId AND 
-                                ([PGRc].[attribute_id] IS NULL OR [Ac].[id] = @AttributeId)
+                                [PGRc].[permission_id]   = @ViewCustomerAccountUserPermissionId
                         )
                         OR @HasViewAnyCustomerAccountUserPermission = 1
                     ) THEN 1
@@ -555,13 +494,11 @@ SELECT
                     @ViewUserPermissionId IS NOT NULL AND EXISTS (
                         SELECT 1
                         FROM [permission_grants_relationship] [PGRu]
-                        LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
                         WHERE
                             [PGRu].[related_user_id] = @UserId                AND 
                             [PGRu].[user_id]         = @ExternalUserId        AND 
                             [PGRu].[role_id]         = @RoleId                AND 
-                            [PGRu].[permission_id]   = @ViewUserPermissionId  AND 
-                            ([PGRu].[attribute_id] IS NULL OR [Au].[id] = @AttributeId)
+                            [PGRu].[permission_id]   = @ViewUserPermissionId
                     )
                     OR @HasViewAnyUserPermission = 1
                 ))
@@ -574,13 +511,11 @@ SELECT
                         @ViewLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
                             SELECT 1
                             FROM [permission_grants_relationship] [PGRl]
-                            LEFT JOIN [attributes] [Al] ON [Al].[id] = [PGRl].[attribute_id]
                             WHERE
                                 [PGRl].[related_user_id] = @UserId                            AND 
                                 [PGRl].[user_id]         = @ExternalUserId                    AND 
                                 [PGRl].[role_id]         = @RoleId                            AND 
-                                [PGRl].[permission_id]   = @ViewLawyerAccountUserPermissionId AND 
-                                ([PGRl].[attribute_id] IS NULL OR [Al].[id] = @AttributeId)
+                                [PGRl].[permission_id]   = @ViewLawyerAccountUserPermissionId
                         )
                         OR @HasViewAnyLawyerAccountUserPermission = 1
                     ) THEN 1
@@ -602,13 +537,11 @@ SELECT
                     @ViewUserPermissionId IS NOT NULL AND EXISTS (
                         SELECT 1
                         FROM [permission_grants_relationship] [PGRu]
-                        LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
                         WHERE
                             [PGRu].[related_user_id] = @UserId               AND 
                             [PGRu].[user_id]         = @ExternalUserId       AND 
                             [PGRu].[role_id]         = @RoleId               AND 
-                            [PGRu].[permission_id]   = @ViewUserPermissionId AND 
-                            ([PGRu].[attribute_id] IS NULL OR [Au].[id] = @AttributeId)
+                            [PGRu].[permission_id]   = @ViewUserPermissionId
                     )
                     OR @HasViewAnyUserPermission = 1
                 ))
@@ -621,13 +554,11 @@ SELECT
                         @ViewCustomerAccountUserPermissionId IS NOT NULL AND EXISTS  (
                             SELECT 1
                             FROM [permission_grants_relationship] [PGRc]
-                            LEFT JOIN [attributes] [Ac] ON [Ac].[id] = [PGRc].[attribute_id]
                             WHERE
                                 [PGRc].[related_user_id] = @UserId                              AND 
                                 [PGRc].[user_id]         = @ExternalUserId                      AND 
                                 [PGRc].[role_id]         = @RoleId                              AND 
-                                [PGRc].[permission_id]   = @ViewCustomerAccountUserPermissionId AND 
-                                ([PGRc].[attribute_id] IS NULL OR [Ac].[id] = @AttributeId)
+                                [PGRc].[permission_id]   = @ViewCustomerAccountUserPermissionId
                         )
                         OR @HasViewAnyCustomerAccountUserPermission = 1
                     ) THEN 1
@@ -659,13 +590,11 @@ WHERE
         (@ViewUserPermissionId IS NOT NULL AND EXISTS (
             SELECT 1
             FROM [permission_grants_relationship] [PGR]
-            LEFT JOIN [attributes] [A_PGR] ON [A_PGR].[id] = [PGR].[attribute_id]
             WHERE
                 [PGR].[related_user_id] = [U].[id]            AND
                 [PGR].[user_id]       = @UserId               AND
                 [PGR].[permission_id] = @ViewUserPermissionId AND
-                [PGR].[role_id]       = @RoleId               AND
-                ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
+                [PGR].[role_id]       = @RoleId
         ))
         OR
 
@@ -707,6 +636,10 @@ LIMIT @Limit OFFSET @Offset;";
         return resultConstructor.Build<SearchInformation>(information);
     }
 
+#endregion
+
+    #region CountAsync
+
     public async Task<Result<CountInformation>> CountAsync(CountParameters parameters, Contextualizer contextualizer)
     {
         var resultConstructor = new ResultConstructor();
@@ -736,14 +669,6 @@ LIMIT @Limit OFFSET @Offset;";
         if (userIdResult.IsFinished)
             return resultConstructor.Build<CountInformation>().Incorporate(userIdResult);
 
-        // [Attribute Id]
-        var attributeIdResult = await ValidateAttributeId(
-            parameters.AttributeId,
-            contextualizer);
-
-        if (attributeIdResult.IsFinished)
-            return resultConstructor.Build<CountInformation>().Incorporate(attributeIdResult);
-
         // [Role Id]
         var roleIdResult = await ValidateRoleId(
             parameters.RoleId,
@@ -751,15 +676,6 @@ LIMIT @Limit OFFSET @Offset;";
 
         if (roleIdResult.IsFinished)
             return resultConstructor.Build<CountInformation>().Incorporate(roleIdResult);
-
-        // [Attribute Account]
-        var attributeAccountResult = await ValidateAttributeAccount(
-            parameters.UserId,
-            parameters.AttributeId,
-            contextualizer);
-
-        if (attributeAccountResult.IsFinished)
-            return resultConstructor.Build<CountInformation>().Incorporate(attributeAccountResult);
 
         var permission = new
         {
@@ -796,23 +712,19 @@ CASE
 
     (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                  AND
             [PGU].[permission_id] = @ViewOwnUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                  AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_USER]
 
     (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewOwnUserPermissionId AND
-            [PG].[role_id]       = @RoleId                  AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewOwnUserPermission]
@@ -827,23 +739,19 @@ CASE
 
     (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                  AND
             [PGU].[permission_id] = @ViewAnyUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                  AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_USER]
 
     (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewAnyUserPermissionId AND
-            [PG].[role_id]       = @RoleId                  AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewAnyUserPermission]
@@ -858,23 +766,19 @@ CASE
 
     (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
         WHERE 
             [PGU_PUB].[user_id]       = @UserId                     AND
             [PGU_PUB].[permission_id] = @ViewPublicUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                     AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+            [PGU_PUB].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_USER]
 
     (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
         WHERE 
             [PG_PUB].[permission_id] = @ViewPublicUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                     AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+            [PG_PUB].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewPublicUserPermission]";
@@ -885,12 +789,11 @@ END AS [HasViewPublicUserPermission]";
                 ViewPublicUserPermissionId = permission.ViewPublicUserPermissionId,               
                 ViewAnyUserPermissionId    = permission.ViewAnyUserPermissionId,
 
-                AttributeId = parameters.UserId,
                 UserId      = parameters.UserId,
                 RoleId      = parameters.RoleId
             };
 
-            var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Search>(queryPermissions, queryPermissionsParameters);
+            var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Count>(queryPermissions, queryPermissionsParameters);
 
             // [Principal Query]
 
@@ -906,9 +809,8 @@ END AS [HasViewPublicUserPermission]";
                  
                  ViewUserPermissionId = permission.ViewUserPermissionId,
                                                   
-                 AttributeId  = parameters.AttributeId,
-                 UserId       = parameters.UserId,
-                 RoleId       = parameters.RoleId
+                 UserId = parameters.UserId,
+                 RoleId = parameters.RoleId
             };
 
             var queryText = $@"
@@ -931,13 +833,11 @@ WHERE
         (@ViewUserPermissionId IS NOT NULL AND EXISTS (
             SELECT 1
             FROM [permission_grants_relationship] [PGR]
-            LEFT JOIN [attributes] [A_PGR] ON [A_PGR].[id] = [PGR].[attribute_id]
             WHERE
                 [PGR].[related_user_id] = [U].[id]            AND
                 [PGR].[user_id]       = @UserId               AND
                 [PGR].[permission_id] = @ViewUserPermissionId AND
-                [PGR].[role_id]       = @RoleId               AND
-                ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
+                [PGR].[role_id]       = @RoleId
         ))
         OR
 
@@ -968,6 +868,10 @@ WHERE
         return resultConstructor.Build<CountInformation>(information);
     }
 
+#endregion
+
+    #region DetailsAsync
+
     public async Task<Result<DetailsInformation>> DetailsAsync(DetailsParameters parameters, Contextualizer contextualizer)
     {
         var resultConstructor = new ResultConstructor();
@@ -997,14 +901,6 @@ WHERE
         if (userIdResult.IsFinished)
             return resultConstructor.Build<DetailsInformation>().Incorporate(userIdResult);
 
-        // [Attribute Id]
-        var attributeIdResult = await ValidateAttributeId(
-            parameters.AttributeId,
-            contextualizer);
-
-        if (attributeIdResult.IsFinished)
-            return resultConstructor.Build<DetailsInformation>().Incorporate(attributeIdResult);
-
         // [Role Id]
         var roleIdResult = await ValidateRoleId(
             parameters.RoleId,
@@ -1012,15 +908,6 @@ WHERE
 
         if (roleIdResult.IsFinished)
             return resultConstructor.Build<DetailsInformation>().Incorporate(roleIdResult);
-
-        // [Attribute Account]
-        var attributeAccountResult = await ValidateAttributeAccount(
-            parameters.UserId,
-            parameters.AttributeId,
-            contextualizer);
-
-        if (attributeAccountResult.IsFinished)
-            return resultConstructor.Build<DetailsInformation>().Incorporate(attributeAccountResult);
 
         var permission = new
         {
@@ -1047,7 +934,7 @@ WHERE
             ViewAnyCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_CUSTOMER_ACCOUNT_USER, contextualizer)
         };
 
-        var information = await ValuesExtensions.GetValue(async () =>
+        var result = await ValuesExtensions.GetValue(async () =>
         {
             // [Permissions Queries]
 
@@ -1055,6 +942,63 @@ WHERE
 
             const string queryPermissions = @"
 SELECT
+
+/* ---------------------------------------------- [VIEW_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_relationship (ACL Grant)] [VIEW_USER]
+
+    (@ViewUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_relationship] [PGR]
+        WHERE 
+            [PGR].[related_user_id] = @RelatedUserId        AND
+            [PGR].[user_id]         = @UserId               AND
+            [PGR].[permission_id]   = @ViewUserPermissionId AND
+            [PGR].[role_id]         = @RoleId
+    )) THEN 1
+    ELSE 0
+END AS [HasViewUserPermission],
+
+/* ---------------------------------------------- [VIEW_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_relationship (ACL Grant)] [VIEW_LAWYER_ACCOUNT_USER]
+
+    (@ViewLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_relationship] [PGR]
+        WHERE 
+            [PGR].[related_user_id] = @RelatedUserId                     AND
+            [PGR].[user_id]         = @UserId                            AND
+            [PGR].[permission_id]   = @ViewLawyerAccountUserPermissionId AND
+            [PGR].[role_id]         = @RoleId
+    )) THEN 1
+    ELSE 0
+END AS [HasViewLawyerAccountUserPermission],
+
+/* ---------------------------------------------- [VIEW_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
+
+SELECT 
+CASE 
+    WHEN 
+
+    -- [Layer 1: permission_grants_relationship (ACL Grant)] [VIEW_CUSTOMER_ACCOUNT_USER]
+
+    (@ViewCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
+        SELECT 1 FROM [permission_grants_relationship] [PGR]
+        WHERE 
+            [PGR].[related_user_id] = @RelatedUserId                       AND
+            [PGR].[user_id]         = @UserId                              AND
+            [PGR].[permission_id]   = @ViewCustomerAccountUserPermissionId AND
+            [PGR].[role_id]         = @RoleId
+    )) THEN 1
+    ELSE 0
+END AS [HasViewCustomerAccountUserPermission],
 
 /* ---------------------------------------------- [VIEW_OWN_USER] ---------------------------------------------- */
 
@@ -1066,23 +1010,19 @@ CASE
 
     (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                  AND
             [PGU].[permission_id] = @ViewOwnUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                  AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_USER]
 
     (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewOwnUserPermissionId AND
-            [PG].[role_id]       = @RoleId                  AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewOwnUserPermission],
@@ -1097,23 +1037,19 @@ CASE
 
     (@ViewOwnLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                               AND
             [PGU].[permission_id] = @ViewOwnLawyerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                               AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_LAWYER_ACCOUNT_USER]
 
     (@ViewOwnLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewOwnLawyerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                               AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewOwnLawyerAccountUserPermission],
@@ -1128,23 +1064,19 @@ CASE
 
     (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                                 AND
             [PGU].[permission_id] = @ViewOwnCustomerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                 AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_CUSTOMER_ACCOUNT_USER]
 
     (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewOwnCustomerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                 AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewOwnCustomerAccountUserPermission],
@@ -1159,23 +1091,19 @@ CASE
 
     (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                  AND
             [PGU].[permission_id] = @ViewAnyUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                  AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_USER]
 
     (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewAnyUserPermissionId AND
-            [PG].[role_id]       = @RoleId                  AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewAnyUserPermission],
@@ -1190,23 +1118,19 @@ CASE
 
     (@ViewAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                               AND
             [PGU].[permission_id] = @ViewAnyLawyerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                               AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_LAWYER_ACCOUNT_USER]
 
     (@ViewAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewAnyLawyerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                               AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewAnyLawyerAccountUserPermission],
@@ -1221,23 +1145,19 @@ CASE
 
     (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                                 AND
             [PGU].[permission_id] = @ViewAnyCustomerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                 AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_CUSTOMER_ACCOUNT_USER]
 
     (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewAnyCustomerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                 AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewAnyCustomerAccountUserPermission],
@@ -1252,23 +1172,19 @@ CASE
 
     (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
         WHERE 
             [PGU_PUB].[user_id]       = @UserId                     AND
             [PGU_PUB].[permission_id] = @ViewPublicUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                     AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+            [PGU_PUB].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_USER]
 
     (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
         WHERE 
             [PG_PUB].[permission_id] = @ViewPublicUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                     AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+            [PG_PUB].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewPublicUserPermission],
@@ -1283,23 +1199,19 @@ CASE
 
     (@ViewPublicLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
         WHERE 
             [PGU_PUB].[user_id]       = @UserId                                  AND
             [PGU_PUB].[permission_id] = @ViewPublicLawyerAccountUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                                  AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+            [PGU_PUB].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_LAWYER_ACCOUNT_USER]
 
     (@ViewPublicLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
         WHERE 
             [PG_PUB].[permission_id] = @ViewPublicLawyerAccountUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                                  AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+            [PG_PUB].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewPublicLawyerAccountUserPermission],
@@ -1314,23 +1226,19 @@ CASE
 
     (@ViewPublicCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
         WHERE 
             [PGU_PUB].[user_id]       = @UserId                                    AND
             [PGU_PUB].[permission_id] = @ViewPublicCustomerAccountUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                                    AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+            [PGU_PUB].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER]
 
     (@ViewPublicCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
         WHERE 
             [PG_PUB].[permission_id] = @ViewPublicCustomerAccountUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                                    AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+            [PG_PUB].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewPublicCustomerAccountUserPermission]";
@@ -1349,12 +1257,77 @@ END AS [HasViewPublicCustomerAccountUserPermission]";
                 ViewAnyLawyerAccountUserPermissionId   = permission.ViewAnyLawyerAccountUserPermissionId,
                 ViewAnyCustomerAccountUserPermissionId = permission.ViewAnyCustomerAccountUserPermissionId,
 
-                AttributeId = parameters.UserId,
+                ViewUserPermissionId                = permission.ViewUserPermissionId,
+                ViewLawyerAccountUserPermissionId   = permission.ViewLawyerAccountUserPermissionId,
+                ViewCustomerAccountUserPermissionId = permission.ViewCustomerAccountUserPermissionId,
+
                 UserId      = parameters.UserId,
                 RoleId      = parameters.RoleId
             };
 
-            var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Search>(queryPermissions, queryPermissionsParameters);
+            var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Details>(queryPermissions, queryPermissionsParameters);
+
+             // [User Information]
+
+            const string queryUserInformations = @"
+SELECT 
+
+[U].[private] AS [Private], 
+
+CASE WHEN [U].[id] = @UserId THEN 1, ELSE 0 END AS [Owner],
+
+SELECT 
+CASE 
+    WHEN (EXISTS (SELECT 1 FROM [lawyers] [L] WHERE [L].[user_id] = @RelatedUserId))
+    THEN 1
+    ELSE 0
+END AS [HasLawyerAccount],
+
+IFNULL(SELECT [L].[id] FROM [lawyers] [L] WHERE [L].[user_id] = @RelatedUserId, 0) AS [LawyerId],
+
+SELECT 
+CASE 
+    WHEN (EXISTS (SELECT 1 FROM [customers] [C] WHERE [C].[user_id] = @RelatedUserId))
+    THEN 1
+    ELSE 0
+END AS [HasCustomerAccount],
+
+IFNULL(SELECT [C].[id] FROM [customers] [C] WHERE [C].[user_id] = @RelatedUserId, 0) AS [CustomerId]
+
+SELECT 
+CASE 
+    WHEN (EXISTS (SELECT 1 FROM [address_users] [AU] WHERE [AU].[user_id] = @RelatedUserId))
+    THEN 1
+    ELSE 0
+END AS [HasAddress],
+
+SELECT 
+CASE 
+    WHEN (EXISTS (SELECT 1 FROM [documents_users] [DU] WHERE [DU].[user_id] = @RelatedUserId))
+    THEN 1
+    ELSE 0
+END AS [HasDocument],
+
+FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
+
+            var queryUserInformationParameters = new
+            {
+                RelatedUserId = parameters.RelatedUserId,
+                UserId        = parameters.UserId
+            };
+
+            var userInformationResult = await connection.Connection.QueryFirstOrDefaultAsync<(bool? Private, bool? Owner, bool? HasLawyerAccount, int? LawyerId, bool? HasCustomerAccount, int? CustomerId, bool? HasAddress, bool? HasDocument)>(queryUserInformations, queryUserInformationParameters);
+
+            // [VIEW]
+            if (((userInformationResult.Private.HasValue && userInformationResult.Private.Value) && !permissionsResult.HasViewPublicUserPermission) &&
+                ((userInformationResult.Owner.HasValue   && userInformationResult.Owner.Value)   && !permissionsResult.HasViewOwnUserPermission)    &&
+                !permissionsResult.HasViewUserPermission &&
+                !permissionsResult.HasViewAnyUserPermission)
+            {
+                resultConstructor.SetConstructor(new UserNotFoundError());
+
+                return resultConstructor.Build<DetailsInformation>();
+            }
 
             // [Principal Query]
 
@@ -1374,13 +1347,16 @@ END AS [HasViewPublicCustomerAccountUserPermission]";
                  HasViewPublicLawyerAccountUserPermission   = permissionsResult.HasViewPublicLawyerAccountUserPermission,
                  HasViewPublicCustomerAccountUserPermission = permissionsResult.HasViewPublicCustomerAccountUserPermission,
                  
+                 HasViewUserPermission                = permissionsResult.HasViewUserPermission,
+                 HasViewLawyerAccountUserPermission   = permissionsResult.HasViewLawyerAccountUserPermission,
+                 HasViewCustomerAccountUserPermission = permissionsResult.HasViewCustomerAccountUserPermission,
+
                  // [ACL]
                  
                  ViewUserPermissionId                = permission.ViewUserPermissionId,
                  ViewLawyerAccountUserPermissionId   = permission.ViewUserPermissionId,
                  ViewCustomerAccountUserPermissionId = permission.ViewUserPermissionId,
                                                   
-                 AttributeId   = parameters.AttributeId,
                  UserId        = parameters.UserId,
                  RelatedUserId = parameters.RelatedUserId,
                  RoleId        = parameters.RoleId
@@ -1394,37 +1370,15 @@ SELECT
     CASE
         WHEN
             (
-                ([U].[private] = 1 AND (
-                    @ViewUserPermissionId IS NOT NULL AND EXISTS (
-                        SELECT 1
-                        FROM [permission_grants_relationship] [PGRu]
-                        LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
-                        WHERE
-                            [PGRu].[related_user_id] = @UserId               AND 
-                            [PGRu].[user_id]         = @ExternalUserId       AND 
-                            [PGRu].[role_id]         = @RoleId               AND 
-                            [PGRu].[permission_id]   = @ViewUserPermissionId AND 
-                            ([PGRu].[attribute_id] IS NULL OR [Au].[id] = @AttributeId)
-                    )
-                    OR @HasViewAnyUserPermission = 1
-                ))
-                OR ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
+                ([U].[private] = 1 AND (@HasViewUserPermission = 1 OR @HasViewAnyUserPermission = 1))
+                OR 
+                ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
             )
             AND
             (
                 CASE
                     WHEN [L].[private] = 1 AND (
-                        @ViewLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-                            SELECT 1
-                            FROM [permission_grants_relationship] [PGRl]
-                            LEFT JOIN [attributes] [Al] ON [Al].[id] = [PGRl].[attribute_id]
-                            WHERE
-                                [PGRl].[related_user_id] = @UserId                            AND 
-                                [PGRl].[user_id]         = @ExternalUserId                    AND 
-                                [PGRl].[role_id]         = @RoleId                            AND 
-                                [PGRl].[permission_id]   = @ViewLawyerAccountUserPermissionId AND 
-                                ([PGRl].[attribute_id] IS NULL OR [Al].[id] = @AttributeId)
-                        )
+                        @HasViewLawyerAccountUserPermission       = 1 
                         OR @HasViewAnyLawyerAccountUserPermission = 1
                     ) THEN 1
                     WHEN [L].[private] = 0 AND (
@@ -1441,37 +1395,15 @@ SELECT
     CASE
         WHEN
             (
-                ([U].[private] = 1 AND (
-                    @ViewUserPermissionId IS NOT NULL AND EXISTS (
-                        SELECT 1
-                        FROM [permission_grants_relationship] [PGRu]
-                        LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
-                        WHERE
-                            [PGRu].[related_user_id] = @UserId               AND 
-                            [PGRu].[user_id]         = @ExternalUserId       AND 
-                            [PGRu].[role_id]         = @RoleId               AND 
-                            [PGRu].[permission_id]   = @ViewUserPermissionId AND 
-                            ([PGRu].[attribute_id] IS NULL OR [Au].[id] = @AttributeId)
-                    )
-                    OR @HasViewAnyUserPermission = 1
-                ))
-                OR ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
+                ([U].[private] = 1 AND (@HasViewUserPermission = 1 OR @HasViewAnyUserPermission = 1))
+                OR 
+                ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
             )
             AND
             (
                 CASE
                     WHEN [C].[private] = 1 AND (
-                        @ViewCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-                            SELECT 1
-                            FROM [permission_grants_relationship] [PGRc]
-                            LEFT JOIN [attributes] [Ac] ON [Ac].[id] = [PGRc].[attribute_id]
-                            WHERE
-                                [PGRc].[related_user_id] = @UserId                              AND 
-                                [PGRc].[user_id]         = @ExternalUserId                      AND 
-                                [PGRc].[role_id]         = @RoleId                              AND 
-                                [PGRc].[permission_id]   = @ViewCustomerAccountUserPermissionId AND 
-                                ([PGRc].[attribute_id] IS NULL OR [Ac].[id] = @AttributeId)
-                        )
+                        @HasViewCustomerAccountUserPermission       = 1 
                         OR @HasViewAnyCustomerAccountUserPermission = 1
                     ) THEN 1
                     WHEN [C].[private] = 0 AND (
@@ -1488,37 +1420,15 @@ SELECT
     CASE
         WHEN
             (
-                ([U].[private] = 1 AND (
-                    @ViewUserPermissionId IS NOT NULL AND EXISTS (
-                        SELECT 1
-                        FROM [permission_grants_relationship] [PGRu]
-                        LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
-                        WHERE
-                            [PGRu].[related_user_id] = @UserId                AND 
-                            [PGRu].[user_id]         = @ExternalUserId        AND 
-                            [PGRu].[role_id]         = @RoleId                AND 
-                            [PGRu].[permission_id]   = @ViewUserPermissionId  AND 
-                            ([PGRu].[attribute_id] IS NULL OR [Au].[id] = @AttributeId)
-                    )
-                    OR @HasViewAnyUserPermission = 1
-                ))
-                OR ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
+                ([U].[private] = 1 AND (@HasViewUserPermission = 1 OR @HasViewAnyUserPermission = 1))
+                OR 
+                ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
             )
             AND
             (
                 CASE
                     WHEN [L].[private] = 1 AND (
-                        @ViewLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-                            SELECT 1
-                            FROM [permission_grants_relationship] [PGRl]
-                            LEFT JOIN [attributes] [Al] ON [Al].[id] = [PGRl].[attribute_id]
-                            WHERE
-                                [PGRl].[related_user_id] = @UserId                            AND 
-                                [PGRl].[user_id]         = @ExternalUserId                    AND 
-                                [PGRl].[role_id]         = @RoleId                            AND 
-                                [PGRl].[permission_id]   = @ViewLawyerAccountUserPermissionId AND 
-                                ([PGRl].[attribute_id] IS NULL OR [Al].[id] = @AttributeId)
-                        )
+                        @HasViewLawyerAccountUserPermission       = 1
                         OR @HasViewAnyLawyerAccountUserPermission = 1
                     ) THEN 1
                     WHEN [L].[private] = 0 AND (
@@ -1535,37 +1445,15 @@ SELECT
     CASE
         WHEN
             (
-                ([U].[private] = 1 AND (
-                    @ViewUserPermissionId IS NOT NULL AND EXISTS (
-                        SELECT 1
-                        FROM [permission_grants_relationship] [PGRu]
-                        LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
-                        WHERE
-                            [PGRu].[related_user_id] = @UserId               AND 
-                            [PGRu].[user_id]         = @ExternalUserId       AND 
-                            [PGRu].[role_id]         = @RoleId               AND 
-                            [PGRu].[permission_id]   = @ViewUserPermissionId AND 
-                            ([PGRu].[attribute_id] IS NULL OR [Au].[id] = @AttributeId)
-                    )
-                    OR @HasViewAnyUserPermission = 1
-                ))
-                OR ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
+                ([U].[private] = 1 AND (@HasViewUserPermission = 1 OR @HasViewAnyUserPermission = 1))
+                OR 
+                ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
             )
             AND
             (
                 CASE
                     WHEN [C].[private] = 1 AND (
-                        @ViewCustomerAccountUserPermissionId IS NOT NULL AND EXISTS  (
-                            SELECT 1
-                            FROM [permission_grants_relationship] [PGRc]
-                            LEFT JOIN [attributes] [Ac] ON [Ac].[id] = [PGRc].[attribute_id]
-                            WHERE
-                                [PGRc].[related_user_id] = @UserId                              AND 
-                                [PGRc].[user_id]         = @ExternalUserId                      AND 
-                                [PGRc].[role_id]         = @RoleId                              AND 
-                                [PGRc].[permission_id]   = @ViewCustomerAccountUserPermissionId AND 
-                                ([PGRc].[attribute_id] IS NULL OR [Ac].[id] = @AttributeId)
-                        )
+                        @HasViewCustomerAccountUserPermission       = 1 
                         OR @HasViewAnyCustomerAccountUserPermission = 1
                     ) THEN 1
                     WHEN [C].[private] = 0 AND (
@@ -1593,17 +1481,8 @@ WHERE
 
         OR
 
-        (@ViewUserPermissionId IS NOT NULL AND EXISTS (
-            SELECT 1
-            FROM [permission_grants_relationship] [PGR]
-            LEFT JOIN [attributes] [A_PGR] ON [A_PGR].[id] = [PGR].[attribute_id]
-            WHERE
-                [PGR].[related_user_id] = [U].[id]            AND
-                [PGR].[user_id]       = @UserId               AND
-                [PGR].[permission_id] = @ViewUserPermissionId AND
-                [PGR].[role_id]       = @RoleId               AND
-                ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
-        ))
+        @HasViewUserPermission = 1
+
         OR
 
         @HasViewAnyUserPermission = 1
@@ -1637,11 +1516,16 @@ WHERE [U].[id] = @RelatedUserId;";
                 };
             }
 
-            return information;
+            return resultConstructor.Build<DetailsInformation>(information);
         });
 
-        return resultConstructor.Build<DetailsInformation>(information);
+        return result;
     }
+
+
+    #endregion
+
+    #region RegisterAsync
 
     public async Task<Result> RegisterAsync(RegisterParameters parameters, Contextualizer contextualizer)
     {
@@ -1651,11 +1535,7 @@ WHERE [U].[id] = @RelatedUserId;";
 
         if (string.IsNullOrWhiteSpace(sqliteConnectionString))
         {
-            resultConstructor.SetConstructor(
-                new NotFoundDatabaseConnectionStringError()
-                {
-                    Status = 500
-                });
+            resultConstructor.SetConstructor(new NotFoundDatabaseConnectionStringError());
 
             return resultConstructor.Build();
         }
@@ -1665,61 +1545,6 @@ WHERE [U].[id] = @RelatedUserId;";
         var connection = await _databaseService.GetConnection("local-sqlite", ProviderType.Sqlite);
 
         contextualizer.AssignContextualizedConnection(connection);
-
-        var permission = new
-        {
-            // [Related to USER or ROLE permission]
-
-            RegisterUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.REGISTER_USER, contextualizer)
-        };
-
-        // [Role Id]
-        var roleIdResult = await ValidateRoleId(
-            parameters.RoleId,
-            contextualizer);
-
-        if (roleIdResult.IsFinished)
-            return resultConstructor.Build().Incorporate(roleIdResult);
-
-        // [Permission Validation]
-
-        const string queryPermissions = @"
-SELECT
-
-/* ---------------------------------------------- [REGISTER_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants (Role Grant)] [REGISTER_USER]
-
-    (@RegisterUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A_PG] ON [PG].[attribute_id] = [A_PG].[id]
-        WHERE 
-            [PG].[permission_id] = @RegisterUserPermissionId AND
-            [PG].[role_id]       = @RoleId                   AND
-            ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasRegisterUserPermission]";
-
-        var queryPermissionsParameters = new
-        {
-            RegisterUserPermissionId = permission.RegisterUserPermissionId,
-
-            RoleId = parameters.RoleId
-        };
-
-        var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Register>(queryPermissions, queryPermissionsParameters);
-
-        if (!permissionsResult.HasRegisterUserPermission)
-        {
-            resultConstructor.SetConstructor(new RegisterUserDeniedError());
-
-            return resultConstructor.Build();
-        }
 
         var emailAlreadyInUse = await ValuesExtensions.GetValue(async () =>
         {
@@ -1792,6 +1617,10 @@ END AS [HasRegisterUserPermission]";
         }
         return resultConstructor.Build();
     }
+
+    #endregion
+
+    #region EditAsync
 
     public async Task<Result> EditAsync(EditParameters parameters, Contextualizer contextualizer)
     {
@@ -1878,23 +1707,19 @@ CASE
 
     (@EditOwnUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                  AND
             [PGU].[permission_id] = @EditOwnUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                  AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: Ownership (Role Grant)] [EDIT_OWN_USER]
 
     (@EditOwnUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A_PG] ON [PG].[attribute_id] = [A_PG].[id]
         WHERE 
             [PG].[permission_id] = @EditOwnUserPermissionId AND
-            [PG].[role_id]       = @RoleId                  AND
-            ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasEditOwnUserPermission],
@@ -1909,13 +1734,11 @@ CASE
 
     (@EditUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_relationship] [PGR]
-        LEFT JOIN [attributes] [A_PGR] ON [PGR].[attribute_id] = [A_PGR].[id]
         WHERE 
             [PGR].[related_user_id] = @RelatedUserId        AND
             [PGR].[user_id]         = @UserId               AND
             [PGR].[permission_id]   = @EditUserPermissionId AND
-            [PGR].[role_id]         = @RoleId               AND
-            ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
+            [PGR].[role_id]         = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasEditUserPermission],
@@ -1930,23 +1753,19 @@ CASE
 
     (@EditAnyUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                  AND
             [PGU].[permission_id] = @EditAnyUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                  AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 1: permission_grants (Role Grant)] [EDIT_ANY_USER]
 
     (@EditAnyUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A_PG] ON [PG].[attribute_id] = [A_PG].[id]
         WHERE 
             [PG].[permission_id] = @EditAnyUserPermissionId AND
-            [PG].[role_id]       = @RoleId                  AND
-            ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasEditAnyUserPermission],
@@ -1961,23 +1780,19 @@ CASE
 
     (@EditAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                               AND
             [PGU].[permission_id] = @EditAnyLawyerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                               AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 1: permission_grants (Role Grant)] [EDIT_ANY_LAWYER_ACCOUNT_USER]
 
     (@EditAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A_PG] ON [PG].[attribute_id] = [A_PG].[id]
         WHERE 
             [PG].[permission_id] = @EditAnyLawyerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                               AND
-            ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasEditAnyLawyerAccountUserPermission],
@@ -1992,23 +1807,19 @@ CASE
 
     (@EditAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                                 AND
             [PGU].[permission_id] = @EditAnyCustomerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                 AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 1: permission_grants (Role Grant)] [EDIT_ANY_CUSTOMER_ACCOUNT_USER]
 
     (@EditAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A_PG] ON [PG].[attribute_id] = [A_PG].[id]
         WHERE 
             [PG].[permission_id] = @EditAnyCustomerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                 AND
-            ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasEditAnyCustomerAccountUserPermission],
@@ -2023,13 +1834,11 @@ CASE
 
     (@EditLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_relationship] [PGR]
-        LEFT JOIN [attributes] [A_PGR] ON [PGR].[attribute_id] = [A_PGR].[id]
         WHERE 
             [PGR].[related_user_id] = @RelatedUserId                     AND
             [PGR].[user_id]         = @UserId                            AND
             [PGR].[permission_id]   = @EditLawyerAccountUserPermissionId AND
-            [PGR].[role_id]         = @RoleId                            AND
-            ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
+            [PGR].[role_id]         = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasEditLawyerAccountUserPermission],
@@ -2044,13 +1853,11 @@ CASE
 
     (@EditCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_relationship] [PGR]
-        LEFT JOIN [attributes] [A_PGR] ON [PGR].[attribute_id] = [A_PGR].[id]
         WHERE 
             [PGR].[related_user_id] = @RelatedUserId                       AND
             [PGR].[user_id]         = @UserId                              AND
             [PGR].[permission_id]   = @EditCustomerAccountUserPermissionId AND
-            [PGR].[role_id]         = @RoleId                              AND
-            ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
+            [PGR].[role_id]         = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasEditCustomerAccountUserPermission],
@@ -2065,23 +1872,19 @@ CASE
 
     (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                  AND
             [PGU].[permission_id] = @ViewOwnUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                  AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_USER]
 
     (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewOwnUserPermissionId AND
-            [PG].[role_id]       = @RoleId                  AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewOwnUserPermission],
@@ -2096,23 +1899,19 @@ CASE
 
     (@ViewOwnLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                               AND
             [PGU].[permission_id] = @ViewOwnLawyerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                               AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_LAWYER_ACCOUNT_USER]
 
     (@ViewOwnLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewOwnLawyerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                               AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewOwnLawyerAccountUserPermission],
@@ -2127,23 +1926,19 @@ CASE
 
     (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                                 AND
             [PGU].[permission_id] = @ViewOwnCustomerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                 AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_CUSTOMER_ACCOUNT_USER]
 
     (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewOwnCustomerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                 AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewOwnCustomerAccountUserPermission],
@@ -2158,23 +1953,19 @@ CASE
 
     (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                  AND
             [PGU].[permission_id] = @ViewAnyUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                  AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_USER]
 
     (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewAnyUserPermissionId AND
-            [PG].[role_id]       = @RoleId                  AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewAnyUserPermission],
@@ -2189,23 +1980,19 @@ CASE
 
     (@ViewAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                               AND
             [PGU].[permission_id] = @ViewAnyLawyerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                               AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_LAWYER_ACCOUNT_USER]
 
     (@ViewAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewAnyLawyerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                               AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewAnyLawyerAccountUserPermission],
@@ -2220,23 +2007,19 @@ CASE
 
     (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
         WHERE 
             [PGU].[user_id]       = @UserId                                 AND
             [PGU].[permission_id] = @ViewAnyCustomerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                 AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
+            [PGU].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_CUSTOMER_ACCOUNT_USER]
 
     (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
         WHERE 
             [PG].[permission_id] = @ViewAnyCustomerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                 AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
+            [PG].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewAnyCustomerAccountUserPermission],
@@ -2251,23 +2034,19 @@ CASE
 
     (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
         WHERE 
             [PGU_PUB].[user_id]       = @UserId                     AND
             [PGU_PUB].[permission_id] = @ViewPublicUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                     AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+            [PGU_PUB].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_USER]
 
     (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
         WHERE 
             [PG_PUB].[permission_id] = @ViewPublicUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                     AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+            [PG_PUB].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewPublicUserPermission],
@@ -2282,23 +2061,19 @@ CASE
 
     (@ViewPublicLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
         WHERE 
             [PGU_PUB].[user_id]       = @UserId                                  AND
             [PGU_PUB].[permission_id] = @ViewPublicLawyerAccountUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                                  AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+            [PGU_PUB].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_LAWYER_ACCOUNT_USER]
 
     (@ViewPublicLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
         WHERE 
             [PG_PUB].[permission_id] = @ViewPublicLawyerAccountUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                                  AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+            [PG_PUB].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewPublicLawyerAccountUserPermission],
@@ -2313,23 +2088,19 @@ CASE
 
     (@ViewPublicCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
         WHERE 
             [PGU_PUB].[user_id]       = @UserId                                    AND
             [PGU_PUB].[permission_id] = @ViewPublicCustomerAccountUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                                    AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
+            [PGU_PUB].[role_id]       = @RoleId
     )) OR 
 
     -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER]
 
     (@ViewPublicCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
         WHERE 
             [PG_PUB].[permission_id] = @ViewPublicCustomerAccountUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                                    AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
+            [PG_PUB].[role_id]       = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewPublicCustomerAccountUserPermission],
@@ -2344,13 +2115,11 @@ CASE
 
     (@ViewUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_relationship] [PGR]
-        LEFT JOIN [attributes] [A_PGR] ON [PGR].[attribute_id] = [A_PGR].[id]
         WHERE 
             [PGR].[related_user_id] = @RelatedUserId        AND
             [PGR].[user_id]         = @UserId               AND
             [PGR].[permission_id]   = @ViewUserPermissionId AND
-            [PGR].[role_id]         = @RoleId               AND
-            ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
+            [PGR].[role_id]         = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewUserPermission],
@@ -2365,13 +2134,11 @@ CASE
 
     (@ViewLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_relationship] [PGR]
-        LEFT JOIN [attributes] [A_PGR] ON [PGR].[attribute_id] = [A_PGR].[id]
         WHERE 
             [PGR].[related_user_id] = @RelatedUserId                     AND
             [PGR].[user_id]         = @UserId                            AND
             [PGR].[permission_id]   = @ViewLawyerAccountUserPermissionId AND
-            [PGR].[role_id]         = @RoleId                            AND
-            ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
+            [PGR].[role_id]         = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewLawyerAccountUserPermission],
@@ -2386,13 +2153,11 @@ CASE
 
     (@ViewCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
         SELECT 1 FROM [permission_grants_relationship] [PGR]
-        LEFT JOIN [attributes] [A_PGR] ON [PGR].[attribute_id] = [A_PGR].[id]
         WHERE 
             [PGR].[related_user_id] = @RelatedUserId                       AND
             [PGR].[user_id]         = @UserId                              AND
             [PGR].[permission_id]   = @ViewCustomerAccountUserPermissionId AND
-            [PGR].[role_id]         = @RoleId                              AND
-            ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
+            [PGR].[role_id]         = @RoleId
     )) THEN 1
     ELSE 0
 END AS [HasViewCustomerAccountUserPermission]";
@@ -3440,2520 +3205,7 @@ FROM [customers] [C] WHERE [C].[user_id] = @RelatedUserId AND [C].[id] = @Custom
         return resultConstructor.Build();
     }
 
-    public async Task<Result> GrantPermissionsAsync(GrantPermissionsParameters parameters, Contextualizer contextualizer)
-    {
-        var resultConstructor = new ResultConstructor();
-
-        var sqliteConnectionString = _configuration.GetConnectionString("Sqlite");
-
-        if (string.IsNullOrWhiteSpace(sqliteConnectionString))
-        {
-            resultConstructor.SetConstructor(
-                new NotFoundDatabaseConnectionStringError()
-                {
-                    Status = 500
-                });
-
-            return resultConstructor.Build();
-        }
-
-        _databaseService.AppendConnectionStringWithIdentifier("local-sqlite", sqliteConnectionString, ProviderType.Sqlite);
-
-        var connection = await _databaseService.GetConnection("local-sqlite", ProviderType.Sqlite);
-
-        contextualizer.AssignContextualizedConnection(connection);
-
-        var permission = new
-        {
-            // [Related to RELATIONSHIP WITH (USER OR ROLE) specific permission assigned]
-
-            GrantPermissionsUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_USER, contextualizer),
-            GrantPermissionsLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_LAWYER_ACCOUNT_USER, contextualizer),
-            GrantPermissionsCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_CUSTOMER_ACCOUNT_USER, contextualizer),
-
-            ViewUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_USER, contextualizer),
-            ViewLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_LAWYER_ACCOUNT_USER, contextualizer),
-            ViewCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_CUSTOMER_ACCOUNT_USER, contextualizer),
-
-            // [Related to USER or ROLE permission]
-
-            GrantPermissionsOwnUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_OWN_USER, contextualizer),
-            GrantPermissionsOwnLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER, contextualizer),
-            GrantPermissionsOwnCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER, contextualizer),
-
-            ViewPublicUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_USER, contextualizer),
-            ViewPublicLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_LAWYER_ACCOUNT_USER, contextualizer),
-            ViewPublicCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER, contextualizer),
-
-            ViewOwnUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_USER, contextualizer),
-            ViewOwnLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_LAWYER_ACCOUNT_USER, contextualizer),
-            ViewOwnCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_CUSTOMER_ACCOUNT_USER, contextualizer),
-
-            // [Related to SUPER USER or ADMIN permission]
-
-            GrantPermissionsAnyUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_ANY_USER, contextualizer),
-            GrantPermissionsAnyLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER, contextualizer),
-            GrantPermissionsAnyCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.GRANT_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER, contextualizer),
-
-            ViewAnyUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_USER, contextualizer),
-            ViewAnyLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_LAWYER_ACCOUNT_USER, contextualizer),
-            ViewAnyCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_CUSTOMER_ACCOUNT_USER, contextualizer),
-        };
-
-        //var isUserOwnerOfTheRelatedUser = parameters.RelatedUserId == parameters.UserId;
-
-        // [Principal Object Validations]
-
-        // [User Id]
-        var userIdResult = await ValidateUserId(
-            parameters.UserId,
-            contextualizer);
-
-        if (userIdResult.IsFinished)
-            return resultConstructor.Build().Incorporate(userIdResult);
-
-        // [Attribute Id]
-        var attributeIdResult = await ValidateAttributeId(
-            parameters.AttributeId,
-            contextualizer);
-
-        if (attributeIdResult.IsFinished)
-            return resultConstructor.Build().Incorporate(attributeIdResult);
-
-        // [Role Id]
-        var roleIdResult = await ValidateRoleId(
-            parameters.RoleId,
-            contextualizer);
-
-        if (roleIdResult.IsFinished)
-            return resultConstructor.Build().Incorporate(roleIdResult);
-
-        // [Related User Id]
-        var relatedUserIdResult = await ValidateUserId(
-            parameters.RelatedUserId,
-            contextualizer);
-
-        if (relatedUserIdResult.IsFinished)
-            return resultConstructor.Build().Incorporate(relatedUserIdResult);
-
-        // [Attribute Account]
-        var attributeAccountResult = await ValidateAttributeAccount(
-            parameters.UserId,
-            parameters.AttributeId,
-            contextualizer);
-
-        if (attributeAccountResult.IsFinished)
-            return resultConstructor.Build().Incorporate(attributeAccountResult);
-
-        // [Permission Validation]
-
-        const string queryPermissions = @"
-SELECT
-
-/* ---------------------------------------------- [GRANT_PERMISSIONS_OWN_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: Ownership (User Grant)] [GRANT_PERMISSIONS_OWN_USER]
-
-    (@GrantPermissionsOwnUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                             AND
-            [PGU].[permission_id] = @GrantPermissionsOwnUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                             AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: Ownership (Role Grant)] [GRANT_PERMISSIONS_OWN_USER]
-
-    (@GrantPermissionsOwnUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A_PG] ON [PG].[attribute_id] = [A_PG].[id]
-        WHERE 
-            [PG].[permission_id] = @GrantPermissionsOwnUserPermissionId AND
-            [PG].[role_id]       = @RoleId                             AND
-            ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasGrantPermissionsOwnUserPermission],
-
-/* ---------------------------------------------- [GRANT_PERMISSION_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_relationship (ACL Grant)] [GRANT_PERMISSION_USER]
-
-    (@GrantPermissionUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_relationship] [PGR]
-        LEFT JOIN [attributes] [A_PGR] ON [PGR].[attribute_id] = [A_PGR].[id]
-        WHERE 
-            [PGR].[related_user_id] = @RelatedUserId                   AND
-            [PGR].[user_id]         = @UserId                          AND
-            [PGR].[permission_id]   = @GrantPermissionUserPermissionId AND
-            [PGR].[role_id]         = @RoleId                          AND
-            ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasGrantPermissionsUserPermission],
-
-/* ---------------------------------------------- [GRANT_PERMISSIONS_ANY_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user (User Grant)] [GRANT_PERMISSIONS_ANY_USER]
-
-    (@GrantPermissionsAnyUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                              AND
-            [PGU].[permission_id] = @GrantPermissionsAnyUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                              AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 1: permission_grants (Role Grant)] [GRANT_PERMISSIONS_ANY_USER]
-
-    (@GrantPermissionsAnyUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A_PG] ON [PG].[attribute_id] = [A_PG].[id]
-        WHERE 
-            [PG].[permission_id] = @GrantPermissionsAnyUserPermissionId AND
-            [PG].[role_id]       = @RoleId                              AND
-            ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasGrantPermissionsAnyUserPermission],
-
-/* ---------------------------------------------- [VIEW_OWN_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_OWN_USER]
-
-    (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                  AND
-            [PGU].[permission_id] = @ViewOwnUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                  AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_USER]
-
-    (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @ViewOwnUserPermissionId AND
-            [PG].[role_id]       = @RoleId                  AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewOwnUserPermission],
-
-/* ---------------------------------------------- [VIEW_ANY_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_USER]
-
-    (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                  AND
-            [PGU].[permission_id] = @ViewAnyUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                  AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_USER]
-
-    (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @ViewAnyUserPermissionId AND
-            [PG].[role_id]       = @RoleId                  AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewAnyUserPermission],
-
-/* ---------------------------------------------- [VIEW_PUBLIC_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_USER]
-
-    (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
-        WHERE 
-            [PGU_PUB].[user_id]       = @UserId                     AND
-            [PGU_PUB].[permission_id] = @ViewPublicUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                     AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_USER]
-
-    (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
-        WHERE 
-            [PG_PUB].[permission_id] = @ViewPublicUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                     AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewPublicUserPermission],
-
-/* ---------------------------------------------- [VIEW_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_relationship (ACL Grant)] [VIEW_USER]
-
-    (@ViewUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_relationship] [PGR]
-        LEFT JOIN [attributes] [A_PGR] ON [PGR].[attribute_id] = [A_PGR].[id]
-        WHERE 
-            [PGR].[related_user_id] = @RelatedUserId        AND
-            [PGR].[user_id]         = @UserId               AND
-            [PGR].[permission_id]   = @ViewUserPermissionId AND
-            [PGR].[role_id]         = @RoleId               AND
-            ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewUserPermission]";
-
-        var queryPermissionsParameters = new
-        {
-            GrantPermissionsUserPermissionId    = permission.GrantPermissionsUserPermissionId,
-            GrantPermissionOwnUserPermissionId  = permission.GrantPermissionsOwnUserPermissionId,
-            GrantPermissionsAnyUserPermissionId = permission.GrantPermissionsAnyUserPermissionId,
-
-            ViewOwnUserPermissionId    = permission.ViewOwnUserPermissionId,
-            ViewAnyUserPermissionId    = permission.ViewAnyUserPermissionId,
-            ViewPublicUserPermissionId = permission.ViewPublicUserPermissionId,
-            ViewUserPermissionId       = permission.ViewUserPermissionId,
-
-            UserId        = parameters.UserId,
-            RelatedUserId = parameters.RelatedUserId,
-            AttributeId   = parameters.AttributeId,
-            RoleId        = parameters.RoleId
-        };
-
-        var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.GrantPermissions>(queryPermissions, queryPermissionsParameters);
-
-        // [User Information]
-
-        const string queryUserInformations = @"
-SELECT 
-
-[U].[private] AS [Private], 
-
-CASE WHEN [U].[id] = @UserId THEN 1, ELSE 0 END AS [Owner],
-
-FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
-
-        var queryUserInformationParameters = new
-        {
-            RelatedUserId = parameters.RelatedUserId,
-            UserId        = parameters.UserId
-        };
-
-        var userInformationResult = await connection.Connection.QueryFirstOrDefaultAsync<(bool? Private, bool? Owner)>(queryUserInformations, queryUserInformationParameters);
-
-        // [VIEW]
-        if (((userInformationResult.Private.HasValue && userInformationResult.Private.Value) && !permissionsResult.HasViewPublicUserPermission) &&
-            ((userInformationResult.Owner.HasValue   && userInformationResult.Owner.Value)   && !permissionsResult.HasViewOwnUserPermission)    &&
-            !permissionsResult.HasViewUserPermission &&
-            !permissionsResult.HasViewAnyUserPermission)
-        {
-            resultConstructor.SetConstructor(new UserNotFoundError());
-
-            return resultConstructor.Build();
-        }
-
-        // [GRANT_PERMISSIONS]
-        if (((userInformationResult.Owner.HasValue && userInformationResult.Owner.Value) && !permissionsResult.HasGrantPermissionsOwnUserPermission) &&
-            !permissionsResult.HasGrantPermissionsUserPermission &&
-            !permissionsResult.HasGrantPermissionsAnyUserPermission)
-        {
-            resultConstructor.SetConstructor(new GrantPermissionDeniedError());
-
-            return resultConstructor.Build();
-        }
-
-        var distinctPermission = parameters.Permissions.Distinct();
-
-        var internalValues = new InternalValues.GrantPermission()
-        {
-            Data = new()
-            {
-                Items = distinctPermission
-                    .Distinct()
-                    .ToDictionary(
-                        x => x.Id,
-                        x => new InternalValues.GrantPermission.DataPropreties.Item()
-                        {
-                            Id = x.Id,
-
-                            // [From parameters]
-
-                            UserId       = x.UserId,
-                            PermissionId = x.PermissionId,
-                            RoleId       = x.RoleId,
-                            AttributeId  = x.AttributeId
-                        })
-            }
-        };
-
-        // [User Id]
-        var userIdResultDictionary = await ValidateUserId(
-            internalValues.Data.Items.Values
-                .Select(x => x.UserId)
-                .Distinct(), 
-            contextualizer);
-
-        foreach (var item in internalValues.Data.Items.Values)
-        {
-            if (!userIdResultDictionary.TryGetValue(item.UserId, out var result))
-                continue;
-
-            if (result.IsFinished)
-            {
-                internalValues.Data.Items[item.Id].Result = result;
-
-                internalValues.Data.Finish(item.Id);
-            }
-        }
-
-        // [Attribute Id]
-        var attributeIdResultDictionary = await ValidateAttributeId(
-            internalValues.Data.Items.Values
-                .Select(x => x.AttributeId)
-                .Distinct(),
-            contextualizer);
-
-        foreach (var item in internalValues.Data.Items.Values)
-        {
-            if (!attributeIdResultDictionary.TryGetValue(item.AttributeId, out var result))
-                continue;
-
-            if (result.IsFinished)
-            {
-                internalValues.Data.Items[item.Id].Result = result; 
-
-                internalValues.Data.Finish(item.Id);
-            }
-        }
-
-        // [Role Id]
-        var roleIdResultDictionary = await ValidateRoleId(
-            internalValues.Data.Items.Values
-                .Select(x => x.RoleId)
-                .Distinct(),
-            contextualizer);
-
-        foreach (var item in internalValues.Data.Items.Values)
-        {
-            if (!roleIdResultDictionary.TryGetValue(item.RoleId, out var result))
-                continue;
-
-            if(result.IsFinished)
-            {
-                internalValues.Data.Items[item.Id].Result = result;
-
-                internalValues.Data.Finish(item.Id);
-            }
-        }
-
-        // [Permission Id]
-        var permissionIdResultDictionary = await ValidatePermissionId(
-            internalValues.Data.Items.Values
-                .Select(x => x.PermissionId)
-                .Distinct(),
-            contextualizer);
-
-        foreach (var item in internalValues.Data.Items.Values)
-        {
-            if (!permissionIdResultDictionary.TryGetValue(item.PermissionId, out var result))
-                continue;
-
-            if (result.IsFinished)
-            {
-                internalValues.Data.Items[item.Id].Result = result;
-
-                internalValues.Data.Finish(item.Id);
-            }
-        }
-
-        // [Attribute Account]
-        var attributeAccountResultDictionary = await ValidateAttributeAccount(
-            internalValues.Data.Items.Values
-                .Select(x => (UserId: x.UserId, AttributeId: x.AttributeId))
-                .Distinct(),
-            contextualizer);
-
-        foreach (var item in internalValues.Data.Items.Values)
-        {
-            if (!attributeAccountResultDictionary.TryGetValue((UserId: item.UserId, AttributeId: item.AttributeId), out var result))
-                continue;
-
-            if (result.IsFinished)
-            {
-                internalValues.Data.Items[item.Id].Result = result;
-
-                internalValues.Data.Finish(item.Id);
-            }
-        }
-
-        // [Check Permission Objects Permissions]
-
-        const string queryPermissionsSpecificUser = @"
-/* ---------------------------------------------- [GRANT_PERMISSIONS_ANY_USER] ---------------------------------------------- */
-
-SELECT
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [GRANT_PERMISSIONS_ANY_USER]
-
-    (@GrantPermissionsAnyUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                              AND
-            [PGU].[permission_id] = @GrantPermissionsAnyUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                              AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [GRANT_PERMISSIONS_ANY_USER]
-
-    (@GrantPermissionsAnyUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @GrantPermissionsAnyUserPermissionId AND
-            [PG].[role_id]       = @RoleId                              AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasGrantPermissionsAnyUserPermission],
-
-/* ---------------------------------------------- [GRANT_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [GRANT_PERMISSION_ANY_LAWYER_ACCOUNT_USER]
-
-    (@GrantPermissionsAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                                           AND
-            [PGU].[permission_id] = @GrantPermissionsAnyLawyerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                           AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [GRANT_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER]
-
-    (@GrantPermissionsAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @GrantPermissionsAnyLawyerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                           AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasGrantPermissionsAnyLawyerAccountUserPermission],
-
-/* ---------------------------------------------- [GRANT_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [GRANT_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER]
-
-    (@GrantPermissionsAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                                             AND
-            [PGU].[permission_id] = @GrantPermissionsAnyCustomerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                             AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [GRANT_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER]
-
-    (@GrantPermissionsAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @GrantPermissionsAnyCustomerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                             AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasGrantPermissionsAnyCustomerAccountUserPermission],
-
-
-/* ---------------------------------------------- [GRANT_PERMISSIONS_OWN_USER] ---------------------------------------------- */
-
-SELECT
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [GRANT_PERMISSIONS_OWN_USER]
-
-    (@GrantPermissionsOwnUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                              AND
-            [PGU].[permission_id] = @GrantPermissionsOwnUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                              AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [GRANT_PERMISSIONS_OWN_USER]
-
-    (@GrantPermissionsOwnUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @GrantPermissionsOwnUserPermissionId AND
-            [PG].[role_id]       = @RoleId                              AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasGrantPermissionsOwnUserPermission],
-
-/* ---------------------------------------------- [GRANT_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [GRANT_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER]
-
-    (@GrantPermissionsOwnLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                                           AND
-            [PGU].[permission_id] = @GrantPermissionsOwnLawyerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                           AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [GRANT_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER]
-
-    (@GrantPermissionsOwnLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @GrantPermissionsOwnLawyerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                           AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasGrantPermissionsOwnLawyerAccountUserPermission],
-
-/* ---------------------------------------------- [GRANT_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [GRANT_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER]
-
-    (@GrantPermissionsOwnCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                                             AND
-            [PGU].[permission_id] = @GrantPermissionsOwnCustomerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                             AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [GRANT_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER]
-
-    (@GrantPermissionsOwnCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @GrantPermissionsOwnCustomerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                             AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasGrantPermissionsOwnCustomerAccountUserPermission],
-
-/* ---------------------------------------------- [VIEW_ANY_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_USER]
-
-    (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                  AND
-            [PGU].[permission_id] = @ViewAnyUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                  AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_USER]
-
-    (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @ViewAnyUserPermissionId AND
-            [PG].[role_id]       = @RoleId                  AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewAnyUserPermission],
-
-/* ---------------------------------------------- [VIEW_ANY_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_LAWYER_ACCOUNT_USER]
-
-    (@ViewAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                               AND
-            [PGU].[permission_id] = @ViewAnyLawyerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                               AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_LAWYER_ACCOUNT_USER]
-
-    (@ViewAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @ViewAnyLawyerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                               AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewAnyLawyerAccountUserPermission],
-
-/* ---------------------------------------------- [VIEW_ANY_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_CUSTOMER_ACCOUNT_USER]
-
-    (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                                 AND
-            [PGU].[permission_id] = @ViewAnyCustomerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                 AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_CUSTOMER_ACCOUNT_USER]
-
-    (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @ViewAnyCustomerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                 AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewAnyCustomerAccountUserPermission],
-
-/* ---------------------------------------------- [VIEW_PUBLIC_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_USER]
-
-    (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
-        WHERE 
-            [PGU_PUB].[user_id]       = @UserId                     AND
-            [PGU_PUB].[permission_id] = @ViewPublicUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                     AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_USER]
-
-    (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
-        WHERE 
-            [PG_PUB].[permission_id] = @ViewPublicUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                     AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewPublicUserPermission],
-
-/* ---------------------------------------------- [VIEW_PUBLIC_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_LAWYER_ACCOUNT_USER]
-
-    (@ViewPublicLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
-        WHERE 
-            [PGU_PUB].[user_id]       = @UserId                                  AND
-            [PGU_PUB].[permission_id] = @ViewPublicLawyerAccountUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                                  AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_LAWYER_ACCOUNT_USER]
-
-    (@ViewPublicLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
-        WHERE 
-            [PG_PUB].[permission_id] = @ViewPublicLawyerAccountUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                                  AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewPublicLawyerAccountUserPermission],
-
-/* ---------------------------------------------- [VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER]
-
-    (@ViewPublicCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
-        WHERE 
-            [PGU_PUB].[user_id]       = @UserId                                    AND
-            [PGU_PUB].[permission_id] = @ViewPublicCustomerAccountUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                                    AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER]
-
-    (@ViewPublicCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
-        WHERE 
-            [PG_PUB].[permission_id] = @ViewPublicCustomerAccountUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                                    AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewPublicCustomerAccountUserPermission]";
-
-        var queryPermissionsParametersSpecificUser = new 
-        { 
-            ViewPublicUserPermissionId                = permission.ViewPublicUserPermissionId,               
-            ViewPublicLawyerAccountUserPermissionId   = permission.ViewPublicLawyerAccountUserPermissionId,            
-            ViewPublicCustomerAccountUserPermissionId = permission.ViewPublicCustomerAccountUserPermissionId,
-
-            GrantPermissionsAnyUserPermissionId                = permission.GrantPermissionsAnyUserPermissionId,
-            GrantPermissionsAnyLawyerAccountUserPermissionId   = permission.GrantPermissionsAnyLawyerAccountUserPermissionId,
-            GrantPermissionsAnyCustomerAccountUserPermissionId = permission.GrantPermissionsAnyCustomerAccountUserPermissionId,
-            
-            GrantPermissionsOwnUserPermissionId                = permission.GrantPermissionsOwnUserPermissionId,
-            GrantPermissionsOwnLawyerAccountUserPermissionId   = permission.GrantPermissionsOwnLawyerAccountUserPermissionId,
-            GrantPermissionsOwnCustomerAccountUserPermissionId = permission.GrantPermissionsOwnCustomerAccountUserPermissionId,
-
-            ViewAnyUserPermissionId                = permission.ViewAnyUserPermissionId,
-            ViewAnyLawyerAccountUserPermissionId   = permission.ViewAnyLawyerAccountUserPermissionId,
-            ViewAnyCustomerAccountUserPermissionId = permission.ViewAnyCustomerAccountUserPermissionId,
-
-            AttributeId = parameters.UserId,
-            UserId      = parameters.UserId,
-            RoleId      = parameters.RoleId
-        };
-
-        var permissionsResultSpecificUser = await connection.Connection.QueryFirstAsync<PermissionResult.GrantPermissions.SpecificUser>(queryPermissionsSpecificUser, queryPermissionsParametersSpecificUser);
-
-        const string queryAttributes = "SELECT [A].[id] AS [Id], [A].[name] AS [Name] FROM [Attributes]";
-
-        var attributes = await connection.Connection.QueryAsync<(int Id, string Name)>(queryAttributes);
-
-        const string queryAllowedPermissions = @"
-SELECT [P].[id] AS [Id] FROM [Permissions] WHERE [P].[name] IN 
-(GRANT_PERMISSIONS_USER, REVOKE_PERMISSIONS_USER, GRANT_PERMISSIONS_LAWYER_ACCOUNT_USER, REVOKE_PERMISSIONS_USER, CHAT_USER, VIEW_USER, VIEW_LAWYER_ACCOUNT_USER, VIEW_CUSTOMER_ACCOUNT_USER, EDIT_USER)";
-
-        var allowedPermissions = await connection.Connection.QueryAsync<int>(queryAllowedPermissions);
-
-        foreach (var item in internalValues.Data.Items.Values)
-        {
-            var resultContructor = new ResultConstructor();
-
-            if (!allowedPermissions.Contains(item.PermissionId))
-            {
-                resultContructor.SetConstructor(new ForbiddenPermissionToGrantError());
-
-                internalValues.Data.Items[item.Id].Result = resultContructor.Build();
-
-                internalValues.Data.Finish(item.Id);
-
-                continue;
-            }
-
-            var hasPermissionToAssignUser = await ValuesExtensions.GetValue(async () =>
-            {
-                var queryParameters = new
-                {
-                    // [NOT ACL]
-
-                    HasGrantPermissionsAnyUserPermission                = permissionsResultSpecificUser.HasGrantPermissionsAnyUserPermission,
-                    HasGrantPermissionsAnyLawyerAccountUserPermission   = permissionsResultSpecificUser.HasGrantPermissionsAnyLawyerAccountUserPermission,
-                    HasGrantPermissionsAnyCustomerAccountUserPermission = permissionsResultSpecificUser.HasGrantPermissionsAnyCustomerAccountUserPermission,
-
-                    HasGrantPermissionsOwnUserPermission                = permissionsResultSpecificUser.HasGrantPermissionsOwnUserPermission,
-                    HasGrantPermissionsOwnLawyerAccountUserPermission   = permissionsResultSpecificUser.HasGrantPermissionsOwnLawyerAccountUserPermission,
-                    HasGrantPermissionsOwnCustomerAccountUserPermission = permissionsResultSpecificUser.HasGrantPermissionsOwnCustomerAccountUserPermission,
-
-                    HasViewAnyUserPermission                = permissionsResultSpecificUser.HasViewAnyUserPermission,
-                    HasViewAnyLawyerAccountUserPermission   = permissionsResultSpecificUser.HasViewAnyLawyerAccountUserPermission,
-                    HasViewAnyCustomerAccountUserPermission = permissionsResultSpecificUser.HasViewAnyCustomerAccountUserPermission,
-
-                    HasViewPublicUserPermission                = permissionsResultSpecificUser.HasViewPublicUserPermission,
-                    HasViewPublicLawyerAccountUserPermission   = permissionsResultSpecificUser.HasViewPublicLawyerAccountUserPermission,
-                    HasViewPublicCustomerAccountUserPermission = permissionsResultSpecificUser.HasViewPublicCustomerAccountUserPermission,
-                    // [ACL]
-
-                    ViewUserPermissionId                = permission.ViewUserPermissionId,
-                    ViewLawyerAccountUserPermissionId   = permission.ViewUserPermissionId,
-                    ViewCustomerAccountUserPermissionId = permission.ViewUserPermissionId,
-
-                    GrantPermissionsUserPermissionId                = permission.GrantPermissionsUserPermissionId,
-                    GrantPermissionsLawyerAccountUserPermissionId   = permission.GrantPermissionsLawyerAccountUserPermissionId,
-                    GrantPermissionsCustomerAccountUserPermissionId = permission.GrantPermissionsUserPermissionId,
-
-                    Attribute = attributes.First(x => x.Id == item.AttributeId),
-
-                    AttributeId  = item.AttributeId,
-                    UserId       = item.UserId,
-                    PermissionId = item.PermissionId,
-                    RoleId       = item.RoleId
-                };
-
-                const string queryText = @$"
-WITH [view_permission] AS (
-    SELECT
-        CASE
-            WHEN
-
-                -- [Block 1: User Level]
-
-                (
-                    -- [Layer 1: Ownership]
-
-                    ([U].[id] = @ExternalUserId AND (@HasViewOwnUserPermission OR @HasViewAnyUserPermission = 1))
-
-                    OR
-
-                    -- [Layer 2: permission_grants_relationship (ACL Grant)] [VIEW_USER]
-
-                    ([U].[private] = 1 AND (
-                        @ViewUserPermissionId IS NOT NULL AND EXISTS (
-                            SELECT 1 FROM [permission_grants_relationship] [PGRu]
-                            LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
-                            WHERE
-                                [PGRu].[related_user_id] = @UserId               AND 
-                                [PGRu].[user_id]         = @ExternalUserId       AND 
-                                [PGRu].[role_id]         = @RoleId               AND 
-                                [PGRu].[permission_id]   = @ViewUserPermissionId AND 
-                                ([PGRu].[attribute_id] IS NULL OR [Au].[id] = @AttributeId)
-                        )
-                        OR @HasViewAnyUserPermission = 1
-                    ))
-
-                    OR 
-
-                    -- [Layer 3: Public]
-
-                    ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
-                )
-
-                AND
-
-                -- [Block 2: account-level check (LAWYER vs CUSTOMER)]
-
-                (
-                    CASE 
-                        WHEN @AttributeName = 'LAWYER' THEN
-                            CASE
-                                -- [Layer 1: Ownership]
-
-                                WHEN ([L].[user_id] = @ExternalUserId AND (@HasViewOwnLawyerAccountUserPermission OR @HasViewAnyLawyerAccountUserPermission = 1)) THEN 1
-
-                                -- [Layer 2: permission_grants_relationship (ACL Grant)] [VIEW_LAWYER_ACCOUNT_USER]
-
-                                WHEN [L].[private] = 1 AND (
-                                    @ViewLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-                                        SELECT 1 FROM [permission_grants_relationship] [PGRl]
-                                        LEFT JOIN [attributes] [Al] ON [Al].[id] = [PGRl].[attribute_id]
-                                        WHERE
-                                            [PGRl].[related_user_id] = @UserId                            AND
-                                            [PGRl].[user_id]         = @ExternalUserId                    AND
-                                            [PGRl].[role_id]         = @RoleId                            AND
-                                            [PGRl].[permission_id]   = @ViewLawyerAccountUserPermissionId AND
-                                            ([PGRl].[attribute_id] IS NULL OR [Al].[id] = @AttributeId)
-                                    )
-                                    OR @HasViewAnyLawyerAccountUserPermission = 1
-                                ) THEN 1
-
-                                -- [Layer 3: Public]
-
-                                WHEN ([L].[private] = 0 AND (@HasViewPublicLawyerAccountUserPermission = 1 OR @HasViewAnyLawyerAccountUserPermission = 1)) THEN 1
-
-                                ELSE 0
-                            END
-                        WHEN @AttributeName = 'CUSTOMER' THEN
-                            CASE
-                                -- [Layer 1: Ownership]
-
-                                WHEN ([C].[user_id] = @ExternalUserId AND (@HasViewOwnCustomerAccountUserPermission OR @HasViewAnyCustomerAccountUserPermission = 1)) THEN 1
-
-                                -- [Layer 2: permission_grants_relationship (ACL Grant)] [VIEW_CUSTOMER_ACCOUNT_USER]
-
-                                WHEN [C].[private] = 1 AND (
-                                    @ViewCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-                                        SELECT 1 FROM [permission_grants_relationship] [PGRc]
-                                        LEFT JOIN [attributes] [Ac] ON [Ac].[id] = [PGRc].[attribute_id]
-                                        WHERE
-                                            [PGRc].[related_user_id] = @UserId                             AND 
-                                            [PGRc].[user_id]         = @ExternalUserId                      AND 
-                                            [PGRc].[role_id]         = @RoleId                              AND 
-                                            [PGRc].[permission_id]   = @ViewCustomerAccountUserPermissionId AND 
-                                            ([PGRc].[attribute_id] IS NULL OR [Ac].[id] = @AttributeId)
-                                    )
-                                    OR @HasViewAnyCustomerAccountUserPermission = 1
-                                ) THEN 1
-
-                                -- [Layer 3: Public]
-
-                                WHEN ([C].[private] = 0 AND (@HasViewPublicCustomerAccountUserPermission = 1 OR @HasViewAnyCustomerAccountUserPermission = 1)) THEN 1
-                                
-                                ELSE 0
-                            END
-                        ELSE 0
-                    END = 1
-                )
-            THEN 1 ELSE 0
-        END AS apply
-    FROM [users] [U]
-    LEFT JOIN [lawyers] [L] ON [L].[user_id] = [U].[id]
-    LEFT JOIN [customer] [C] ON [C].[user_id] = [U].[id]
-    WHERE [U].[id] = @UserId
-),
-[grant_permission] AS (
-    SELECT
-        CASE
-            WHEN
-                -- [Block 1: User Level]
-
-                (
-                    -- [Layer 1: Ownership]
-
-                    ([U].[id] = @ExternalUserId AND (@HasGrantPermissionsOwnUserPermission OR @HasGrantPermissionsAnyUserPermission = 1))
-
-                    OR
-
-                    -- [Layer 2: permission_grants_relationship (ACL Grant)] [GRANT_PERMISSIONS_USER]
-
-                    (@GrantPermissionsUserPermissionId IS NOT NULL AND EXISTS (
-                        SELECT 1 FROM [permission_grants_relationship] [PGRu2]
-                        LEFT JOIN [attributes] [Au2] ON [Au2].[id] = [PGRu2].[attribute_id]
-                        WHERE
-                            [PGRu2].[related_user_id] = @UserId                           AND 
-                            [PGRu2].[user_id]         = @ExternalUserId                   AND 
-                            [PGRu2].[role_id]         = @RoleId                           AND 
-                            [PGRu2].[permission_id]   = @GrantPermissionsUserPermissionId AND 
-                            ([PGRu2].[attribute_id] IS NULL OR [Au2].[id] = @AttributeId)
-                    )
-                    OR @HasGrantPermissionsAnyUserPermission = 1)   
-                )
-
-                AND
-
-                -- [Block 2: account-level check (LAWYER vs CUSTOMER)]
-
-                (
-                    CASE 
-                        WHEN @AttributeName = 'LAWYER' THEN
-                            CASE 
-
-                                -- [Layer 1: Ownership]
-
-                                WHEN ([L].[user_id] = @ExternalUserId AND (@HasGrantPermissionsOwnLawyerAccountUserPermission OR @HasGrantPermissionsAnyLawyerAccountUserPermission = 1)) THEN 1
-
-                                -- [Layer 2: permission_grants_relationship (ACL Grant)] [GRANT_PERMISSIONS_LAWYER_ACCOUNT_USER]
-
-                                WHEN (
-                                    @GrantPermissionsLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-                                        SELECT 1 FROM [permission_grants_relationship] [PGRu2]
-                                        LEFT JOIN [attributes] [Au2] ON [Au2].[id] = [PGRu2].[attribute_id]
-                                        WHERE
-                                            [PGRu2].[related_user_id] = @UserId                                        AND 
-                                            [PGRu2].[user_id]         = @ExternalUserId                                AND 
-                                            [PGRu2].[role_id]         = @RoleId                                        AND 
-                                            [PGRu2].[permission_id]   = @GrantPermissionsLawyerAccountUserPermissionId AND 
-                                            ([PGRu2].[attribute_id] IS NULL OR [Au2].[id] = @AttributeId)
-                                    )
-                                    OR @HasGrantPermissionsAnyLawyerAccountUserPermission = 1
-                                ) THEN 1 
-
-                                ELSE 0
-                            END
-                        WHEN @AttributeName = 'CUSTOMER' THEN
-                            CASE 
-
-                                -- [Layer 1: Ownership]
-
-                                WHEN ([C].[user_id] = @ExternalUserId AND (@HasGrantPermissionsOwnCustomerAccountUserPermission OR @HasGrantPermissionsAnyCustomerAccountUserPermission = 1)) THEN 1
-
-                                -- [Layer 2: permission_grants_relationship (ACL Grant)] [GRANT_PERMISSIONS_CUSTOMER_ACCOUNT_USER]
-
-                                WHEN (
-                                    @GrantPermissionsCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-                                        SELECT 1 FROM [permission_grants_relationship] [PGRu2]
-                                        LEFT JOIN [attributes] [Au2] ON [Au2].[id] = [PGRu2].[attribute_id]
-                                        WHERE
-                                            [PGRu2].[related_user_id] = @UserId                                          AND 
-                                            [PGRu2].[user_id]         = @ExternalUserId                                  AND 
-                                            [PGRu2].[role_id]         = @RoleId                                          AND 
-                                            [PGRu2].[permission_id]   = @GrantPermissionsCustomerAccountUserPermissionId AND 
-                                            ([PGRu2].[attribute_id] IS NULL OR [Au2].[id] = @AttributeId)
-                                    )
-                                    OR @HasGrantPermissionsAnyCustomerAccountUserPermission = 1
-                                ) THEN 1 
-
-                                ELSE 0
-                            END
-                        ELSE 0
-                    END = 1
-                )
-            THEN 1 ELSE 0
-        END AS [apply]
-    FROM [users] [U]
-    LEFT JOIN [lawyers] [L] ON [L].[user_id] = [U].[id]
-    LEFT JOIN [customer] [C] ON [C].[user_id] = [U].[id]
-    WHERE [U].[id] = @UserId
-)
-
-SELECT
-    CASE WHEN [view_permission].[apply] = 1 AND [grant_permission].[apply] = 1 THEN 1 
-    ELSE 0 END AS [result]
-FROM [view_permission], [grant_permission];";
-
-                    var result = await connection.Connection.QueryFirstAsync<bool>(
-                      new CommandDefinition(
-                              commandText:       queryText,
-                              parameters:        queryParameters,
-                              transaction:       connection.Transaction,
-                              cancellationToken: contextualizer.CancellationToken,
-                              commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
-
-                    return result;
-
-            });
-
-            if (!hasPermissionToAssignUser)
-            {
-                resultContructor.SetConstructor(new GrantPermissionsForSpecificUserDeniedError()
-                {
-                    Status = 400
-                });
-
-                internalValues.Data.Items[item.Id].Result = resultContructor.Build();
-
-                internalValues.Data.Finish(item.Id);
-
-                continue;
-            }
-        }
-
-        if (!internalValues.Data.Items.Any())
-        {
-            resultConstructor.SetConstructor(new GrantPermissionSuccess()
-            {
-                Details = new()
-                {
-                    IncludedItems = 0,
-
-                    Result = internalValues.Data.Finished.Values.Select((item) =>
-                        new GrantPermissionSuccess.DetailsVariation.Fields
-                        {
-                            UserId       = item.UserId,
-                            PermissionId = item.PermissionId,
-                            AttributeId  = item.AttributeId,
-                            RoleId       = item.RoleId,
-
-                            Result = item.Result
-                        })
-                }
-            });
-
-            return resultConstructor.Build();
-        }
-          
-        var includedItems = await ValuesExtensions.GetValue(async () =>
-        { 
-            var items = internalValues.Data.Items.Values.Select(x => new
-            {
-                RelatedUserId = parameters.RelatedUserId,
-
-                AttributeId  = x.AttributeId,
-                PermissionId = x.PermissionId,
-                UserId       = x.UserId,
-                RoleId       = x.RoleId
-            });
-
-            var stringBuilder = new StringBuilder();
-
-            stringBuilder.Append(@" INSERT OR IGNORE INTO [permission_grants_relationship] ([related_user_id], [permission_id], [role_id], [user_id], [attribute_id]) 
-                                                                            VALUES (@RelatedUserId, @PermissionId, @RoleId, @UserId, @AttributeId);");
-
-            var includedItems = await connection.Connection.ExecuteAsync(stringBuilder.ToString(), items);
-
-            return includedItems;
-        });
-
-        resultConstructor.SetConstructor(new GrantPermissionSuccess()
-        {
-            Details = new()
-            {
-                IncludedItems = includedItems,
-
-                Result = internalValues.Data.Finished.Values.Select((item) =>
-                    new GrantPermissionSuccess.DetailsVariation.Fields
-                    {
-                        UserId       = item.UserId,
-                        PermissionId = item.PermissionId,
-                        AttributeId  = item.AttributeId,
-                        RoleId       = item.RoleId,
-
-                        Result = item.Result
-                    })
-            }
-        });
-
-        return resultConstructor.Build();
-    }
-
-    public async Task<Result> RevokePermissionsAsync(RevokePermissionsParameters parameters, Contextualizer contextualizer)
-    {
-        var resultConstructor = new ResultConstructor();
-
-        var sqliteConnectionString = _configuration.GetConnectionString("Sqlite");
-
-        if (string.IsNullOrWhiteSpace(sqliteConnectionString))
-        {
-            resultConstructor.SetConstructor(new NotFoundDatabaseConnectionStringError());
-
-            return resultConstructor.Build();
-        }
-
-        _databaseService.AppendConnectionStringWithIdentifier("local-sqlite", sqliteConnectionString, ProviderType.Sqlite);
-
-        var connection = await _databaseService.GetConnection("local-sqlite", ProviderType.Sqlite);
-
-        contextualizer.AssignContextualizedConnection(connection);
-
-        var permission = new
-        {
-            // [Related to RELATIONSHIP WITH (USER OR ROLE) specific permission assigned]
-
-            RevokePermissionsUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_USER, contextualizer),
-            RevokePermissionsLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_LAWYER_ACCOUNT_USER, contextualizer),
-            RevokePermissionsCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_CUSTOMER_ACCOUNT_USER, contextualizer),
-
-            ViewUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_USER, contextualizer),
-            ViewLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_LAWYER_ACCOUNT_USER, contextualizer),
-            ViewCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_CUSTOMER_ACCOUNT_USER, contextualizer),
-
-            // [Related to USER or ROLE permission]
-
-            RevokePermissionsOwnUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_OWN_USER, contextualizer),
-            RevokePermissionsOwnLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER, contextualizer),
-            RevokePermissionsOwnCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER, contextualizer),
-
-            ViewPublicUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_USER, contextualizer),
-            ViewPublicLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_LAWYER_ACCOUNT_USER, contextualizer),
-            ViewPublicCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER, contextualizer),
-
-            ViewOwnUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_USER, contextualizer),
-            ViewOwnLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_LAWYER_ACCOUNT_USER, contextualizer),
-            ViewOwnCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_OWN_CUSTOMER_ACCOUNT_USER, contextualizer),
-
-            // [Related to SUPER USER or ADMIN permission]
-
-            RevokePermissionsAnyUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_ANY_USER, contextualizer),
-            RevokePermissionsAnyLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER, contextualizer),
-            RevokePermissionsAnyCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.REVOKE_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER, contextualizer),
-            
-            ViewAnyUserPermissionId                = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_USER, contextualizer),
-            ViewAnyLawyerAccountUserPermissionId   = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_LAWYER_ACCOUNT_USER, contextualizer),
-            ViewAnyCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_CUSTOMER_ACCOUNT_USER, contextualizer)
-        };
-
-        //var isUserOwnerOfTheRelatedUser = parameters.RelatedUserId == parameters.UserId;
-
-        // [Principal Object Validations]
-
-        // [User Id]
-        var userIdResult = await ValidateUserId(
-            parameters.UserId,
-            contextualizer);
-
-        if (userIdResult.IsFinished)
-            return resultConstructor.Build().Incorporate(userIdResult);
-
-        // [Attribute Id]
-        var attributeIdResult = await ValidateAttributeId(
-            parameters.AttributeId,
-            contextualizer);
-
-        if (attributeIdResult.IsFinished)
-            return resultConstructor.Build().Incorporate(attributeIdResult);
-
-        // [Role Id]
-        var roleIdResult = await ValidateRoleId(
-            parameters.RoleId,
-            contextualizer);
-
-        if (roleIdResult.IsFinished)
-            return resultConstructor.Build().Incorporate(roleIdResult);
-
-        // [Related User Id]
-        var relatedUserIdResult = await ValidateUserId(
-            parameters.RelatedUserId,
-            contextualizer);
-
-        if (relatedUserIdResult.IsFinished)
-            return resultConstructor.Build().Incorporate(relatedUserIdResult);
-
-        // [Attribute Account]
-        var attributeAccountResult = await ValidateAttributeAccount(
-            parameters.UserId,
-            parameters.AttributeId,
-            contextualizer);
-
-        if (attributeAccountResult.IsFinished)
-            return resultConstructor.Build().Incorporate(attributeAccountResult);
-
-      // [Permission Validation]
-
-        const string queryPermissions = @"
-SELECT
-
-/* ---------------------------------------------- [REVOKE_PERMISSIONS_OWN_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: Ownership (User Grant)] [REVOKE_PERMISSIONS_OWN_USER]
-
-    (@RevokePermissionsOwnUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                               AND
-            [PGU].[permission_id] = @RevokePermissionsOwnUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                               AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: Ownership (Role Grant)] [REVOKE_PERMISSIONS_OWN_USER]
-
-    (@RevokePermissionsOwnUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A_PG] ON [PG].[attribute_id] = [A_PG].[id]
-        WHERE 
-            [PG].[permission_id] = @RevokePermissionsOwnUserPermissionId AND
-            [PG].[role_id]       = @RoleId                               AND
-            ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasRevokePermissionsOwnUserPermission],
-
-/* ---------------------------------------------- [REVOKE_PERMISSIONS_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_relationships (ACL Grant)] [REVOKE_PERMISSIONS_USER]
-
-    (@RevokePermissionsUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_relationships] [PGR]
-        LEFT JOIN [attributes] [A_PGR] ON [PGR].[attribute_id] = [A_PGR].[id]
-        WHERE 
-            [PGR].[related_user_id] = @RelatedUserId                     AND
-            [PGR].[user_id]         = @UserId                            AND
-            [PGR].[permission_id]   = @RevokePermissionsUserPermissionId AND
-            [PGR].[role_id]         = @RoleId                            AND
-            ([PGC].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasRevokePermissionsUserPermission],
-
-/* ---------------------------------------------- [REVOKE_PERMISSIONS_ANY_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user (User Grant)] [REVOKE_PERMISSIONS_ANY_USER]
-
-    (@RevokePermissionsAnyUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                               AND
-            [PGU].[permission_id] = @RevokePermissionsAnyUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                               AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 1: permission_grants (Role Grant)] [REVOKE_PERMISSIONS_ANY_USER]
-
-    (@RevokePermissionsAnyUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A_PG] ON [PG].[attribute_id] = [A_PG].[id]
-        WHERE 
-            [PG].[permission_id] = @RevokePermissionsAnyUserPermissionId AND
-            [PG].[role_id]       = @RoleId                               AND
-            ([PG].[attribute_id] IS NULL OR [A_PG].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasRevokePermissionsAnyUserPermission],
-
-/* ---------------------------------------------- [VIEW_OWN_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_OWN_USER]
-
-    (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                  AND
-            [PGU].[permission_id] = @ViewOwnUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                  AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_OWN_USER]
-
-    (@ViewOwnUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @ViewOwnUserPermissionId AND
-            [PG].[role_id]       = @RoleId                  AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewOwnUserPermission],
-
-/* ---------------------------------------------- [VIEW_ANY_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_USER]
-
-    (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                  AND
-            [PGU].[permission_id] = @ViewAnyUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                  AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_USER]
-
-    (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @ViewAnyUserPermissionId AND
-            [PG].[role_id]       = @RoleId                  AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewAnyUserPermission],
-
-/* ---------------------------------------------- [VIEW_PUBLIC_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_USER]
-
-    (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
-        WHERE 
-            [PGU_PUB].[user_id]       = @UserId                     AND
-            [PGU_PUB].[permission_id] = @ViewPublicUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                     AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_USER]
-
-    (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
-        WHERE 
-            [PG_PUB].[permission_id] = @ViewPublicUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                     AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewPublicUserPermission],
-
-/* ---------------------------------------------- [VIEW_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_relationship (ACL Grant)] [VIEW_USER]
-
-    (@ViewUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_relationship] [PGR]
-        LEFT JOIN [attributes] [A_PGR] ON [PGR].[attribute_id] = [A_PGR].[id]
-        WHERE 
-            [PGR].[related_user_id] = @RelatedUserId        AND
-            [PGR].[user_id]         = @UserId               AND
-            [PGR].[permission_id]   = @ViewUserPermissionId AND
-            [PGR].[role_id]         = @RoleId               AND
-            ([PGR].[attribute_id] IS NULL OR [A_PGR].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewUserPermission]";
-
-        var queryPermissionsParameters = new
-        {
-            RevokePermissionsUserPermissionId    = permission.RevokePermissionsUserPermissionId,
-            RevokePermissionOwnUserPermissionId  = permission.RevokePermissionsOwnUserPermissionId,
-            RevokePermissionsAnyUserPermissionId = permission.RevokePermissionsAnyUserPermissionId,
-
-            ViewOwnUserPermissionId    = permission.ViewOwnUserPermissionId,
-            ViewAnyUserPermissionId    = permission.ViewAnyUserPermissionId,
-            ViewPublicUserPermissionId = permission.ViewPublicUserPermissionId,
-            ViewUserPermissionId       = permission.ViewUserPermissionId,
-
-            UserId        = parameters.UserId,
-            RelatedUserId = parameters.RelatedUserId,
-            AttributeId   = parameters.AttributeId,
-            RoleId        = parameters.RoleId
-        };
-
-        var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.RevokePermissions>(queryPermissions, queryPermissionsParameters);
-
-        // [User Information]
-
-        const string queryUserInformations = @"
-SELECT 
-
-[U].[private] AS [Private], 
-
-CASE WHEN [U].[id] = @UserId THEN 1, ELSE 0 END AS [Owner],
-
-FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
-
-        var queryUserInformationParameters = new
-        {
-            RelatedUserId = parameters.RelatedUserId,
-            UserId        = parameters.UserId
-        };
-
-        var userInformationResult = await connection.Connection.QueryFirstOrDefaultAsync<(bool? Private, bool? Owner)>(queryUserInformations, queryUserInformationParameters);
-
-        // [VIEW]
-        if (((userInformationResult.Private.HasValue && userInformationResult.Private.Value) && !permissionsResult.HasViewPublicUserPermission) &&
-            ((userInformationResult.Owner.HasValue   && userInformationResult.Owner.Value)   && !permissionsResult.HasViewOwnUserPermission)    &&
-            !permissionsResult.HasViewUserPermission &&
-            !permissionsResult.HasViewAnyUserPermission)
-        {
-            resultConstructor.SetConstructor(new UserNotFoundError());
-
-            return resultConstructor.Build();
-        }
-
-        // [GRANT_PERMISSIONS]
-        if (((userInformationResult.Owner.HasValue && userInformationResult.Owner.Value) && !permissionsResult.HasRevokePermissionsOwnUserPermission) &&
-            !permissionsResult.HasRevokePermissionsUserPermission &&
-            !permissionsResult.HasRevokePermissionsAnyUserPermission)
-        {
-            resultConstructor.SetConstructor(new RevokePermissionDeniedError());
-
-            return resultConstructor.Build();
-        }
-        // [Permission Objects Validations]
-
-        var distinctPermission = parameters.Permissions.Distinct();
-
-        var internalValues = new InternalValues.RevokePermission()
-        {
-            Data = new()
-            {
-                Items = distinctPermission
-                    .Distinct()
-                    .ToDictionary(
-                        x => x.Id,
-                        x => new InternalValues.RevokePermission.DataPropreties.Item()
-                        {
-                            Id = x.Id,
-
-                            // [From parameters]
-
-                            UserId       = x.UserId,
-                            PermissionId = x.PermissionId,
-                            RoleId       = x.RoleId,
-                            AttributeId  = x.AttributeId
-                        })
-            }
-        };
-
-        // [User Id]
-        var userIdResultDictionary = await ValidateUserId(
-            internalValues.Data.Items.Values
-                .Select(x => x.UserId)
-                .Distinct(), 
-            contextualizer);
-
-        foreach (var item in internalValues.Data.Items.Values)
-        {
-            if (!userIdResultDictionary.TryGetValue(item.UserId, out var result))
-                continue;
-
-            if (result.IsFinished)
-            {
-                internalValues.Data.Items[item.Id].Result = result;
-
-                internalValues.Data.Finish(item.Id);
-            }
-        }
-
-        // [Attribute Id]
-        var attributeIdResultDictionary = await ValidateAttributeId(
-            internalValues.Data.Items.Values
-                .Select(x => x.AttributeId)
-                .Distinct(),
-            contextualizer);
-
-        foreach (var item in internalValues.Data.Items.Values)
-        {
-            if (!attributeIdResultDictionary.TryGetValue(item.AttributeId, out var result))
-                continue;
-
-            if (result.IsFinished)
-            {
-                internalValues.Data.Items[item.Id].Result = result; 
-
-                internalValues.Data.Finish(item.Id);
-            }
-        }
-
-        // [Role Id]
-        var roleIdResultDictionary = await ValidateRoleId(
-            internalValues.Data.Items.Values
-                .Select(x => x.RoleId)
-                .Distinct(),
-            contextualizer);
-
-        foreach (var item in internalValues.Data.Items.Values)
-        {
-            if (!roleIdResultDictionary.TryGetValue(item.RoleId, out var result))
-                continue;
-
-            if(result.IsFinished)
-            {
-                internalValues.Data.Items[item.Id].Result = result;
-
-                internalValues.Data.Finish(item.Id);
-            }
-        }
-
-        // [Permission Id]
-        var permissionIdResultDictionary = await ValidatePermissionId(
-            internalValues.Data.Items.Values
-                .Select(x => x.PermissionId)
-                .Distinct(),
-            contextualizer);
-
-        foreach (var item in internalValues.Data.Items.Values)
-        {
-            if (!permissionIdResultDictionary.TryGetValue(item.PermissionId, out var result))
-                continue;
-
-            if (result.IsFinished)
-            {
-                internalValues.Data.Items[item.Id].Result = result;
-
-                internalValues.Data.Finish(item.Id);
-            }
-        }
-
-        // [Attribute Account]
-        var attributeAccountResultDictionary = await ValidateAttributeAccount(
-            internalValues.Data.Items.Values
-                .Select(x => (UserId: x.UserId, AttributeId: x.AttributeId))
-                .Distinct(),
-            contextualizer);
-
-        foreach (var item in internalValues.Data.Items.Values)
-        {
-            if (!attributeAccountResultDictionary.TryGetValue((UserId: item.UserId, AttributeId: item.AttributeId), out var result))
-                continue;
-
-            if (result.IsFinished)
-            {
-                internalValues.Data.Items[item.Id].Result = result;
-
-                internalValues.Data.Finish(item.Id);
-            }
-        }
-
-        // [Check Permission Objects Permissions]
-
-        const string queryPermissionsSpecificUser = @"
-/* ---------------------------------------------- [REVOKE_PERMISSIONS_ANY_USER] ---------------------------------------------- */
-
-SELECT
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [REVOKE_PERMISSIONS_ANY_USER]
-
-    (@RevokePermissionsAnyUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                               AND
-            [PGU].[permission_id] = @RevokePermissionsAnyUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                               AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [REVOKE_PERMISSIONS_ANY_USER]
-
-    (@RevokePermissionsAnyUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @RevokePermissionsAnyUserPermissionId AND
-            [PG].[role_id]       = @RoleId                               AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasRevokePermissionsAnyUserPermission],
-
-/* ---------------------------------------------- [REVOKE_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [REVOKE_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER]
-
-    (@RevokePermissionsAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                                            AND
-            [PGU].[permission_id] = @RevokePermissionsAnyLawyerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                            AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [REVOKE_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER]
-
-    (@RevokePermissionsAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @RevokePermissionsAnyLawyerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                            AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasRevokePermissionsAnyLawyerAccountUserPermission],
-
-/* ---------------------------------------------- [REVOKE_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [REVOKE_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER]
-
-    (@RevokePermissionsAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                                              AND
-            [PGU].[permission_id] = @RevokePermissionsAnyCustomerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                              AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [REVOKE_PERMISSIONS_ANY_CUSTOMER_ACCOUNT_USER]
-
-    (@RevokePermissionsAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @RevokePermissionsAnyCustomerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                              AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasRevokePermissionsAnyCustomerAccountUserPermission],
-
-/* ---------------------------------------------- [REVOKE_PERMISSIONS_OWN_USER] ---------------------------------------------- */
-
-SELECT
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [REVOKE_PERMISSIONS_OWN_USER]
-
-    (@RevokePermissionsOwnUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                               AND
-            [PGU].[permission_id] = @RevokePermissionsOwnUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                               AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [REVOKE_PERMISSIONS_OWN_USER]
-
-    (@RevokePermissionsOwnUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @RevokePermissionsOwnUserPermissionId AND
-            [PG].[role_id]       = @RoleId                               AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasRevokePermissionsOwnUserPermission],
-
-/* ---------------------------------------------- [REVOKE_PERMISSIONS_OWN_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [REVOKE_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER]
-
-    (@RevokePermissionsOwnLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                                            AND
-            [PGU].[permission_id] = @RevokePermissionsOwnLawyerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                            AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [REVOKE_PERMISSIONS_ANY_LAWYER_ACCOUNT_USER]
-
-    (@RevokePermissionsOwnLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @RevokePermissionsOwnLawyerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                            AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasRevokePermissionsOwnLawyerAccountUserPermission],
-
-/* ---------------------------------------------- [REVOKE_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [REVOKE_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER]
-
-    (@RevokePermissionsOwnCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                                              AND
-            [PGU].[permission_id] = @RevokePermissionsOwnCustomerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                              AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [REVOKE_PERMISSIONS_OWN_CUSTOMER_ACCOUNT_USER]
-
-    (@RevokePermissionsOwnCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @RevokePermissionsOwnCustomerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                              AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasRevokePermissionsOwnCustomerAccountUserPermission],
-
-/* ---------------------------------------------- [VIEW_ANY_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_USER]
-
-    (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                  AND
-            [PGU].[permission_id] = @ViewAnyUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                  AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_USER]
-
-    (@ViewAnyUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @ViewAnyUserPermissionId AND
-            [PG].[role_id]       = @RoleId                  AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewAnyUserPermission],
-
-/* ---------------------------------------------- [VIEW_ANY_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_LAWYER_ACCOUNT_USER]
-
-    (@ViewAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                               AND
-            [PGU].[permission_id] = @ViewAnyLawyerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                               AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_LAWYER_ACCOUNT_USER]
-
-    (@ViewAnyLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @ViewAnyLawyerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                               AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewAnyLawyerAccountUserPermission],
-
-/* ---------------------------------------------- [VIEW_ANY_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user  (User Grant)] [VIEW_ANY_CUSTOMER_ACCOUNT_USER]
-
-    (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU]
-        LEFT JOIN [attributes] [A_PGU] ON [PGU].[attribute_id] = [A_PGU].[id]
-        WHERE 
-            [PGU].[user_id]       = @UserId                                 AND
-            [PGU].[permission_id] = @ViewAnyCustomerAccountUserPermissionId AND
-            [PGU].[role_id]       = @RoleId                                 AND
-            ([PGU].[attribute_id] IS NULL OR [A_PGU].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_ANY_CUSTOMER_ACCOUNT_USER]
-
-    (@ViewAnyCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG]
-        LEFT JOIN [attributes] [A] ON [PG].[attribute_id] = [A].[id]
-        WHERE 
-            [PG].[permission_id] = @ViewAnyCustomerAccountUserPermissionId AND
-            [PG].[role_id]       = @RoleId                                 AND
-            ([PG].[attribute_id] IS NULL OR [A].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewAnyCustomerAccountUserPermission],
-
-/* ---------------------------------------------- [VIEW_PUBLIC_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_USER]
-
-    (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
-        WHERE 
-            [PGU_PUB].[user_id]       = @UserId                     AND
-            [PGU_PUB].[permission_id] = @ViewPublicUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                     AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_USER]
-
-    (@ViewPublicUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
-        WHERE 
-            [PG_PUB].[permission_id] = @ViewPublicUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                     AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewPublicUserPermission],
-
-/* ---------------------------------------------- [VIEW_PUBLIC_LAWYER_ACCOUNT_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_LAWYER_ACCOUNT_USER]
-
-    (@ViewPublicLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
-        WHERE 
-            [PGU_PUB].[user_id]       = @UserId                                  AND
-            [PGU_PUB].[permission_id] = @ViewPublicLawyerAccountUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                                  AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_LAWYER_ACCOUNT_USER]
-
-    (@ViewPublicLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
-        WHERE 
-            [PG_PUB].[permission_id] = @ViewPublicLawyerAccountUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                                  AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewPublicLawyerAccountUserPermission],
-
-/* ---------------------------------------------- [VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER] ---------------------------------------------- */
-
-SELECT 
-CASE 
-    WHEN 
-
-    -- [Layer 1: permission_grants_user (User Grant)] [VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER]
-
-    (@ViewPublicCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants_user] [PGU_PUB]
-        LEFT JOIN [attributes] [A_PGU_PUB] ON [PGU_PUB].[attribute_id] = [A_PGU_PUB].[id]
-        WHERE 
-            [PGU_PUB].[user_id]       = @UserId                                    AND
-            [PGU_PUB].[permission_id] = @ViewPublicCustomerAccountUserPermissionId AND
-            [PGU_PUB].[role_id]       = @RoleId                                    AND
-            ([PGU_PUB].[attribute_id] IS NULL OR [A_PGU_PUB].[id] = @AttributeId)
-    )) OR 
-
-    -- [Layer 2: permission_grants (Role Grant)] [VIEW_PUBLIC_CUSTOMER_ACCOUNT_USER]
-
-    (@ViewPublicCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-        SELECT 1 FROM [permission_grants] [PG_PUB]
-        LEFT JOIN [attributes] [A_PG_PUB] ON [PG_PUB].[attribute_id] = [A_PG_PUB].[id]
-        WHERE 
-            [PG_PUB].[permission_id] = @ViewPublicCustomerAccountUserPermissionId AND
-            [PG_PUB].[role_id]       = @RoleId                                    AND
-            ([PG_PUB].[attribute_id] IS NULL OR [A_PG_PUB].[id] = @AttributeId)
-    )) THEN 1
-    ELSE 0
-END AS [HasViewPublicCustomerAccountUserPermission]";
-
-        var queryPermissionsParametersSpecificUser = new 
-        { 
-            ViewPublicUserPermissionId                = permission.ViewPublicUserPermissionId,               
-            ViewPublicLawyerAccountUserPermissionId   = permission.ViewPublicLawyerAccountUserPermissionId,            
-            ViewPublicCustomerAccountUserPermissionId = permission.ViewPublicCustomerAccountUserPermissionId,
-
-            RevokePermissionsAnyUserPermissionId                = permission.RevokePermissionsAnyUserPermissionId,
-            RevokePermissionsAnyLawyerAccountUserPermissionId   = permission.RevokePermissionsAnyLawyerAccountUserPermissionId,
-            RevokePermissionsAnyCustomerAccountUserPermissionId = permission.RevokePermissionsAnyCustomerAccountUserPermissionId,
-            
-            RevokePermissionsOwnUserPermissionId                = permission.RevokePermissionsOwnUserPermissionId,
-            RevokePermissionsOwnLawyerAccountUserPermissionId   = permission.RevokePermissionsOwnLawyerAccountUserPermissionId,
-            RevokePermissionsOwnCustomerAccountUserPermissionId = permission.RevokePermissionsOwnCustomerAccountUserPermissionId,
-            
-            ViewAnyUserPermissionId                = permission.ViewAnyUserPermissionId,
-            ViewAnyLawyerAccountUserPermissionId   = permission.ViewAnyLawyerAccountUserPermissionId,
-            ViewAnyCustomerAccountUserPermissionId = permission.ViewAnyCustomerAccountUserPermissionId,
-
-            AttributeId = parameters.UserId,
-            UserId      = parameters.UserId,
-            RoleId      = parameters.RoleId
-        };
-
-        var permissionsResultSpecificUser = await connection.Connection.QueryFirstAsync<PermissionResult.RevokePermissions.SpecificUser>(queryPermissionsSpecificUser, queryPermissionsParametersSpecificUser);
-
-        const string queryAttributes = "SELECT [A].[id] AS [Id], [A].[name] AS [Name] FROM [Attributes]";
-
-        var attributes = await connection.Connection.QueryAsync<(int Id, string Name)>(queryAttributes);
-
-        const string queryAllowedPermissions = @"
-SELECT [P].[id] AS [Id] FROM [Permissions] WHERE [P].[name] IN 
-(GRANT_PERMISSIONS_USER, REVOKE_PERMISSIONS_USER, GRANT_PERMISSIONS_LAWYER_ACCOUNT_USER, REVOKE_PERMISSIONS_USER, CHAT_USER, VIEW_USER, VIEW_LAWYER_ACCOUNT_USER, VIEW_CUSTOMER_ACCOUNT_USER, EDIT_USER)";
-
-        var allowedPermissions = await connection.Connection.QueryAsync<int>(queryAllowedPermissions);
-
-        foreach (var item in internalValues.Data.Items.Values)
-        {
-            var resultContructor = new ResultConstructor();
-
-            if (!allowedPermissions.Contains(item.PermissionId))
-            {
-                resultContructor.SetConstructor(new ForbiddenPermissionToRevokeError());
-
-                internalValues.Data.Items[item.Id].Result = resultContructor.Build();
-
-                internalValues.Data.Finish(item.Id);
-
-                continue;
-            }
-
-            var hasPermissionToAssignUser = await ValuesExtensions.GetValue(async () =>
-            {
-                var queryParameters = new
-                {
-                    // [NOT ACL]
-
-                    HasRevokePermissionsAnyUserPermission                = permissionsResultSpecificUser.HasRevokePermissionsAnyUserPermission,
-                    HasRevokePermissionsAnyLawyerAccountUserPermission   = permissionsResultSpecificUser.HasRevokePermissionsAnyLawyerAccountUserPermission,
-                    HasRevokePermissionsAnyCustomerAccountUserPermission = permissionsResultSpecificUser.HasRevokePermissionsAnyCustomerAccountUserPermission,
-
-                    HasViewAnyUserPermission                = permissionsResultSpecificUser.HasViewAnyUserPermission,
-                    HasViewAnyLawyerAccountUserPermission   = permissionsResultSpecificUser.HasViewAnyLawyerAccountUserPermission,
-                    HasViewAnyCustomerAccountUserPermission = permissionsResultSpecificUser.HasViewAnyCustomerAccountUserPermission,
-
-                    HasViewPublicUserPermission                = permissionsResultSpecificUser.HasViewPublicUserPermission,
-                    HasViewPublicLawyerAccountUserPermission   = permissionsResultSpecificUser.HasViewPublicLawyerAccountUserPermission,
-                    HasViewPublicCustomerAccountUserPermission = permissionsResultSpecificUser.HasViewPublicCustomerAccountUserPermission,
-                    // [ACL]
-
-                    ViewUserPermissionId                = permission.ViewUserPermissionId,
-                    ViewLawyerAccountUserPermissionId   = permission.ViewUserPermissionId,
-                    ViewCustomerAccountUserPermissionId = permission.ViewUserPermissionId,
-
-                    RevokePermissionsUserPermissionId                = permission.RevokePermissionsUserPermissionId,
-                    RevokePermissionsLawyerAccountUserPermissionId   = permission.RevokePermissionsLawyerAccountUserPermissionId,
-                    RevokePermissionsCustomerAccountUserPermissionId = permission.RevokePermissionsUserPermissionId,
-
-                    Attribute = attributes.First(x => x.Id == item.AttributeId),
-
-                    AttributeId  = item.AttributeId,
-                    UserId       = item.UserId,
-                    PermissionId = item.PermissionId,
-                    RoleId       = item.RoleId
-                };
-
-                var queryText = @$"
-WITH [view_permission] AS (
-    SELECT
-        CASE
-            WHEN
-
-                -- [Block 1: User Level]
-
-                (
-                    -- [Layer 1: Ownership]
-
-                    ([U].[id] = @ExternalUserId AND (@HasViewOwnUserPermission OR @HasViewAnyUserPermission = 1))
-
-                    OR
-
-                    -- [Layer 2: permission_grants_relationship (ACL Grant)] [VIEW_USER]
-
-                    ([U].[private] = 1 AND (
-                        @ViewUserPermissionId IS NOT NULL AND EXISTS (
-                            SELECT 1 FROM [permission_grants_relationship] [PGRu]
-                            LEFT JOIN [attributes] [Au] ON [Au].[id] = [PGRu].[attribute_id]
-                            WHERE
-                                [PGRu].[related_user_id] = @UserId               AND 
-                                [PGRu].[user_id]         = @ExternalUserId       AND 
-                                [PGRu].[role_id]         = @RoleId               AND 
-                                [PGRu].[permission_id]   = @ViewUserPermissionId AND 
-                                ([PGRu].[attribute_id] IS NULL OR [Au].[id] = @AttributeId)
-                        )
-                        OR @HasViewAnyUserPermission = 1
-                    ))
-
-                    OR 
-
-                    -- [Layer 3: Public]
-
-                    ([U].[private] = 0 AND (@HasViewPublicUserPermission = 1 OR @HasViewAnyUserPermission = 1))
-                )
-
-                AND
-
-                -- [Block 2: account-level check (LAWYER vs CUSTOMER)]
-
-                (
-                    CASE 
-                        WHEN @AttributeName = 'LAWYER' THEN
-                            CASE
-                                -- [Layer 1: Ownership]
-
-                                WHEN ([L].[user_id] = @ExternalUserId AND (@HasViewOwnLawyerAccountUserPermission OR @HasViewAnyLawyerAccountUserPermission = 1)) THEN 1
-
-                                -- [Layer 2: permission_grants_relationship (ACL Grant)] [VIEW_LAWYER_ACCOUNT_USER]
-
-                                WHEN [L].[private] = 1 AND (
-                                    @ViewLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-                                        SELECT 1 FROM [permission_grants_relationship] [PGRl]
-                                        LEFT JOIN [attributes] [Al] ON [Al].[id] = [PGRl].[attribute_id]
-                                        WHERE
-                                            [PGRl].[related_user_id] = @UserId                            AND
-                                            [PGRl].[user_id]         = @ExternalUserId                    AND
-                                            [PGRl].[role_id]         = @RoleId                            AND
-                                            [PGRl].[permission_id]   = @ViewLawyerAccountUserPermissionId AND
-                                            ([PGRl].[attribute_id] IS NULL OR [Al].[id] = @AttributeId)
-                                    )
-                                    OR @HasViewAnyLawyerAccountUserPermission = 1
-                                ) THEN 1
-
-                                -- [Layer 3: Public]
-
-                                WHEN ([L].[private] = 0 AND (@HasViewPublicLawyerAccountUserPermission = 1 OR @HasViewAnyLawyerAccountUserPermission = 1)) THEN 1
-
-                                ELSE 0
-                            END
-                        WHEN @AttributeName = 'CUSTOMER' THEN
-                            CASE
-                                -- [Layer 1: Ownership]
-
-                                WHEN ([C].[user_id] = @ExternalUserId AND (@HasViewOwnCustomerAccountUserPermission OR @HasViewAnyCustomerAccountUserPermission = 1)) THEN 1
-
-                                -- [Layer 2: permission_grants_relationship (ACL Grant)] [VIEW_CUSTOMER_ACCOUNT_USER]
-
-                                WHEN [C].[private] = 1 AND (
-                                    @ViewCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-                                        SELECT 1 FROM [permission_grants_relationship] [PGRc]
-                                        LEFT JOIN [attributes] [Ac] ON [Ac].[id] = [PGRc].[attribute_id]
-                                        WHERE
-                                            [PGRc].[related_user_id] = @UserId                              AND 
-                                            [PGRc].[user_id]         = @ExternalUserId                      AND 
-                                            [PGRc].[role_id]         = @RoleId                              AND 
-                                            [PGRc].[permission_id]   = @ViewCustomerAccountUserPermissionId AND 
-                                            ([PGRc].[attribute_id] IS NULL OR [Ac].[id] = @AttributeId)
-                                    )
-                                    OR @HasViewAnyCustomerAccountUserPermission = 1
-                                ) THEN 1
-
-                                -- [Layer 3: Public]
-
-                                WHEN ([C].[private] = 0 AND (@HasViewPublicCustomerAccountUserPermission = 1 OR @HasViewAnyCustomerAccountUserPermission = 1)) THEN 1
-                                
-                                ELSE 0
-                            END
-                        ELSE 0
-                    END = 1
-                )
-            THEN 1 ELSE 0
-        END AS apply
-    FROM [users] [U]
-    LEFT JOIN [lawyers] [L] ON [L].[user_id] = [U].[id]
-    LEFT JOIN [customer] [C] ON [C].[user_id] = [U].[id]
-    WHERE [U].[id] = @UserId
-),
-[revoke_permission] AS (
-    SELECT
-        CASE
-            WHEN
-                -- [Block 1: User Level]
-
-                (
-                    -- [Layer 1: Ownership]
-
-                    ([U].[id] = @ExternalUserId AND (@HasRevokePermissionsOwnUserPermission OR @HasRevokePermissionsAnyUserPermission = 1))
-
-                    OR
-
-                    -- [Layer 2: permission_grants_relationship (ACL Grant)] [REVOKE_PERMISSIONS_USER]
-
-                    (@RevokePermissionsUserPermissionId IS NOT NULL AND EXISTS (
-                        SELECT 1 FROM [permission_grants_relationship] [PGRu2]
-                        LEFT JOIN [attributes] [Au2] ON [Au2].[id] = [PGRu2].[attribute_id]
-                        WHERE
-                            [PGRu2].[related_user_id] = @UserId                            AND 
-                            [PGRu2].[user_id]         = @ExternalUserId                    AND 
-                            [PGRu2].[role_id]         = @RoleId                            AND 
-                            [PGRu2].[permission_id]   = @RevokePermissionsUserPermissionId AND 
-                            ([PGRu2].[attribute_id] IS NULL OR [Au2].[id] = @AttributeId)
-                    )
-                    OR @HasRevokePermissionsAnyUserPermission = 1)   
-                )
-
-                AND
-
-                -- [Block 2: account-level check (LAWYER vs CUSTOMER)]
-
-                (
-                    CASE 
-                        WHEN @AttributeName = 'LAWYER' THEN
-                            CASE 
-
-                                -- [Layer 1: Ownership]
-
-                                WHEN ([L].[user_id] = @ExternalUserId AND (@HasRevokePermissionsOwnLawyerAccountUserPermission OR @HasRevokePermissionsAnyLawyerAccountUserPermission = 1)) THEN 1
-
-                                -- [Layer 2: permission_grants_relationship (ACL Grant)] [REVOKE_PERMISSIONS_LAWYER_ACCOUNT_USER]
-
-                                WHEN (
-                                    @RevokePermissionsLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
-                                        SELECT 1 FROM [permission_grants_relationship] [PGRu2]
-                                        LEFT JOIN [attributes] [Au2] ON [Au2].[id] = [PGRu2].[attribute_id]
-                                        WHERE
-                                            [PGRu2].[related_user_id] = @UserId                                         AND 
-                                            [PGRu2].[user_id]         = @ExternalUserId                                 AND 
-                                            [PGRu2].[role_id]         = @RoleId                                         AND 
-                                            [PGRu2].[permission_id]   = @RevokePermissionsLawyerAccountUserPermissionId AND 
-                                            ([PGRu2].[attribute_id] IS NULL OR [Au2].[id] = @AttributeId)
-                                    )
-                                    OR @HasRevokePermissionsAnyLawyerAccountUserPermission = 1
-                                ) THEN 1 
-
-                                ELSE 0
-                            END
-                        WHEN @AttributeName = 'CUSTOMER' THEN
-                            CASE 
-
-                                -- [Layer 1: Ownership]
-
-                                WHEN ([C].[user_id] = @ExternalUserId AND (@HasRevokePermissionsOwnCustomerAccountUserPermission OR @HasRevokePermissionsAnyCustomerAccountUserPermission = 1)) THEN 1
-
-                                -- [Layer 2: permission_grants_relationship (ACL Grant)] [REVOKE_PERMISSIONS_CUSTOMER_ACCOUNT_USER]
-
-                                WHEN (
-                                    @RevokePermissionsCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
-                                        SELECT 1 FROM [permission_grants_relationship] [PGRu2]
-                                        LEFT JOIN [attributes] [Au2] ON [Au2].[id] = [PGRu2].[attribute_id]
-                                        WHERE
-                                            [PGRu2].[related_user_id] = @UserId                                           AND 
-                                            [PGRu2].[user_id]         = @ExternalUserId                                   AND 
-                                            [PGRu2].[role_id]         = @RoleId                                           AND 
-                                            [PGRu2].[permission_id]   = @RevokePermissionsCustomerAccountUserPermissionId AND 
-                                            ([PGRu2].[attribute_id] IS NULL OR [Au2].[id] = @AttributeId)
-                                    )
-                                    OR @HasRevokePermissionsAnyCustomerAccountUserPermission = 1
-                                ) THEN 1 
-
-                                ELSE 0
-                            END
-                        ELSE 0
-                    END = 1
-                )
-            THEN 1 ELSE 0
-        END AS [apply]
-    FROM [users] [U]
-    LEFT JOIN [lawyers] [L] ON [L].[user_id] = [U].[id]
-    LEFT JOIN [customer] [C] ON [C].[user_id] = [U].[id]
-    WHERE [U].[id] = @UserId
-)
-
-SELECT
-    CASE WHEN [view_permission].[apply] = 1 AND [revoke_permission].[apply] = 1 THEN 1 
-    ELSE 0 END AS [result]
-FROM [view_permission], [revoke_permission];";
-
-                    var result = await connection.Connection.QueryFirstAsync<bool>(
-                      new CommandDefinition(
-                              commandText:       queryText,
-                              parameters:        queryParameters,
-                              transaction:       connection.Transaction,
-                              cancellationToken: contextualizer.CancellationToken,
-                              commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
-
-                    return result;
-
-            });
-
-            if (!hasPermissionToAssignUser)
-            {
-                resultContructor.SetConstructor(new RevokePermissionsForSpecificUserDeniedError());
-
-                internalValues.Data.Items[item.Id].Result = resultContructor.Build();
-
-                internalValues.Data.Finish(item.Id);
-
-                continue;
-            }
-        }
-
-        if (!internalValues.Data.Items.Any())
-        {
-            resultConstructor.SetConstructor(new RevokePermissionSuccess()
-            {
-                Details = new()
-                {
-                    DeletedItems = 0,
-
-                    Result = internalValues.Data.Finished.Values.Select((item) =>
-                        new RevokePermissionSuccess.DetailsVariation.Fields
-                        {
-                            UserId       = item.UserId,
-                            PermissionId = item.PermissionId,
-                            AttributeId  = item.AttributeId,
-                            RoleId       = item.RoleId,
-
-                            Result = item.Result
-                        })
-                }
-            });
-
-            return resultConstructor.Build();
-        }
-          
-        var deletedItems = await ValuesExtensions.GetValue(async () =>
-        { 
-            var items = internalValues.Data.Items.Values.Select(x => new
-            {
-                RelatedUserId = parameters.RelatedUserId,
-
-                AttributeId  = x.AttributeId,
-                PermissionId = x.PermissionId,
-                UserId       = x.UserId,
-                RoleId       = x.RoleId
-            });
-
-            var stringBuilder = new StringBuilder();
-
-            stringBuilder.Append(@"DELETE [permission_grants_relationship] WHERE [related_user_id] = @RelatedUserId AND [user_id] = @UserId AND [permission_id] = @PermissionId AND [attribute_id] = @AttributeId;");
-
-            var deletedItems = await connection.Connection.ExecuteAsync(stringBuilder.ToString(), items);
-            return deletedItems;
-        });
-
-        resultConstructor.SetConstructor(new RevokePermissionSuccess()
-        {
-            Details = new()
-            {
-                DeletedItems = deletedItems,
-
-                Result = internalValues.Data.Finished.Values.Select((item) =>
-                    new RevokePermissionSuccess.DetailsVariation.Fields
-                    {
-                        UserId       = item.UserId,
-                        PermissionId = item.PermissionId,
-                        AttributeId  = item.AttributeId,
-                        RoleId       = item.RoleId,
-
-                        Result = item.Result
-                    })
-            }
-        });
-
-        return resultConstructor.Build();
-    }
+#endregion
 
     #region Validations
 
@@ -6006,76 +3258,6 @@ FROM [view_permission], [revoke_permission];";
         var queryParameters = new { PermissionId = id };
 
         var queryText = "SELECT [P].[id] FROM [permission] P WHERE [P].[id] = @PermissionId";
-        
-        var result = await connection.Connection.QueryFirstOrDefaultAsync<int?>(
-            new CommandDefinition(
-                    commandText:       queryText,
-                    parameters:        queryParameters,
-                    transaction:       connection.Transaction,
-                    cancellationToken: contextualizer.CancellationToken,
-                    commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
-
-        var resultContructor = new ResultConstructor();
-
-        if (result == null)
-        {
-            resultContructor.SetConstructor(new PermissionNotFoundError());
-
-            return resultContructor.Build();
-        }
-        return resultContructor.Build();
-    }
-
-    private async Task<Dictionary<int, Result>> ValidateAttributeId(
-        IEnumerable<int> list,
-        Contextualizer contextualizer)
-    {
-        var distinctList = list.Distinct().ToList();
-        if (!distinctList.Any())
-            return new Dictionary<int, Result>();
-
-        var result = new Dictionary<int, Result>();
-
-        var connection = await contextualizer.ConnectionContextualizer.GetConnection(_databaseService, ProviderType.Sqlite);
-
-        var queryParameters = new { Attributes = list };
-
-        var queryText = "SELECT [A].[id] FROM [attributes] A WHERE [A].[id] IN @Attributes";
-        
-        var results = await connection.Connection.QueryAsync<int>(
-            new CommandDefinition(
-                    commandText:       queryText,
-                    parameters:        queryParameters,
-                    transaction:       connection.Transaction,
-                    cancellationToken: contextualizer.CancellationToken,
-                    commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
-
-        foreach (var item in distinctList)
-        {
-            var resultContructor = new ResultConstructor();
-
-            var match = results.FirstOrDefault(r => r == item);
-
-            if (match == 0)
-            {
-                resultContructor.SetConstructor(new RoleNotFoundError());
-
-                result.Add(item, resultContructor.Build());
-            }
-            result.Add(item, resultContructor.Build());
-        }
-        return result;
-    }
-
-    private async Task<Result> ValidateAttributeId(
-        int id,
-        Contextualizer contextualizer)
-    {
-        var connection = await contextualizer.ConnectionContextualizer.GetConnection(_databaseService, ProviderType.Sqlite);
-
-        var queryParameters = new { AttributeId = id };
-
-        var queryText = "SELECT [A].[id] FROM [attributes] A WHERE [A].[id] = @AttributeId";
         
         var result = await connection.Connection.QueryFirstOrDefaultAsync<int?>(
             new CommandDefinition(
@@ -6238,140 +3420,6 @@ FROM [view_permission], [revoke_permission];";
         return resultContructor.Build();
     }
 
-    private async Task<Dictionary<(int UserId, int AttributeId), Result>> ValidateAttributeAccount(
-        IEnumerable<(int UserId, int AttributeId)> pairs,
-        Contextualizer contextualizer)
-    {
-        var distinctPairs = pairs.Distinct().ToList();
-        if (!distinctPairs.Any())
-            return new Dictionary<(int, int), Result>();
-
-        var connection = await contextualizer.ConnectionContextualizer.GetConnection(_databaseService, ProviderType.Sqlite);
-
-        var selectClauses = string.Join("\nUNION ALL\n", distinctPairs.Select((p, i) => $"SELECT @UserId{i} AS UserId, @AttributeId{i} AS AttributeId"));
-
-        var queryParameters = new Dictionary<string, object>();
-        for (int i = 0; i < distinctPairs.Count; i++)
-        {
-            queryParameters[$"UserId{i}"]      = distinctPairs[i].UserId;
-            queryParameters[$"AttributeId{i}"] = distinctPairs[i].AttributeId;
-        }
-
-        var queryText = $@"
-        SELECT 
-            [P].[UserId],
-            [P].[AttributeId],
-            CASE 
-                WHEN [A].[id] IS NULL OR [U].[id] IS NULL THEN NULL
-                ELSE 
-                    CASE 
-                        WHEN UPPER([A].[name]) = 'LAWYER' THEN 
-                            CASE WHEN EXISTS (SELECT 1 FROM [lawyers] [L] WHERE [L].[user_id] = [P].[UserId]) THEN 1 ELSE 0 END
-                        WHEN UPPER([A].[name]) = 'CUSTOMER' THEN 
-                            CASE WHEN EXISTS (SELECT 1 FROM [customers] [C] WHERE [C].[user_id] = [P].[UserId]) THEN 1 ELSE 0 END
-                        ELSE 0
-                    END
-            END AS IsCapable
-        FROM 
-        (
-            {selectClauses}
-        ) AS [P]
-        LEFT JOIN 
-            [attributes] [A] ON [A].[id] = [P].[AttributeId]
-        LEFT JOIN 
-            [users] [U] ON [U].[id] = [P].[UserId]";
-
-        var results = await connection.Connection.QueryAsync<(int UserId, int AttributeId, bool? IsCapable)>(
-            new CommandDefinition(
-                commandText:       queryText,
-                parameters:        queryParameters,
-                transaction:       connection.Transaction,
-                cancellationToken: contextualizer.CancellationToken,
-                commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
-
-        var result = new Dictionary<(int, int), Result>();
-
-        foreach (var pair in distinctPairs)
-        {
-            var resultConstructor = new ResultConstructor();
-
-            var match = results.FirstOrDefault(r => r.UserId == pair.UserId && r.AttributeId == pair.AttributeId);
-
-            if (match.UserId == 0)
-            {
-                resultConstructor.SetConstructor(new UserNotFoundError());
-
-                result[pair] = resultConstructor.Build();
-                continue;
-            }
-
-            if (match.IsCapable == null)
-            {
-                resultConstructor.SetConstructor(new UserNotCapableForAttributeAccountError());
-
-                result[pair] = resultConstructor.Build();
-                continue;
-            }
-
-            result[pair] = resultConstructor.Build();
-        }
-        return result;
-    }
-
-    private async Task<Result> ValidateAttributeAccount(
-        int userId,
-        int attributeId,
-        Contextualizer contextualizer)
-    {
-        var connection = await contextualizer.ConnectionContextualizer.GetConnection(_databaseService, ProviderType.Sqlite);
-
-        var queryParameters = new { UserId = userId, AttributeId = attributeId };
-
-        var queryText = @"
-        SELECT 
-            CASE 
-                WHEN [A].[id] IS NULL OR [U].[id] IS NULL THEN NULL
-                ELSE [U].[id]
-            END AS UserId,
-            CASE 
-                WHEN [A].[id] IS NULL OR [U].[id] IS NULL THEN NULL
-                ELSE [A].[id]
-            END AS AttributeId,
-            CASE 
-                WHEN [A].[id] IS NULL OR [U].[id] IS NULL THEN NULL
-                ELSE 
-                    CASE 
-                        WHEN UPPER([A].[name]) = 'LAWYER' THEN 
-                            CASE WHEN EXISTS (SELECT 1 FROM [lawyers] [L] WHERE [L].[user_id] = @UserId) THEN 1 ELSE 0 END
-                        WHEN UPPER([A].[name]) = 'CUSTOMER' THEN 
-                            CASE WHEN EXISTS (SELECT 1 FROM [customers] [C] WHERE [C].[user_id] = @UserId) THEN 1 ELSE 0 END
-                        ELSE 0
-                    END
-            END AS IsCapable
-        FROM 
-            (SELECT [id], [name] FROM [attributes] WHERE [id] = @AttributeId) [A]
-        FULL OUTER JOIN 
-            (SELECT [id] FROM [users] WHERE [id] = @UserId) [U] ON 1=1";
-        
-        var result = await connection.Connection.QueryFirstAsync<(int UserId, int AttributeId, bool IsCapable)>(
-            new CommandDefinition(
-                    commandText:       queryText,
-                    parameters:        queryParameters,
-                    transaction:       connection.Transaction,
-                    cancellationToken: contextualizer.CancellationToken,
-                    commandTimeout:    TimeSpan.FromHours(1).Milliseconds));
-
-        var resultContructor = new ResultConstructor();
-
-        if (!result.IsCapable)
-        {
-            resultContructor.SetConstructor(new UserNotCapableForAttributeAccountError());
-
-            return resultContructor.Build();
-        }
-        return resultContructor.Build();
-    }
-
     private async Task<int> GetPermissionIdAsync(
         string permissionName,
         Contextualizer contextualizer)
@@ -6396,5 +3444,4 @@ FROM [view_permission], [revoke_permission];";
     } 
 
     #endregion  
-
 }

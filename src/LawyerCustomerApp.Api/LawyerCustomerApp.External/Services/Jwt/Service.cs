@@ -56,6 +56,9 @@ internal class Service : IJwtService
 
         var claims = new[]
         {
+            new Claim("user_id", configuration.UserId),
+            new Claim("role_id", configuration.RoleId),
+
             new Claim(ClaimTypes.NameIdentifier, configuration.NameIdentifier),
             new Claim(ClaimTypes.Email,          configuration.Email),
             new Claim(ClaimTypes.Role,           Enum.GetName(configuration.Role) ?? "User")

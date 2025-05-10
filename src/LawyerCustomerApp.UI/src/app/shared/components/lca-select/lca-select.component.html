@@ -1,0 +1,23 @@
+<div class="lca-select-wrapper">
+    <label *ngIf="label" [for]="id" class="lca-select-label">{{ label }}</label>
+    <select
+      [id]="id"
+      class="lca-select-field"
+      [disabled]="disabled"
+      [multiple]="multiple"
+      (change)="onSelectionChange($event)"
+      (blur)="onBlur()"
+      [ngModel]="value"
+      [compareWith]="compareFn"
+      [class.lca-select-error-state]="errorMessage"
+      > <!-- ngModel used for initial value binding and two-way if needed outside reactive forms -->
+      <option *ngIf="placeholder && !multiple && (value === null || value === undefined || value === '')" [ngValue]="null" disabled selected>{{ placeholder }}</option>
+      <option *ngFor="let option of options" [ngValue]="option.value" [disabled]="option.disabled">
+        {{ option.label }}
+      </option>
+    </select>
+    <div *ngIf="errorMessage" class="lca-select-error-message">
+      {{ errorMessage }}
+    </div>
+    <!-- Add reactive forms error display if needed, similar to lca-input -->
+  </div>

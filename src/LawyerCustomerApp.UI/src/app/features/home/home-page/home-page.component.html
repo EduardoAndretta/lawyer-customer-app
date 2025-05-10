@@ -1,0 +1,30 @@
+<div class="home-page-container">
+  <h1>Welcome to the Lawyer-Customer Application</h1>
+  <p>This is your main dashboard area. Select an account context from the sidebar to get started or use the global search above.</p>
+
+  <div *ngIf="currentUser$ | async as user" class="user-context-info">
+    <h3>Current Context:</h3>
+    <div *ngIf="selectedAccountAttributeId$ | async as attributeId; else noContextSelected">
+        <p *ngIf="attributeId === LAWYER_CONTEXT">
+            You are currently viewing as a <strong>Lawyer</strong>.
+        </p>
+        <p *ngIf="attributeId === CUSTOMER_CONTEXT">
+            You are currently viewing as a <strong>Customer</strong>.
+        </p>
+        <p *ngIf="user.name">Logged in as: {{ user.name }}</p>
+    </div>
+    <ng-template #noContextSelected>
+        <p>No specific account context (Lawyer/Customer) selected.</p>
+        <p *ngIf="user.name">Logged in as: {{ user.name }}</p>
+    </ng-template>
+  </div>
+
+  <div class="quick-actions">
+    <h4>Quick Actions:</h4>
+    <ul>
+      <li><a routerLink="/dashboard/search">Go to Expanded Search</a></li>
+      <li><a routerLink="/dashboard/cases">View My Cases</a></li>
+      <!-- Add more relevant links based on roles or features -->
+    </ul>
+  </div>
+</div>

@@ -1,0 +1,64 @@
+.lca-table-wrapper {
+    width: 100%;
+  }
+  
+  .lca-table-responsive {
+    overflow-x: auto; /* Enable horizontal scrolling */
+  }
+  
+  .lca-table {
+    width: 100%;
+    border-collapse: collapse; /* Removes default spacing between cells */
+    margin-bottom: 1rem;
+    color: #212529;
+    font-size: 0.9em;
+  }
+  
+  .lca-table th,
+  .lca-table td {
+    padding: 0.75rem;
+    vertical-align: top;
+    border-top: 1px solid #dee2e6; /* Default top border for rows */
+    text-align: left;
+  }
+  
+  .lca-table thead th {
+    vertical-align: bottom;
+    border-bottom: 2px solid #dee2e6; /* Heavier border for header bottom */
+    background-color: #f8f9fa; /* Light background for header */
+    font-weight: bold;
+  }
+  
+  .lca-table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.03); /* Light striping */
+  }
+  
+  .lca-table-bordered {
+    border: 1px solid #dee2e6; /* Border around the table */
+  }
+  
+  .lca-table-bordered th,
+  .lca-table-bordered td {
+    border: 1px solid #dee2e6; /* Borders for all cells */
+  }
+  
+  .lca-table-bordered thead th,
+  .lca-table-bordered thead td {
+    border-bottom-width: 2px;
+  }
+  
+  .lca-table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.06); /* Hover effect */
+    cursor: default;
+  }
+  .lca-table-clickable-row:hover {
+      cursor: pointer;
+  }
+  
+  
+  .lca-table-no-data {
+    text-align: center !important;
+    padding: 20px;
+    color: #6c757d;
+    font-style: italic;
+  }

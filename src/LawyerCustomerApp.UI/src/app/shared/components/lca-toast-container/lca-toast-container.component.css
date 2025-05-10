@@ -1,0 +1,41 @@
+.lca-toast-container {
+    position: fixed;
+    z-index: 1055; /* Above modals or other elements */
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  /* Positioning */
+  .lca-toast-container-top-right {
+    top: 1rem;
+    right: 1rem;
+    align-items: flex-end;
+  }
+  .lca-toast-container-top-left {
+    top: 1rem;
+    left: 1rem;
+    align-items: flex-start;
+  }
+  .lca-toast-container-bottom-right {
+    bottom: 1rem;
+    right: 1rem;
+    align-items: flex-end;
+  }
+  .lca-toast-container-bottom-left {
+    bottom: 1rem;
+    left: 1rem;
+    align-items: flex-start;
+  }
+  .lca-toast-container-top-center {
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    align-items: center;
+  }
+  .lca-toast-container-bottom-center {
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    align-items: center;
+  }

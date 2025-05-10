@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using static LawyerCustomerApp.External.Jwt.Common.Models.JwtConfiguration;
 
 namespace LawyerCustomerApp.Application.Case.Controllers;
 
@@ -27,6 +28,15 @@ public class Controller : ControllerBase
         [FromBody] SearchParametersDto parameters,
         CancellationToken cancellationToken = default)
     {
+        int userId = int.TryParse(User.FindFirst("user_id")?.Value, out userId) ? userId : 0;
+        int roleId = int.TryParse(User.FindFirst("role_id")?.Value, out roleId) ? roleId : 0;
+
+        parameters = parameters with
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+
         var contextualizer = Contextualizer.Init(cancellationToken);
 
         if (!ModelState.IsValid)
@@ -56,6 +66,15 @@ public class Controller : ControllerBase
         [FromBody] CountParametersDto parameters,
         CancellationToken cancellationToken = default)
     {
+        int userId = int.TryParse(User.FindFirst("user_id")?.Value, out userId) ? userId : 0;
+        int roleId = int.TryParse(User.FindFirst("role_id")?.Value, out roleId) ? roleId : 0;
+
+        parameters = parameters with
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+
         var contextualizer = Contextualizer.Init(cancellationToken);
 
         if (!ModelState.IsValid)
@@ -85,6 +104,15 @@ public class Controller : ControllerBase
         [FromBody] DetailsParametersDto parameters,
         CancellationToken cancellationToken = default)
     {
+        int userId = int.TryParse(User.FindFirst("user_id")?.Value, out userId) ? userId : 0;
+        int roleId = int.TryParse(User.FindFirst("role_id")?.Value, out roleId) ? roleId : 0;
+
+        parameters = parameters with
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+
         var contextualizer = Contextualizer.Init(cancellationToken);
 
         if (!ModelState.IsValid)
@@ -114,6 +142,15 @@ public class Controller : ControllerBase
         [FromBody] RegisterParametersDto parameters,
         CancellationToken cancellationToken = default)
     {
+        int userId = int.TryParse(User.FindFirst("user_id")?.Value, out userId) ? userId : 0;
+        int roleId = int.TryParse(User.FindFirst("role_id")?.Value, out roleId) ? roleId : 0;
+
+        parameters = parameters with
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+
         var contextualizer = Contextualizer.Init(cancellationToken);
 
         if (!ModelState.IsValid)
@@ -151,8 +188,6 @@ public class Controller : ControllerBase
                     requestBody.Example = new OpenApiObject
                     {
                         ["relatedCaseId"] = new OpenApiInteger(0),
-                        ["userId"]        = new OpenApiInteger(0),
-                        ["roleId"]        = new OpenApiInteger(0),
                         ["values"]        = new OpenApiObject
                         {
                             ["title"]       = new OpenApiString("string"),
@@ -171,6 +206,15 @@ public class Controller : ControllerBase
         [FromBody] EditParametersDto parameters,
         CancellationToken cancellationToken = default)
     {
+        int userId = int.TryParse(User.FindFirst("user_id")?.Value, out userId) ? userId : 0;
+        int roleId = int.TryParse(User.FindFirst("role_id")?.Value, out roleId) ? roleId : 0;
+
+        parameters = parameters with
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+
         var contextualizer = Contextualizer.Init(cancellationToken);
     
         if (!ModelState.IsValid)
@@ -201,6 +245,15 @@ public class Controller : ControllerBase
         [FromBody] AssignLawyerParametersDto parameters,
         CancellationToken cancellationToken = default)
     {
+        int userId = int.TryParse(User.FindFirst("user_id")?.Value, out userId) ? userId : 0;
+        int roleId = int.TryParse(User.FindFirst("role_id")?.Value, out roleId) ? roleId : 0;
+
+        parameters = parameters with
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+
         var contextualizer = Contextualizer.Init(cancellationToken);
 
         if (!ModelState.IsValid)
@@ -231,6 +284,15 @@ public class Controller : ControllerBase
         [FromBody] AssignCustomerParametersDto parameters,
         CancellationToken cancellationToken = default)
     {
+        int userId = int.TryParse(User.FindFirst("user_id")?.Value, out userId) ? userId : 0;
+        int roleId = int.TryParse(User.FindFirst("role_id")?.Value, out roleId) ? roleId : 0;
+
+        parameters = parameters with
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+
         var contextualizer = Contextualizer.Init(cancellationToken);
 
         if (!ModelState.IsValid)
@@ -249,66 +311,6 @@ public class Controller : ControllerBase
         }
 
         var result = await _service.AssignCustomerAsync(parameters, contextualizer);
-
-        if (result.IsFinished)
-            return result.HandleActionResult(this);
-
-        return NoContent();
-    }
-
-    [HttpPut("grant-permissions"), Authorize(Policy = "internal-jwt-bearer")]
-    public async Task<ActionResult> Put(
-        [FromBody] GrantPermissionsParametersDto parameters,
-        CancellationToken cancellationToken = default)
-    {
-        var contextualizer = Contextualizer.Init(cancellationToken);
-
-        if (!ModelState.IsValid)
-        {
-            var resultContructor = new ResultConstructor();
-
-            resultContructor.SetConstructor(
-                new ModelStateError()
-                {
-                    Status     = 400,
-                    SourceCode = this.GetType().Name,
-                    Errors     = string.Join("; ", ModelState.Values.SelectMany(e => e.Errors).Select(em => em.ErrorMessage))
-                });
-
-            return resultContructor.Build().HandleActionResult(this);
-        }
-
-        var result = await _service.GrantPermissionsAsync(parameters, contextualizer);
-
-        if (result.IsFinished)
-            return result.HandleActionResult(this);
-
-        return NoContent();
-    }
-
-    [HttpPut("revoke-permissions"), Authorize(Policy = "internal-jwt-bearer")]
-    public async Task<ActionResult> Put(
-        [FromBody] RevokePermissionsParametersDto parameters,
-        CancellationToken cancellationToken = default)
-    {
-        var contextualizer = Contextualizer.Init(cancellationToken);
-
-        if (!ModelState.IsValid)
-        {
-            var resultContructor = new ResultConstructor();
-
-            resultContructor.SetConstructor(
-                new ModelStateError()
-                {
-                    Status     = 400,
-                    SourceCode = this.GetType().Name,
-                    Errors     = string.Join("; ", ModelState.Values.SelectMany(e => e.Errors).Select(em => em.ErrorMessage))
-                });
-
-            return resultContructor.Build().HandleActionResult(this);
-        }
-
-        var result = await _service.RevokePermissionsAsync(parameters, contextualizer);
 
         if (result.IsFinished)
             return result.HandleActionResult(this);

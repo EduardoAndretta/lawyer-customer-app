@@ -8,6 +8,9 @@ public class JwtConfiguration
         Administrator
     }
 
+    public required string UserId { get; init; }
+    public required string RoleId { get; init; }
+
     public required string NameIdentifier { get; init; }
     public required string Email { get; init; }
     public required Roles Role { get; init; }

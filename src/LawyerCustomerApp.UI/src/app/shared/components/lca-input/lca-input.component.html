@@ -1,0 +1,27 @@
+<div class="lca-input-wrapper">
+    <label *ngIf="label" [for]="id" class="lca-input-label">{{ label }}</label>
+    <input
+      [type]="type"
+      [id]="id"
+      [placeholder]="placeholder"
+      class="lca-input-field"
+      [class.lca-input-error-state]="(ngControl?.invalid && (ngControl?.touched || ngControl?.dirty)) || errorMessage"
+      [value]="value"
+      (input)="onInput($event)"
+      (blur)="onBlur()"
+      [disabled]="disabled"
+      [readonly]="readonly"
+    />
+    <div *ngIf="errorMessage" class="lca-input-error-message">
+      {{ errorMessage }}
+    </div>
+    <div *ngIf="ngControl?.invalid && (ngControl?.touched || ngControl?.dirty) && !errorMessage" class="lca-input-error-message">
+      <!-- Basic error messages for reactive forms -->
+      <span *ngIf="ngControl?.errors?.['required']">{{label || 'This field'}} is required.</span>
+      <span *ngIf="ngControl?.errors?.['email']">Please enter a valid email.</span>
+      <span *ngIf="ngControl?.errors?.['minlength']">
+          Must be at least {{ ngControl?.errors?.['minlength'].requiredLength }} characters.
+      </span>
+       <!-- Add more common error types as needed -->
+    </div>
+  </div>

@@ -1,0 +1,63 @@
+<div class="case-details-container page-container">
+  <app-lca-loading-spinner [isLoading]="isLoadingDetails && !caseDetails" [overlay]="true"></app-lca-loading-spinner>
+
+  <div *ngIf="caseDetails else notFoundOrLoading">
+    <header class="page-header">
+      <h1>Case Details: {{ caseDetails.title || 'N/A' }} (ID: {{ caseDetails.id }})</h1>
+      <div class="header-actions">
+        <app-lca-button lcaStyle="primary" (lcaClick)="openEditModal()">Edit Case</app-lca-button>
+        <app-lca-button lcaStyle="success" (lcaClick)="openGrantPermissionsModal()">Grant Permissions</app-lca-button>
+        <app-lca-button lcaStyle="warning" (lcaClick)="openRevokePermissionsModal()" [disabled]="activePermissions.length === 0">Revoke Permissions</app-lca-button>
+      </div>
+    </header>
+
+    <section class="details-section">
+      <h2>Information</h2>
+      <div class="info-grid">
+        <div><strong>Title:</strong> {{ caseDetails.title || 'N/A' }}</div>
+        <div><strong>Description:</strong> {{ caseDetails.description || 'N/A' }}</div>
+        <div><strong>Case ID:</strong> {{ caseDetails.id }}</div>
+        <div><strong>Associated User ID:</strong> {{ caseDetails.userId || 'N/A' }}</div>
+        <div><strong>Customer ID:</strong> {{ caseDetails.customerId || 'N/A' }}</div>
+        <div><strong>Lawyer ID:</strong> {{ caseDetails.lawyerId || 'N/A' }}</div>
+        <!-- Add more fields as per CaseDetailsInformationItem -->
+      </div>
+    </section>
+
+    <section class="permissions-section">
+      <app-lca-permissions-list
+        title="Current Case Permissions"
+        [permissions]="activePermissions"
+        [isLoading]="isLoadingPermissions"
+        [canRevoke]="true"
+        (revokePermission)="handleRevokePermissionFromList($event)">
+      </app-lca-permissions-list>
+    </section>
+
+  </div>
+
+  <ng-template #notFoundOrLoading>
+    <div *ngIf="!isLoadingDetails">
+      <h2>Case Not Found</h2>
+      <p>The requested case could not be found or you do not have permission to view it.</p>
+      <app-lca-button routerLink="/dashboard/home">Go to Home</app-lca-button>
+    </div>
+  </ng-template>
+</div>
+
+<!-- Modals -->
+<app-case-edit-modal
+  *ngIf="showEditModal && caseDetails"
+  [isOpen]="showEditModal"
+  [caseData]="caseDetails"
+  (closed)="onEditModalClosed($event)">
+</app-case-edit-modal>
+
+<app-case-permissions-modal
+  *ngIf="showPermissionsModal && caseDetails"
+  [isOpen]="showPermissionsModal"
+  [caseId]="caseDetails.id!"
+  [currentPermissions]="activePermissions"
+  [mode]="permissionsModalMode"
+  (closed)="onPermissionsModalClosed($event)">
+</app-case-permissions-modal>

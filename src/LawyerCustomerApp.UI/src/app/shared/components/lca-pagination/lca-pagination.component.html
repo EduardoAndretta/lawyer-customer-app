@@ -1,0 +1,22 @@
+<div class="lca-pagination-wrapper" *ngIf="totalPages > 0">
+    <ul class="lca-pagination">
+      <li class="lca-page-item" [class.disabled]="currentPage === 1">
+        <a class="lca-page-link" (click)="onPrevious()" aria-label="Previous">«</a>
+      </li>
+  
+      <li class="lca-page-item"
+          *ngFor="let page of pages"
+          [class.active]="page === currentPage"
+          [class.disabled]="page === '...'">
+        <a class="lca-page-link" (click)="goToPage(page)">{{ page }}</a>
+      </li>
+  
+      <li class="lca-page-item" [class.disabled]="currentPage === totalPages">
+        <a class="lca-page-link" (click)="onNext()" aria-label="Next">»</a>
+      </li>
+    </ul>
+    <div class="lca-pagination-info" *ngIf="totalItems > 0">
+      Showing {{ (currentPage - 1) * itemsPerPage + 1 }} -
+      {{ min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }} items
+    </div>
+  </div>

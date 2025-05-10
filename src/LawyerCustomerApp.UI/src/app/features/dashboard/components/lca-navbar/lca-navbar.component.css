@@ -1,0 +1,30 @@
+.navbar-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 100%; /* Fill the parent's height (60px from dashboard.component.css) */
+  }
+  
+  .navbar-brand {
+    font-size: 1.5em;
+    font-weight: bold;
+  }
+  .navbar-brand a {
+      color: #333;
+      text-decoration: none;
+  }
+  
+  .navbar-search {
+    flex-grow: 1; /* Allows search to take up available space */
+    max-width: 500px; /* Limit search bar width */
+    margin: 0 20px; /* Spacing around search */
+  }
+  
+/*
+
+  .navbar-actions {
+    For future icons or user dropdown
+  }
+  
+*/

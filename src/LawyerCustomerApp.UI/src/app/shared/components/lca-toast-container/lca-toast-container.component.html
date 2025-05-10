@@ -1,0 +1,7 @@
+<div [ngClass]="getContainerClasses()">
+    <app-lca-toast
+      *ngFor="let toast of toasts; trackBy: trackByToastId"
+      [toast]="toast"
+      (dismissed)="onToastDismissed($event)">
+    </app-lca-toast>
+  </div>

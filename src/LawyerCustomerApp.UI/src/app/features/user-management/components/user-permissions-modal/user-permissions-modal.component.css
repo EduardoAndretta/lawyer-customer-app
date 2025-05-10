@@ -1,0 +1,80 @@
+/*
+
+Reuse styles from case-permissions-modal.component.css or create shared styles
+.lca-form {
+  General form styling
+}
+
+*/
+
+.permission-entry {
+  border: 1px solid #e0e0e0;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+}
+
+.permission-entry h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.1em;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 8px;
+}
+
+.form-row {
+  display: grid;
+  /* Adjust grid for 3 columns as userId is implicit */
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 10px;
+}
+@media (min-width: 992px) { /* On larger screens, maybe 3 explicit columns */
+    .form-row {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+}
+
+
+.entry-actions {
+  text-align: right;
+  margin-top: 10px;
+}
+.entry-actions app-lca-button ::ng-deep button {
+    font-size: 0.85em;
+    padding: 6px 10px;
+}
+
+
+.add-entry-button {
+  margin-top: 15px;
+  display: inline-block;
+}
+.add-entry-button ::ng-deep button {
+    font-size: 0.9em;
+    padding: 8px 12px;
+}
+
+.no-permissions-info {
+    padding: 15px;
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.form-row app-lca-select {
+  width: 100%;
+}
+.form-row ::ng-deep .lca-select-label {
+    font-size: 0.9em;
+    margin-bottom: 4px;
+}
+.form-row ::ng-deep .lca-select-field {
+    font-size: 0.95em;
+    padding: 8px 10px;
+}

@@ -1,0 +1,130 @@
+<app-lca-modal
+  title="Edit User: {{ userData.name }}"
+  [isOpen]="isOpen"
+  (closed)="closeModal(false)"
+  size="xl"> <!-- XL for the large form -->
+
+  <div *ngIf="userData" lca-modal-body>
+    <form [formGroup]="editForm" (ngSubmit)="onSubmit()" class="lca-form user-edit-form">
+      <section class="form-section">
+        <h4>General Information</h4>
+        <div class="form-group">
+          <label class="lca-checkbox-label">
+            <input type="checkbox" formControlName="private" class="lca-checkbox">
+            User Profile is Private
+          </label>
+        </div>
+      </section>
+
+      <section class="form-section" formGroupName="address">
+        <h4>Main Address</h4>
+        <div class="form-grid">
+          <app-lca-input label="Zip Code" formControlName="zipCode"></app-lca-input>
+          <app-lca-input label="House Number" formControlName="houseNumber"></app-lca-input>
+          <app-lca-input label="Complement" formControlName="complement"></app-lca-input>
+          <app-lca-input label="District" formControlName="district"></app-lca-input>
+          <app-lca-input label="City" formControlName="city"></app-lca-input>
+          <app-lca-input label="State" formControlName="state"></app-lca-input>
+          <app-lca-input label="Country" formControlName="country"></app-lca-input>
+        </div>
+      </section>
+
+      <section class="form-section" formGroupName="document">
+        <h4>Main Document</h4>
+        <div class="form-grid two-columns"> <!-- Simple two column for document -->
+            <app-lca-input label="Document Type" formControlName="type"></app-lca-input>
+            <app-lca-input label="Identifier" formControlName="identifierDocument"></app-lca-input>
+        </div>
+      </section>
+
+      <section class="form-section" formGroupName="accounts">
+        <h4>Account Specific Details</h4>
+
+        <!-- Lawyer Account Section -->
+        <div *ngIf="userData.hasLawyerAccount; else noLawyerAccount" formGroupName="lawyer" class="account-sub-section">
+          <h5>Lawyer Account Details</h5>
+          <div class="form-grid">
+            <app-lca-input label="Lawyer Phone" formControlName="phone"></app-lca-input>
+            <div class="form-group">
+              <label class="lca-checkbox-label">
+                <input type="checkbox" formControlName="private" class="lca-checkbox">
+                Lawyer Account is Private
+              </label>
+            </div>
+          </div>
+          <div formGroupName="address" class="nested-section">
+            <h6>Lawyer Address</h6>
+            <div class="form-grid">
+              <app-lca-input label="Zip Code" formControlName="zipCode"></app-lca-input>
+              <app-lca-input label="House Number" formControlName="houseNumber"></app-lca-input>
+              <app-lca-input label="Complement" formControlName="complement"></app-lca-input>
+              <app-lca-input label="District" formControlName="district"></app-lca-input>
+              <app-lca-input label="City" formControlName="city"></app-lca-input>
+              <app-lca-input label="State" formControlName="state"></app-lca-input>
+              <app-lca-input label="Country" formControlName="country"></app-lca-input>
+            </div>
+          </div>
+          <div formGroupName="document" class="nested-section">
+            <h6>Lawyer Document</h6>
+            <div class="form-grid two-columns">
+                <app-lca-input label="Document Type" formControlName="type"></app-lca-input>
+                <app-lca-input label="Identifier" formControlName="identifierDocument"></app-lca-input>
+            </div>
+          </div>
+        </div>
+        <ng-template #noLawyerAccount>
+            <p *ngIf="!editForm.get('accounts.lawyer')?.disabled" class="account-info-text">User does not have a Lawyer account. Details cannot be edited.</p>
+        </ng-template>
+
+        <!-- Customer Account Section -->
+        <div *ngIf="userData.hasCustomerAccount; else noCustomerAccount" formGroupName="customer" class="account-sub-section">
+          <h5>Customer Account Details</h5>
+          <div class="form-grid">
+            <app-lca-input label="Customer Phone" formControlName="phone"></app-lca-input>
+             <div class="form-group">
+              <label class="lca-checkbox-label">
+                <input type="checkbox" formControlName="private" class="lca-checkbox">
+                Customer Account is Private
+              </label>
+            </div>
+          </div>
+          <div formGroupName="address" class="nested-section">
+            <h6>Customer Address</h6>
+            <div class="form-grid">
+              <app-lca-input label="Zip Code" formControlName="zipCode"></app-lca-input>
+              <app-lca-input label="House Number" formControlName="houseNumber"></app-lca-input>
+              <app-lca-input label="Complement" formControlName="complement"></app-lca-input>
+              <app-lca-input label="District" formControlName="district"></app-lca-input>
+              <app-lca-input label="City" formControlName="city"></app-lca-input>
+              <app-lca-input label="State" formControlName="state"></app-lca-input>
+              <app-lca-input label="Country" formControlName="country"></app-lca-input>
+            </div>
+          </div>
+          <div formGroupName="document" class="nested-section">
+            <h6>Customer Document</h6>
+             <div class="form-grid two-columns">
+                <app-lca-input label="Document Type" formControlName="type"></app-lca-input>
+                <app-lca-input label="Identifier" formControlName="identifierDocument"></app-lca-input>
+            </div>
+          </div>
+        </div>
+        <ng-template #noCustomerAccount>
+             <p *ngIf="!editForm.get('accounts.customer')?.disabled" class="account-info-text">User does not have a Customer account. Details cannot be edited.</p>
+        </ng-template>
+
+      </section>
+    </form>
+  </div>
+  <div *ngIf="!userData" lca-modal-body>
+    <p>Error: User data not available.</p>
+  </div>
+
+  <div lca-modal-footer>
+    <app-lca-button type="button" lcaStyle="secondary" (lcaClick)="closeModal(false)" [disabled]="isLoading">
+      Cancel
+    </app-lca-button>
+    <app-lca-button type="button" lcaStyle="primary" (lcaClick)="onSubmit()" [isLoading]="isLoading" [disabled]="isLoading || editForm.invalid">
+      Save User Changes
+    </app-lca-button>
+  </div>
+</app-lca-modal>

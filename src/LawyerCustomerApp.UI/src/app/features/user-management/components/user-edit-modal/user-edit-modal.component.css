@@ -1,0 +1,89 @@
+/*
+
+.user-edit-form {
+  General form styles
+}
+
+*/
+
+.form-section {
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.form-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.form-section h4 {
+  font-size: 1.2em;
+  color: #333;
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+.account-sub-section {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px dashed #d1d1d1;
+  border-radius: 4px;
+  background-color: #fdfdfd;
+}
+.account-sub-section h5 {
+  font-size: 1.1em;
+  color: #444;
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.nested-section {
+    margin-top: 15px;
+    padding-left: 15px;
+    border-left: 2px solid #e9ecef;
+}
+.nested-section h6 {
+    font-size: 1em;
+    color: #555;
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 15px;
+}
+.form-grid.two-columns {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* More specific if always 2 */
+   @media (min-width: 768px) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+
+.form-group {
+  margin-bottom: 10px; /* Reduced margin within grids */
+}
+
+.lca-checkbox-label {
+  display: flex;
+  align-items: center;
+  font-size: 0.95em;
+  cursor: pointer;
+  margin-top: 10px; /* Align with inputs */
+}
+.lca-checkbox {
+  margin-right: 8px;
+  width: 16px;
+  height: 16px;
+}
+.account-info-text {
+    font-style: italic;
+    color: #6c757d;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    margin-top: 10px;
+}

@@ -1,0 +1,27 @@
+<div class="lca-modal-overlay" *ngIf="isOpen" (click)="onBackdropClick($event)">
+    <div class="lca-modal-dialog" role="dialog" aria-modal="true"
+         [class.lca-modal-sm]="size === 'sm'"
+         [class.lca-modal-md]="size === 'md'"
+         [class.lca-modal-lg]="size === 'lg'"
+         [class.lca-modal-xl]="size === 'xl'">
+  
+      <div class="lca-modal-content">
+        <div class="lca-modal-header" *ngIf="!hideHeader">
+          <h5 class="lca-modal-title" *ngIf="title">{{ title }}</h5>
+          <ng-content select="[lca-modal-header]"></ng-content> <!-- For custom header content -->
+          <button type="button" class="lca-modal-close-button" (click)="closeModal()" aria-label="Close">
+            × <!-- A simple 'x' -->
+          </button>
+        </div>
+  
+        <div class="lca-modal-body">
+          <ng-content select="[lca-modal-body]"></ng-content> <!-- Main content projection -->
+          <ng-content></ng-content> <!-- Default content projection if not using specific slots -->
+        </div>
+  
+        <div class="lca-modal-footer" *ngIf="!hideFooter">
+          <ng-content select="[lca-modal-footer]"></ng-content> <!-- For custom footer buttons -->
+        </div>
+      </div>
+    </div>
+  </div>

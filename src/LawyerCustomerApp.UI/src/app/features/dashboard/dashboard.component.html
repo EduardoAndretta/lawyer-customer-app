@@ -1,0 +1,11 @@
+<div class="dashboard-layout">
+    <app-lca-sidebar class="dashboard-sidebar"></app-lca-sidebar>
+    <div class="main-content-wrapper">
+      <app-lca-navbar class="dashboard-navbar"></app-lca-navbar>
+      <main class="page-content">
+        <router-outlet></router-outlet> <!-- Feature pages will be rendered here -->
+      </main>
+    </div>
+  </div>
+  <app-lca-toast-container position="top-right"></app-lca-toast-container>
+  <app-lca-loading-spinner [overlay]="true" #globalLoading></app-lca-loading-spinner> <!-- Example for global loading -->

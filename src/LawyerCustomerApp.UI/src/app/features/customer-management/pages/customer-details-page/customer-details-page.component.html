@@ -1,0 +1,41 @@
+<div class="customer-details-container page-container">
+  <app-lca-loading-spinner [isLoading]="isLoadingDetails && !customerDetails" [overlay]="true"></app-lca-loading-spinner>
+
+  <div *ngIf="customerDetails else notFoundOrLoadingCustomer">
+    <header class="page-header">
+      <h1>Customer Details: {{ customerDetails.name || 'N/A' }} (Customer ID: {{ customerDetails.customerId }})</h1>
+       <div class="header-actions">
+        <app-lca-button lcaStyle="info" (lcaClick)="navigateToUser()" *ngIf="customerDetails.userId">
+          View Associated User Profile
+        </app-lca-button>
+      </div>
+    </header>
+
+    <section class="details-section">
+      <h2>Information</h2>
+      <div class="info-grid">
+        <div><strong>Name:</strong> {{ customerDetails.name || 'N/A' }}</div>
+        <div><strong>Customer ID:</strong> {{ customerDetails.customerId }}</div>
+        <div><strong>Associated User ID:</strong> {{ customerDetails.userId || 'N/A' }}</div>
+        <!-- Display other customer-specific details from CustomerDetailsInformationItem -->
+        <!-- Example:
+        <div><strong>Specialization:</strong> {{ customerDetails.specialization || 'N/A' }}</div>
+        <div><strong>Office Address:</strong> {{ customerDetails.officeAddress || 'N/A' }}</div>
+        -->
+      </div>
+    </section>
+
+    <div class="info-notice">
+        <p>To edit this customer's information or manage permissions, please go to their associated user profile.</p>
+    </div>
+
+  </div>
+
+  <ng-template #notFoundOrLoadingCustomer>
+    <div *ngIf="!isLoadingDetails">
+      <h2>Customer Not Found</h2>
+      <p>The requested customer could not be found or you do not have permission to view their details.</p>
+      <app-lca-button routerLink="/dashboard/home">Go to Home</app-lca-button>
+    </div>
+  </ng-template>
+</div>

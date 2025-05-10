@@ -1,0 +1,8 @@
+<div *ngIf="isLoading">
+    <div [class.lca-loading-overlay]="overlay">
+      <div class="lca-spinner-container">
+        <div class="lca-spinner" [ngClass]="'lca-spinner-' + size"></div>
+        <div *ngIf="message" class="lca-spinner-message">{{ message }}</div>
+      </div>
+    </div>
+  </div>

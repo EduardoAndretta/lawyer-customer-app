@@ -13,6 +13,4 @@ public interface IService
     Task<Result> AssignLawyerAsync(AssignLawyerParametersDto parameters, Contextualizer contextualizer);
     Task<Result> AssignCustomerAsync(AssignCustomerParametersDto parameters, Contextualizer contextualizer);
     Task<Result> EditAsync(EditParametersDto parameters, Contextualizer contextualizer);
-    Task<Result> GrantPermissionsAsync(GrantPermissionsParametersDto parameters, Contextualizer contextualizer);
-    Task<Result> RevokePermissionsAsync(RevokePermissionsParametersDto parameters, Contextualizer contextualizer);
 }

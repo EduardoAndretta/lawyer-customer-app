@@ -60,3 +60,8 @@ global.json
 
 # Ignore generated files for Mac
 .DS_Store
+
+# Ignore Angular build output and dependencies
+**/dist/
+**/.angular/
+**/node_modules/

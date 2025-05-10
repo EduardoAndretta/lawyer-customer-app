@@ -52,6 +52,15 @@ public class EditDeniedError : Constructor
     public override int Status => 400;
 }
 
+public class ViewPermissionsDeniedError : Constructor
+{
+    public override string Identity => "ViewPermissionsDeniedError";
+    public override Type Resource => typeof(Error);
+
+    public override int Status => 400;
+}
+
+
 public class GrantPermissionDeniedError : Constructor
 {
     public override string Identity => "GrantPermissionDeniedError";

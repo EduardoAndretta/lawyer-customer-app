@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Text.Json.Serialization;
 
 namespace LawyerCustomerApp.Domain.Combo.Common.Models;
 
@@ -17,7 +18,10 @@ public record KeyValueParameters
 
 public record KeyValueParametersDto
 {
+    [JsonIgnore]
     public int? UserId { get; init; }
+
+    [JsonIgnore]
     public int? RoleId { get; init; }
 
     public PaginationProperties? Pagination { get; init; }

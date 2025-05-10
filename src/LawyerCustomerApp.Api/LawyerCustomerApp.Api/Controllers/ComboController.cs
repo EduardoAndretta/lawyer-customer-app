@@ -27,6 +27,15 @@ public class Controller : ControllerBase
         [FromBody] KeyValueParametersDto parameters,
         CancellationToken cancellationToken = default)
     {
+        int userId = int.TryParse(User.FindFirst("user_id")?.Value, out userId) ? userId : 0;
+        int roleId = int.TryParse(User.FindFirst("role_id")?.Value, out roleId) ? roleId : 0;
+
+        parameters = parameters with
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+
         var contextualizer = Contextualizer.Init(cancellationToken);
 
         if (!ModelState.IsValid)
@@ -56,6 +65,15 @@ public class Controller : ControllerBase
         [FromBody] KeyValueParametersDto parameters,
         CancellationToken cancellationToken = default)
     {
+        int userId = int.TryParse(User.FindFirst("user_id")?.Value, out userId) ? userId : 0;
+        int roleId = int.TryParse(User.FindFirst("role_id")?.Value, out roleId) ? roleId : 0;
+
+        parameters = parameters with
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+
         var contextualizer = Contextualizer.Init(cancellationToken);
 
         if (!ModelState.IsValid)
@@ -85,6 +103,15 @@ public class Controller : ControllerBase
         [FromBody] KeyValueParametersDto parameters,
         CancellationToken cancellationToken = default)
     {
+        int userId = int.TryParse(User.FindFirst("user_id")?.Value, out userId) ? userId : 0;
+        int roleId = int.TryParse(User.FindFirst("role_id")?.Value, out roleId) ? roleId : 0;
+
+        parameters = parameters with
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+
         var contextualizer = Contextualizer.Init(cancellationToken);
 
         if (!ModelState.IsValid)
@@ -114,6 +141,15 @@ public class Controller : ControllerBase
         [FromBody] KeyValueParametersDto parameters,
         CancellationToken cancellationToken = default)
     {
+        int userId = int.TryParse(User.FindFirst("user_id")?.Value, out userId) ? userId : 0;
+        int roleId = int.TryParse(User.FindFirst("role_id")?.Value, out roleId) ? roleId : 0;
+
+        parameters = parameters with
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+
         var contextualizer = Contextualizer.Init(cancellationToken);
 
         if (!ModelState.IsValid)
@@ -143,6 +179,15 @@ public class Controller : ControllerBase
         [FromBody] KeyValueParametersDto parameters,
         CancellationToken cancellationToken = default)
     {
+        int userId = int.TryParse(User.FindFirst("user_id")?.Value, out userId) ? userId : 0;
+        int roleId = int.TryParse(User.FindFirst("role_id")?.Value, out roleId) ? roleId : 0;
+
+        parameters = parameters with
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+
         var contextualizer = Contextualizer.Init(cancellationToken);
 
         if (!ModelState.IsValid)
@@ -172,6 +217,15 @@ public class Controller : ControllerBase
         [FromBody] KeyValueParametersDto parameters,
         CancellationToken cancellationToken = default)
     {
+        int userId = int.TryParse(User.FindFirst("user_id")?.Value, out userId) ? userId : 0;
+        int roleId = int.TryParse(User.FindFirst("role_id")?.Value, out roleId) ? roleId : 0;
+
+        parameters = parameters with
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+
         var contextualizer = Contextualizer.Init(cancellationToken);
 
         if (!ModelState.IsValid)

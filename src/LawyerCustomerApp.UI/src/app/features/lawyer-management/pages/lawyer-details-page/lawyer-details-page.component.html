@@ -1,0 +1,41 @@
+<div class="lawyer-details-container page-container">
+  <app-lca-loading-spinner [isLoading]="isLoadingDetails && !lawyerDetails" [overlay]="true"></app-lca-loading-spinner>
+
+  <div *ngIf="lawyerDetails else notFoundOrLoadingLawyer">
+    <header class="page-header">
+      <h1>Lawyer Details: {{ lawyerDetails.name || 'N/A' }} (Lawyer ID: {{ lawyerDetails.lawyerId }})</h1>
+       <div class="header-actions">
+        <app-lca-button lcaStyle="info" (lcaClick)="navigateToUser()" *ngIf="lawyerDetails.userId">
+          View Associated User Profile
+        </app-lca-button>
+      </div>
+    </header>
+
+    <section class="details-section">
+      <h2>Information</h2>
+      <div class="info-grid">
+        <div><strong>Name:</strong> {{ lawyerDetails.name || 'N/A' }}</div>
+        <div><strong>Lawyer ID:</strong> {{ lawyerDetails.lawyerId }}</div>
+        <div><strong>Associated User ID:</strong> {{ lawyerDetails.userId || 'N/A' }}</div>
+        <!-- Display other lawyer-specific details from LawyerDetailsInformationItem -->
+        <!-- Example:
+        <div><strong>Specialization:</strong> {{ lawyerDetails.specialization || 'N/A' }}</div>
+        <div><strong>Office Address:</strong> {{ lawyerDetails.officeAddress || 'N/A' }}</div>
+        -->
+      </div>
+    </section>
+
+    <div class="info-notice">
+        <p>To edit this lawyer's information or manage permissions, please go to their associated user profile.</p>
+    </div>
+
+  </div>
+
+  <ng-template #notFoundOrLoadingLawyer>
+    <div *ngIf="!isLoadingDetails">
+      <h2>Lawyer Not Found</h2>
+      <p>The requested lawyer could not be found or you do not have permission to view their details.</p>
+      <app-lca-button routerLink="/dashboard/home">Go to Home</app-lca-button>
+    </div>
+  </ng-template>
+</div>

@@ -1,13 +1,16 @@
 ﻿using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 namespace LawyerCustomerApp.Domain.User.Common.Models;
 
-public class SearchParametersDto
+public record SearchParametersDto
 {
+    [JsonIgnore]
     public int? UserId { get; init; }
-    public int? AttributeId { get; init; }
+
+    [JsonIgnore]
     public int? RoleId { get; init; }
 
     public string? Query { get; init; }
@@ -20,9 +23,8 @@ public class SearchParametersDto
         {
             Query = this.Query ?? string.Empty,
 
-            UserId      = this.UserId      ?? 0,
-            AttributeId = this.AttributeId ?? 0,
-            RoleId      = this.RoleId      ?? 0,
+            UserId      = this.UserId ?? 0,
+            RoleId      = this.RoleId ?? 0,
 
             Pagination = new() 
             {
@@ -42,7 +44,6 @@ public class SearchParametersDto
 public class SearchParameters
 {
     public required int UserId { get; init; }
-    public required int AttributeId { get; init; }
     public required int RoleId { get; init; }
 
     public required string Query { get; init; }
@@ -56,10 +57,12 @@ public class SearchParameters
     }
 }
 
-public class CountParametersDto
+public record CountParametersDto
 {
+    [JsonIgnore]
     public int? UserId { get; init; }
-    public int? AttributeId { get; init; }
+
+    [JsonIgnore]
     public int? RoleId { get; init; }
 
     public string? Query { get; init; }
@@ -70,9 +73,8 @@ public class CountParametersDto
         {
             Query = this.Query ?? string.Empty,
 
-            UserId      = this.UserId      ?? 0,
-            AttributeId = this.AttributeId ?? 0,
-            RoleId      = this.RoleId      ?? 0
+            UserId = this.UserId      ?? 0,
+            RoleId = this.RoleId      ?? 0
         };
     }
 }
@@ -80,27 +82,28 @@ public class CountParametersDto
 public class CountParameters
 {
     public required int UserId { get; init; }
-    public required int AttributeId { get; init; }
     public required int RoleId { get; init; }
 
     public required string Query { get; init; }
 }
 
-public class DetailsParametersDto
+public record DetailsParametersDto
 {
+    [JsonIgnore]
     public int? UserId { get; init; }
-    public int? RelatedUserId { get; init; }
-    public int? AttributeId { get; init; }
+
+    [JsonIgnore]
     public int? RoleId { get; init; }
+
+    public int? RelatedUserId { get; init; }
 
     public DetailsParameters ToOrdinary()
     {
         return new DetailsParameters
         {
             UserId        = this.UserId        ?? 0,
-            RelatedUserId = this.RelatedUserId ?? 0,
-            AttributeId   = this.AttributeId   ?? 0,
-            RoleId        = this.RoleId        ?? 0
+            RoleId        = this.RoleId        ?? 0,
+            RelatedUserId = this.RelatedUserId ?? 0
         };
     }
 }
@@ -108,13 +111,17 @@ public class DetailsParametersDto
 public class DetailsParameters
 {
     public required int UserId { get; init; }
-    public required int RelatedUserId { get; init; }
-    public required int AttributeId { get; init; }
     public required int RoleId { get; init; }
+
+    public required int RelatedUserId { get; init; }
 }
 
-public class RegisterParametersDto
+public record RegisterParametersDto
 {
+    [JsonIgnore]
+    public int? UserId { get; init; }
+
+    [JsonIgnore]
     public int? RoleId { get; init; }
 
     public string? Email { get; init; }
@@ -125,6 +132,7 @@ public class RegisterParametersDto
     {
         return new RegisterParameters
         {
+            UserId = this.UserId ?? 0,
             RoleId = this.RoleId ?? 0,
 
             Email    = this.Email    ?? string.Empty,
@@ -136,6 +144,7 @@ public class RegisterParametersDto
 
 public class RegisterParameters
 {
+    public required int UserId { get; init; }
     public required int RoleId { get; init; }
 
     public required string Email { get; init; }
@@ -143,12 +152,15 @@ public class RegisterParameters
     public required string Name { get; init; }
 }
 
-public class EditParametersDto
+public record EditParametersDto
 {
-    public int? RelatedUserId { get; init; }
-
+    [JsonIgnore]
     public int? UserId { get; init; }
+
+    [JsonIgnore]
     public int? RoleId { get; init; }
+
+    public int? RelatedUserId { get; init; }
 
     public object? Values { get; init; }
 
@@ -388,124 +400,6 @@ public record EditParameters
     }
 }
 
-public class GrantPermissionsParametersDto
-{
-    public int? RelatedUserId { get; init; }
-    public int? UserId { get; init; }
-    public int? AttributeId { get; init; }
-    public int? RoleId { get; init; }
-
-    public IEnumerable<PermissionProperties?>? Permissions { get; init; }
-
-    public class PermissionProperties
-    {
-        public int? AttributeId { get; init; }
-        public int? PermissionId { get; init; }
-        public int? UserId { get; init; }
-        public int? RoleId { get; init; }
-    }
-
-    public GrantPermissionsParameters ToOrdinary()
-    {
-        return new GrantPermissionsParameters
-        {
-            RelatedUserId = this.RelatedUserId ?? 0,
-            UserId        = this.UserId        ?? 0,
-            AttributeId   = this.AttributeId   ?? 0,
-            RoleId        = this.RoleId        ?? 0,
-
-            Permissions = this.Permissions?.Select(item =>
-                new GrantPermissionsParameters.PermissionProperties
-                {
-                    AttributeId  = item?.AttributeId  ?? 0,
-                    PermissionId = item?.PermissionId ?? 0,
-                    UserId       = item?.UserId       ?? 0,
-                    RoleId       = item?.RoleId       ?? 0,
-                }) 
-            ?? new Collection<GrantPermissionsParameters.PermissionProperties>()
-        };
-    }
-}
-
-public class GrantPermissionsParameters
-{
-    public required int RelatedUserId { get; init; }
-    public required int UserId { get; init; }
-    public required int AttributeId { get; init; }
-    public required int RoleId { get; init; }
-
-    public required IEnumerable<PermissionProperties> Permissions { get; init; }
-
-    public class PermissionProperties
-    {
-        public readonly Guid Id = Guid.NewGuid();
-
-        public required int AttributeId { get; init; }
-        public required int PermissionId { get; init; }
-        public required int UserId { get; init; }
-        public required int RoleId { get; init; }
-    }
-}
-
-public class RevokePermissionsParametersDto
-{
-    public int? RelatedUserId { get; init; }
-    public int? UserId { get; init; }
-    public int? AttributeId { get; init; }
-    public int? RoleId { get; init; }
-
-    public IEnumerable<PermissionProperties?>? Permissions { get; init; }
-
-    public class PermissionProperties
-    {
-        public int? AttributeId { get; init; }
-        public int? PermissionId { get; init; }
-        public int? UserId { get; init; }
-        public int? RoleId { get; init; }
-    }
-
-    public RevokePermissionsParameters ToOrdinary()
-    {
-        return new RevokePermissionsParameters
-        {
-            RelatedUserId = this.RelatedUserId ?? 0,
-            UserId        = this.UserId        ?? 0,
-            AttributeId   = this.AttributeId   ?? 0,
-            RoleId        = this.RoleId        ?? 0,
-
-            Permissions = this.Permissions?.Select(item =>
-                new RevokePermissionsParameters.PermissionProperties
-                {
-                    AttributeId  = item?.AttributeId  ?? 0,
-                    PermissionId = item?.PermissionId ?? 0,
-                    UserId       = item?.UserId       ?? 0,
-                    RoleId       = item?.RoleId       ?? 0,
-                }) 
-            ?? new Collection<RevokePermissionsParameters.PermissionProperties>()
-        };
-    }
-}
-
-public class RevokePermissionsParameters
-{
-    public required int RelatedUserId { get; init; }
-    public required int UserId { get; init; }
-    public required int AttributeId { get; init; }
-    public required int RoleId { get; init; }
-
-    public required IEnumerable<PermissionProperties> Permissions { get; init; }
-
-    public class PermissionProperties
-    {
-        public readonly Guid Id = Guid.NewGuid();
-
-        public required int AttributeId { get; init; }
-        public required int PermissionId { get; init; }
-        public required int UserId { get; init; }
-        public required int RoleId { get; init; }
-    }
-}
-
 public record SearchInformationDto
 {
     public IEnumerable<ItemProperties>? Items { get; init; }
@@ -541,7 +435,7 @@ public record SearchInformation
         public required bool HasLawyerAccount { get; init; }
     }
 
-    public SearchInformationDto ToOrdinary()
+    public SearchInformationDto ToDto()
     {
         return new SearchInformationDto
         {
@@ -566,7 +460,7 @@ public record CountInformation
 {
     public required long Count { get; init; }
 
-    public CountInformationDto ToOrdinary()
+    public CountInformationDto ToDto()
     {
         return new CountInformationDto
         {
@@ -615,7 +509,7 @@ public record DetailsInformation
         public required bool HasLawyerAccount { get; init; }
     }
 
-    public DetailsInformationDto ToOrdinary()
+    public DetailsInformationDto ToDto()
     {
         return new DetailsInformationDto
         {

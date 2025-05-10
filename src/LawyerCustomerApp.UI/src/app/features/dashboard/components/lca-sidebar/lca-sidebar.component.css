@@ -1,0 +1,122 @@
+.sidebar-content {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.user-profile-section {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #495057;
+}
+
+.user-profile-section h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.1em;
+  color: #fff;
+}
+.user-profile-section .text-muted {
+    color: #adb5bd !important;
+}
+
+.no-accounts-message {
+    font-style: italic;
+    font-size: 0.9em;
+    padding: 5px 0;
+}
+
+.account-select-wrapper {
+  margin-top: 10px;
+}
+.account-select-wrapper ::ng-deep .lca-select-label {
+    color: #f8f9fa;
+    font-size: 0.9em;
+    margin-bottom: 3px;
+}
+.account-select-wrapper ::ng-deep .lca-select-field {
+    background-color: #495057;
+    color: #f8f9fa;
+    border-color: #6c757d;
+    font-size: 0.95em;
+}
+.account-select-wrapper ::ng-deep .lca-select-field:disabled {
+    background-color: #3e444a;
+    opacity: 0.7;
+}
+.account-select-wrapper small.text-muted {
+    display: block;
+    font-size: 0.8em;
+    margin-top: 5px;
+}
+
+
+.sidebar-nav {
+    margin-bottom: 20px; /* Add some space before account actions */
+}
+.sidebar-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-nav li a, .sidebar-nav li .disabled-nav-link {
+  display: block;
+  padding: 10px 0;
+  color: #adb5bd;
+  text-decoration: none;
+  transition: color 0.2s, background-color 0.2s;
+  border-radius: 4px;
+}
+.sidebar-nav li .disabled-nav-link {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+.sidebar-nav li .disabled-nav-link small {
+    font-size: 0.8em;
+}
+
+
+.sidebar-nav li a:hover,
+.sidebar-nav li a.active-link {
+  color: #fff;
+  background-color: #495057;
+  padding-left: 10px;
+}
+
+.account-actions {
+  margin-top: 10px; /* Can adjust based on nav items */
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.register-account-btn ::ng-deep button { /* Target the button inside lca-button */
+    font-size: 0.9em;
+    padding: 8px 10px; /* Slightly smaller button */
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid #495057;
+}
+
+.sidebar-nav li a, .sidebar-nav li .disabled-nav-link { /* Ensure .disabled-nav-link is included here */
+  display: block;
+  padding: 10px 0;
+  color: #adb5bd;
+  text-decoration: none;
+  transition: color 0.2s, background-color 0.2s;
+  border-radius: 4px;
+}
+.sidebar-nav li .disabled-nav-link {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+.sidebar-nav li .disabled-nav-link small { /* Styles for the (Select Account) text */
+    font-size: 0.8em;
+    margin-left: 5px;
+    font-style: italic;
+}

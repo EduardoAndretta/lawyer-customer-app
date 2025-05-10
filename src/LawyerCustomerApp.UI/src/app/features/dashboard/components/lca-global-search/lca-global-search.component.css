@@ -1,0 +1,31 @@
+.global-search-container {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 10px;
+  }
+  
+  .search-type-select {
+    flex-shrink: 0; /* Prevent select from shrinking too much */
+    min-width: 150px; /* Ensure select is readable */
+  }
+  .search-type-select ::ng-deep .lca-select-field { /* Style child component */
+      height: 40px; /* Match input height */
+      font-size: 0.9em;
+  }
+  
+  
+  .search-input-autocomplete {
+    flex-grow: 1; /* Input takes most space */
+  }
+  /* Adjust lca-auto-complete's internal input if needed */
+  .search-input-autocomplete ::ng-deep .lca-input-field {
+      height: 40px; /* Example height */
+  }
+  
+  
+  .expand-search-button ::ng-deep button { /* Style child component */
+      height: 40px; /* Match input height */
+      font-size: 0.9em;
+      padding: 0 15px;
+  }

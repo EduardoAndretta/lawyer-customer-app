@@ -1,0 +1,57 @@
+<app-lca-modal
+  title="Edit Case: {{ caseData.title }}"
+  [isOpen]="isOpen"
+  (closed)="closeModal(false)"
+  size="lg">
+  <div *ngIf="caseData" lca-modal-body>
+    <form [formGroup]="editForm" (ngSubmit)="onSubmit()" class="lca-form">
+      <app-lca-input
+        label="Case Title"
+        formControlName="title"
+        [ngClass]="{ 'is-invalid': submitted && f['title'].errors }">
+      </app-lca-input>
+
+      <div class="form-group">
+        <label for="description" class="lca-input-label">Description</label>
+        <textarea
+          id="description"
+          formControlName="description"
+          class="lca-textarea-field"
+          rows="5"
+          [ngClass]="{ 'lca-input-error-state': submitted && f['description'].errors }">
+        </textarea>
+         <div *ngIf="submitted && f['description'].errors?.['required']" class="lca-input-error-message">
+            Description is required.
+        </div>
+      </div>
+
+      <!-- Add other form fields here based on your CaseEditParametersDto.values structure -->
+      <!-- Example:
+      <app-lca-input
+        label="Status"
+        formControlName="status">
+      </app-lca-input>
+
+      <div class="form-group">
+        <label class="lca-checkbox-label">
+          <input type="checkbox" formControlName="private" class="lca-checkbox">
+          Mark as Private
+        </label>
+      </div>
+      -->
+
+    </form>
+  </div>
+  <div *ngIf="!caseData" lca-modal-body>
+    <p>Error: Case data not available.</p>
+  </div>
+
+  <div lca-modal-footer>
+    <app-lca-button type="button" lcaStyle="secondary" (lcaClick)="closeModal(false)" [disabled]="isLoading">
+      Cancel
+    </app-lca-button>
+    <app-lca-button type="button" lcaStyle="primary" (lcaClick)="onSubmit()" [isLoading]="isLoading" [disabled]="isLoading || editForm.invalid">
+      Save Changes
+    </app-lca-button>
+  </div>
+</app-lca-modal>

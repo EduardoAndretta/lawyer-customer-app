@@ -7,6 +7,34 @@ public static class Configuration
 {
     public static IServiceCollection AddDomainDependenciesAndConfiguration(this IServiceCollection services)
     {
+        #region Permission
+
+        services.AddScoped<Permission.Interfaces.Services.IService, Permission.Services.Service>();
+
+        services.AddScoped<Permission.Interfaces.Repositories.IRepository, Permission.Repositories.Repository>();
+
+        // [Case]
+
+        services.AddScoped<IValidator<Permission.Common.Models.EnlistPermissionsFromCaseParametersDto>, Permission.Validator.EnlistPermissionsFromCaseParametersDtoValidator>();
+        services.AddScoped<IValidator<Permission.Common.Models.GlobalPermissionsRelatedWithCaseParametersDto>, Permission.Validator.GlobalPermissionsRelatedWithCaseParametersDtoValidator>();
+        services.AddScoped<IValidator<Permission.Common.Models.PermissionsRelatedWithCaseParametersDto>, Permission.Validator.PermissionsRelatedWithCaseParametersDtoValidator>();
+        services.AddScoped<IValidator<Permission.Common.Models.GrantPermissionsToCaseParametersDto>, Permission.Validator.GrantPermissionsToCaseParametersDtoValidator>();
+        services.AddScoped<IValidator<Permission.Common.Models.RevokePermissionsToCaseParametersDto>, Permission.Validator.RevokePermissionsToCaseParametersDtoValidator>();
+
+        // [User]
+
+        services.AddScoped<IValidator<Permission.Common.Models.EnlistPermissionsFromUserParametersDto>, Permission.Validator.EnlistPermissionsFromUserParametersDtoValidator>();
+        services.AddScoped<IValidator<Permission.Common.Models.GlobalPermissionsRelatedWithUserParametersDto>, Permission.Validator.GlobalPermissionsRelatedWithUserParametersDtoValidator>();
+        services.AddScoped<IValidator<Permission.Common.Models.PermissionsRelatedWithUserParametersDto>, Permission.Validator.PermissionsRelatedWithUserParametersDtoValidator>();
+        services.AddScoped<IValidator<Permission.Common.Models.GrantPermissionsToUserParametersDto>, Permission.Validator.GrantPermissionsToUserParametersDtoValidator>();
+        services.AddScoped<IValidator<Permission.Common.Models.RevokePermissionsToUserParametersDto>, Permission.Validator.RevokePermissionsToUserParametersDtoValidator>();
+
+        services.AddScoped<IValidator<Permission.Common.Models.SearchEnabledUsersToGrantPermissionsParametersDto>, Permission.Validator.SearchEnabledUsersToGrantPermissionsParametersDtoValidator>();
+        services.AddScoped<IValidator<Permission.Common.Models.SearchEnabledUsersToRevokePermissionsParametersDto>, Permission.Validator.SearchEnabledUsersToRevokePermissionsParametersDtoValidator>();
+
+
+        #endregion
+
         #region Auth
 
         services.AddScoped<Auth.Interfaces.Services.IService, Auth.Services.Service>();
@@ -33,9 +61,7 @@ public static class Configuration
         services.AddScoped<IValidator<Case.Common.Models.AssignLawyerParametersDto>, Case.Validator.AssignLawyerParametersDtoValidator>();
         services.AddScoped<IValidator<Case.Common.Models.AssignCustomerParametersDto>, Case.Validator.AssignCustomerParametersDtoValidator>();
         services.AddScoped<IValidator<Case.Common.Models.EditParametersDto>, Case.Validator.EditParametersDtoValidator>();
-        services.AddScoped<IValidator<Case.Common.Models.GrantPermissionsParametersDto>, Case.Validator.GrantPermissionsParametersDtoValidator>();
-        services.AddScoped<IValidator<Case.Common.Models.RevokePermissionsParametersDto>, Case.Validator.RevokePermissionsParametersDtoValidator>();
-
+       
         #endregion   
 
         #region User
@@ -49,8 +75,6 @@ public static class Configuration
         services.AddScoped<IValidator<User.Common.Models.DetailsParametersDto>, User.Validator.DetailsParametersDtoValidator>();
         services.AddScoped<IValidator<User.Common.Models.RegisterParametersDto>, User.Validator.RegisterParametersDtoValidator>();
         services.AddScoped<IValidator<User.Common.Models.EditParametersDto>, User.Validator.EditParametersDtoValidator>();
-        services.AddScoped<IValidator<User.Common.Models.GrantPermissionsParametersDto>, User.Validator.GrantPermissionsParametersDtoValidator>();
-        services.AddScoped<IValidator<User.Common.Models.RevokePermissionsParametersDto>, User.Validator.RevokePermissionsParametersDtoValidator>();
 
         #endregion
 

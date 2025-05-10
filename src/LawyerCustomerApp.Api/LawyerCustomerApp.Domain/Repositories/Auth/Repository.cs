@@ -105,10 +105,13 @@ internal class Repository : IRepository
         var jwtTokenResult = _jwtService.GenerateJwtToken(
             new() 
             { 
+                UserId = userInformation.UserId.ToString(),
+                RoleId = "1",
+
                 NameIdentifier = userInformation.UserId.ToString(),
                 Email          = userInformation.Email,
 
-                Role   = External.Jwt.Common.Models.JwtConfiguration.Roles.User,
+                Role = External.Jwt.Common.Models.JwtConfiguration.Roles.User,
 
                 TimeSpecification = new() 
                 { 
@@ -298,7 +301,10 @@ internal class Repository : IRepository
         // [JWT Creation]
         var jwtTokenResult = _jwtService.GenerateJwtToken(
             new() 
-            { 
+            {
+                UserId = tokensInformation.UserId.ToString(),
+                RoleId = "1",
+
                 NameIdentifier = tokensInformation.UserId.ToString(),
                 Email          = tokensInformation.Email,
 

@@ -1,10 +1,16 @@
-﻿namespace LawyerCustomerApp.Domain.Lawyer.Common.Models;
+﻿using System.Text.Json.Serialization;
 
-public class SearchParametersDto
+namespace LawyerCustomerApp.Domain.Lawyer.Common.Models;
+
+public record SearchParametersDto
 {
+    [JsonIgnore]
     public int? UserId { get; init; }
-    public int? AttributeId { get; init; }
+
+    [JsonIgnore]
     public int? RoleId { get; init; }
+
+    public int? AttributeId { get; init; }
 
     public string? Query { get; init; }
 
@@ -52,12 +58,16 @@ public class SearchParameters
     }
 }
 
-public class DetailsParametersDto
+public record DetailsParametersDto
 {
+    [JsonIgnore]
     public int? UserId { get; init; }
+
+    [JsonIgnore]
+    public int? RoleId { get; init; }
+
     public int? LawyerId { get; init; }
     public int? AttributeId { get; init; }
-    public int? RoleId { get; init; }
 
     public DetailsParameters ToOrdinary()
     {
@@ -79,9 +89,12 @@ public class DetailsParameters
     public required int RoleId { get; init; }
 }
 
-public class RegisterParametersDto
+public record RegisterParametersDto
 {
+    [JsonIgnore]
     public int? UserId { get; init; }
+
+    [JsonIgnore]
     public int? RoleId { get; init; }
 
     public string? Phone { get; init; }
@@ -160,7 +173,7 @@ public record SearchInformation
     }
 }
 
-public class CountParametersDto
+public record CountParametersDto
 {
     public int? UserId { get; init; }
     public int? AttributeId { get; init; }

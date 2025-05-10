@@ -1,0 +1,95 @@
+<app-lca-modal
+  [title]="mode === 'grant' ? 'Grant Case Permissions' : 'Revoke Case Permissions'"
+  [isOpen]="isOpen"
+  (closed)="closeModal(false)"
+  size="xl"> <!-- XL for more space for the form array -->
+
+  <div lca-modal-body>
+    <app-lca-loading-spinner [isLoading]="isDataLoading" message="Loading options..."></app-lca-loading-spinner>
+
+    <form [formGroup]="permissionsForm" (ngSubmit)="onSubmit()" class="lca-form" *ngIf="!isDataLoading">
+      <p *ngIf="mode === 'grant'">Select user, permission, role, and attribute context for each permission to grant.</p>
+      <p *ngIf="mode === 'revoke'">Select the exact permission set (user, permission, role, attribute) to revoke.</p>
+
+      <div formArrayName="permissionsToModify">
+        <div *ngFor="let permissionEntry of permissionsToModify.controls; let i=index" [formGroupName]="i" class="permission-entry">
+          <h4>Permission Entry #{{i + 1}}</h4>
+          <div class="form-row">
+            <app-lca-select
+              label="User"
+              formControlName="userId"
+              [options]="(users$ | async) || []"
+              placeholder="Select User"
+              [ngClass]="{ 'is-invalid': submitted && getFormControl(i, 'userId')?.errors }">
+            </app-lca-select>
+
+            <app-lca-select
+              *ngIf="mode === 'grant'"
+              label="Permission to Grant"
+              formControlName="permissionId"
+              [options]="(grantablePermissions$ | async) || []"
+              placeholder="Select Permission"
+              [ngClass]="{ 'is-invalid': submitted && getFormControl(i, 'permissionId')?.errors }">
+            </app-lca-select>
+            <app-lca-select
+              *ngIf="mode === 'revoke'"
+              label="Permission to Revoke"
+              formControlName="permissionId"
+              [options]="(revokablePermissions$ | async) || []"
+              placeholder="Select Permission"
+              [ngClass]="{ 'is-invalid': submitted && getFormControl(i, 'permissionId')?.errors }">
+            </app-lca-select>
+
+
+            <app-lca-select
+              label="Role"
+              formControlName="roleId"
+              [options]="(roles$ | async) || []"
+              placeholder="Select Role"
+              [ngClass]="{ 'is-invalid': submitted && getFormControl(i, 'roleId')?.errors }">
+            </app-lca-select>
+
+            <app-lca-select
+              label="Attribute (Permission Context)"
+              formControlName="attributeId"
+              [options]="(attributes$ | async) || []"
+              placeholder="Select Attribute"
+              [ngClass]="{ 'is-invalid': submitted && getFormControl(i, 'attributeId')?.errors }">
+            </app-lca-select>
+          </div>
+          <div class="entry-actions">
+            <app-lca-button
+                type="button"
+                lcaStyle="danger"
+                (lcaClick)="removePermissionEntry(i)"
+                *ngIf="permissionsToModify.controls.length > 1"
+                size="sm">
+              Remove This Entry
+            </app-lca-button>
+          </div>
+        </div>
+      </div>
+
+      <app-lca-button type="button" lcaStyle="info" (lcaClick)="addPermissionEntry()" size="sm" class="add-entry-button">
+        Add Another Permission Entry
+      </app-lca-button>
+
+    </form>
+    <div *ngIf="mode === 'revoke' && currentPermissions.length === 0 && !isDataLoading" class="no-permissions-info">
+        There are no active permissions on this case to revoke.
+    </div>
+  </div>
+
+  <div lca-modal-footer>
+    <app-lca-button type="button" lcaStyle="secondary" (lcaClick)="closeModal(false)" [disabled]="isLoading">
+      Cancel
+    </app-lca-button>
+    <app-lca-button
+      type="button" lcaStyle="primary"
+      (lcaClick)="onSubmit()"
+      [isLoading]="isLoading"
+      [disabled]="isLoading || permissionsForm.invalid || permissionsToModify.length === 0 || isDataLoading">
+      {{ mode === 'grant' ? 'Grant Selected' : 'Revoke Selected' }}
+    </app-lca-button>
+  </div>
+</app-lca-modal>

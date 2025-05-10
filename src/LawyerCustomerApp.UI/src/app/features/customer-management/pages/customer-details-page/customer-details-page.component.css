@@ -1,0 +1,49 @@
+/* Reuse styles from case-details-page.component.css or user-details-page.component.css */
+.page-container {
+  padding: 20px;
+}
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e0e0e0;
+}
+.page-header h1 { margin: 0; font-size: 1.8em; color: #333; }
+.header-actions { display: flex; gap: 10px; }
+
+.details-section {
+  margin-bottom: 30px;
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.details-section h2 { margin-top: 0; margin-bottom: 15px; font-size: 1.3em; color: #444; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px;}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
+}
+.info-grid div { padding: 8px 0; font-size: 0.95em; }
+.info-grid div strong { color: #555; }
+
+.info-notice {
+    margin-top: 20px;
+    padding: 10px 15px;
+    background-color: #e9ecef;
+    border-left: 4px solid #17a2b8; /* Info color */
+    color: #0c5460;
+    font-size: 0.9em;
+    border-radius: 4px;
+}
+
+/* Styles for notFoundOrLoading state */
+.customer-details-container div[else] h2, .customer-details-container div[else] p {
+    text-align: center; color: #777; margin-top: 10px;
+}
+.customer-details-container div[else] app-lca-button {
+    display: block; width: fit-content; margin: 20px auto 0;
+}

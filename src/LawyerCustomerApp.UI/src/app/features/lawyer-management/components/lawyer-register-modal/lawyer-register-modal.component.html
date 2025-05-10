@@ -1,0 +1,43 @@
+<app-lca-modal
+  title="Register Lawyer Account"
+  [isOpen]="isOpen"
+  (closed)="closeModal(false)"
+  size="md">
+  <div lca-modal-body>
+    <p>This will create a Lawyer profile linked to your current user account.</p>
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="lca-form">
+      <app-lca-input
+        label="Contact Phone"
+        type="tel"
+        formControlName="phone"
+        placeholder="Enter lawyer contact phone"
+        [ngClass]="{ 'is-invalid': submitted && f['phone'].errors }">
+      </app-lca-input>
+
+      <div class="form-group">
+        <label for="address" class="lca-input-label">Office Address (Simplified)</label>
+        <textarea
+          id="address"
+          formControlName="address"
+          class="lca-textarea-field"
+          rows="3"
+          placeholder="Enter main office address"
+          [ngClass]="{ 'lca-input-error-state': submitted && f['address'].errors }">
+        </textarea>
+         <div *ngIf="submitted && f['address'].errors?.['required']" class="lca-input-error-message">
+            Address is required.
+        </div>
+      </div>
+      <!-- If address is complex, replace textarea with multiple lca-inputs for address fields -->
+    </form>
+  </div>
+
+  <div lca-modal-footer>
+    <app-lca-button type="button" lcaStyle="secondary" (lcaClick)="closeModal(false)" [disabled]="isLoading">
+      Cancel
+    </app-lca-button>
+    <app-lca-button type="button" lcaStyle="primary" (lcaClick)="onSubmit()" [isLoading]="isLoading" [disabled]="isLoading || registerForm.invalid">
+      Create Lawyer Account
+    </app-lca-button>
+  </div>
+</app-lca-modal>

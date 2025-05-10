@@ -1,0 +1,49 @@
+.lca-toast {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+    min-width: 250px;
+    max-width: 400px;
+    color: #fff;
+  }
+  
+  .lca-toast-success {
+    background-color: #28a745; /* Green */
+    border-color: #1c7430;
+  }
+  
+  .lca-toast-error {
+    background-color: #dc3545; /* Red */
+    border-color: #b02a37;
+  }
+  
+  .lca-toast-info {
+    background-color: #17a2b8; /* Teal */
+    border-color: #10707f;
+  }
+  
+  .lca-toast-body {
+    flex-grow: 1;
+    padding-right: 0.75rem; /* Space before close button */
+  }
+  
+  .lca-toast-close-button {
+    background: transparent;
+    border: none;
+    color: inherit; /* Inherit color from parent toast type */
+    font-size: 1.25rem;
+    font-weight: bold;
+    opacity: 0.7;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    line-height: 1;
+  }
+  
+  .lca-toast-close-button:hover {
+    opacity: 1;
+  }

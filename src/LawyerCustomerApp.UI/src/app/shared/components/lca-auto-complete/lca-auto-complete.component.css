@@ -1,0 +1,43 @@
+.lca-autocomplete-wrapper {
+    position: relative;
+    width: 100%; /* Or adjust as needed */
+  }
+  
+  .lca-suggestions-container {
+    position: absolute;
+    top: 100%; /* Position below the input */
+    left: 0;
+    right: 0;
+    background-color: white;
+    border: 1px solid #ccc;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100; /* Ensure it's above other content */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .lca-suggestions-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .lca-suggestion-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.9em;
+  }
+  
+  .lca-suggestion-item:hover,
+  .lca-suggestion-item.active {
+    background-color: #f0f0f0;
+  }
+  
+  .lca-loading-item,
+  .lca-no-results {
+    padding: 8px 12px;
+    color: #666;
+    font-style: italic;
+  }

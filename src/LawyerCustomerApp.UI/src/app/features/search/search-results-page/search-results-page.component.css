@@ -1,0 +1,23 @@
+.search-results-container {
+  padding: 20px;
+}
+
+.search-results-container h2 {
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.no-results-message {
+  padding: 20px;
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  border: 1px dashed #ced4da;
+  border-radius: 4px;
+  margin-top: 20px;
+}
+
+/* Add some margin to pagination if table is present */
+.search-results-container app-lca-pagination {
+  margin-top: 20px;
+}

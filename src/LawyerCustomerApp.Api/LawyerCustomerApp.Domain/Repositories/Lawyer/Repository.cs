@@ -30,6 +30,8 @@ internal class Repository : IRepository
         _databaseService = databaseService;
     }
 
+    #region SearchAsync
+
     public async Task<Result<SearchInformation>> SearchAsync(SearchParameters parameters, Contextualizer contextualizer)
     {
         var resultConstructor = new ResultConstructor();
@@ -447,6 +449,10 @@ LIMIT @Limit OFFSET @Offset;";
         return resultConstructor.Build<SearchInformation>(information);
     }
 
+    #endregion
+
+    #region CountAsync
+
     public async Task<Result<CountInformation>> CountAsync(CountParameters parameters, Contextualizer contextualizer)
     {
         var resultConstructor = new ResultConstructor();
@@ -850,6 +856,10 @@ WHERE
 
         return resultConstructor.Build<CountInformation>(information);
     }
+
+    #endregion
+
+    #region DetailsAsync
 
     public async Task<Result<DetailsInformation>> DetailsAsync(DetailsParameters parameters, Contextualizer contextualizer)
     {
@@ -1268,6 +1278,10 @@ WHERE [U].[id] = @UserId AND [L].[id] = @LawyerId;";
         return resultConstructor.Build<DetailsInformation>(information);
     }
 
+    #endregion
+
+    #region RegisterAsync
+
     public async Task<Result> RegisterAsync(RegisterParameters parameters, Contextualizer contextualizer)
     {
         var resultConstructor = new ResultConstructor();
@@ -1432,6 +1446,8 @@ END AS [HasRegisterLawyerAccountUserPermission]";
         }
         return resultConstructor.Build();
     }
+
+    #endregion
 
     #region Validations
 

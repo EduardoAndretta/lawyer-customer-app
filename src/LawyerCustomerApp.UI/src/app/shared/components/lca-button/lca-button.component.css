@@ -1,0 +1,89 @@
+.lca-button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s ease-in-out, opacity 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px; /* Space between icon/spinner and text if you add them */
+  }
+  
+  .lca-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  
+  .lca-button-primary {
+    background-color: #007bff;
+    color: white;
+  }
+  .lca-button-primary:hover:not(:disabled) {
+    background-color: #0056b3;
+  }
+  
+  .lca-button-secondary {
+    background-color: #6c757d;
+    color: white;
+  }
+  .lca-button-secondary:hover:not(:disabled) {
+    background-color: #545b62;
+  }
+  
+  .lca-button-danger {
+    background-color: #dc3545;
+    color: white;
+  }
+  .lca-button-danger:hover:not(:disabled) {
+    background-color: #c82333;
+  }
+  
+  .lca-button-success {
+    background-color: #28a745;
+    color: white;
+  }
+  .lca-button-success:hover:not(:disabled) {
+    background-color: #1e7e34;
+  }
+  
+  .lca-button-warning {
+    background-color: #ffc107;
+    color: #212529;
+  }
+  .lca-button-warning:hover:not(:disabled) {
+    background-color: #e0a800;
+  }
+  
+  .lca-button-info {
+    background-color: #17a2b8;
+    color: white;
+  }
+  .lca-button-info:hover:not(:disabled) {
+    background-color: #117a8b;
+  }
+  
+  
+  .lca-button-full-width {
+    width: 100%;
+  }
+  
+  .lca-button-loading .lca-button-spinner {
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    width: 1em;
+    height: 1em;
+    animation: spin 1s linear infinite;
+  }
+  /* For dark buttons, spinner needs different colors */
+  .lca-button-warning.lca-button-loading .lca-button-spinner {
+    border-color: rgba(0,0,0,0.2);
+    border-top-color: #212529;
+  }
+  
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }

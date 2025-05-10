@@ -1,0 +1,22 @@
+<div class="global-search-container">
+    <app-lca-select
+      class="search-type-select"
+      [options]="searchTypeOptions"
+      [(ngModel)]="selectedSearchType"
+      (ngModelChange)="onSearchTypeChange($event)">
+    </app-lca-select>
+  
+    <app-lca-auto-complete
+      #autoComplete
+      class="search-input-autocomplete"
+      placeholder="Search..."
+      [searchFunction]="fetchSuggestions"
+      displayProperty="name"
+      (itemSelected)="onSuggestionSelected($event)"
+      [(ngModel)]="searchQuery">
+    </app-lca-auto-complete>
+  
+    <app-lca-button lcaStyle="primary" (lcaClick)="expandSearch()" class="expand-search-button">
+      View All
+    </app-lca-button>
+  </div>

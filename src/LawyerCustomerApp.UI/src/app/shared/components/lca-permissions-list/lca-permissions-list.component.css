@@ -1,0 +1,59 @@
+.lca-permissions-list-container {
+    margin-top: 1rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 1rem;
+    background-color: #f9f9f9;
+  }
+  
+  .lca-permissions-list-container h5 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-size: 1.1em;
+    color: #333;
+  }
+  
+  .lca-no-permissions {
+    color: #6c757d;
+    font-style: italic;
+    padding: 10px 0;
+  }
+  
+  .lca-permissions-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .lca-permission-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #eee;
+    font-size: 0.9em;
+  }
+  
+  .lca-permission-item:last-child {
+    border-bottom: none;
+  }
+  
+  .lca-permission-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .lca-permission-details span {
+    display: block;
+  }
+  
+  .lca-permission-details strong {
+    color: #555;
+  }
+  
+  /* Make revoke button smaller */
+  .lca-permission-item app-lca-button ::ng-deep button { /* Using ::ng-deep for child component style override */
+    padding: 5px 10px;
+    font-size: 0.8em;
+  }

@@ -1,0 +1,35 @@
+<div class="search-results-container">
+  <h2>Search Results for "{{ searchQuery }}" (Type: {{ searchType }})</h2>
+
+  <app-lca-loading-spinner [isLoading]="isLoading" size="lg"></app-lca-loading-spinner>
+
+  <div *ngIf="!isLoading && results.length === 0 && searchQuery" class="no-results-message">
+    No results found for your query.
+  </div>
+  <div *ngIf="!searchQuery" class="no-results-message">
+    Please enter a search term in the navigation bar.
+  </div>
+
+
+  <div *ngIf="!isLoading && results.length > 0">
+    <app-lca-table
+      [data]="results"
+      [columns]="tableColumns"
+      [striped]="true"
+      [hover]="true"
+      (rowClick)="onRowClicked($event)">
+      <!-- You can define custom column templates here if needed
+      <ng-template lca-table-column key="actions" header="Actions" let-item>
+        <app-lca-button lcaStyle="info" size="sm" (lcaClick)="viewDetails(item)">View</app-lca-button>
+      </ng-template>
+      -->
+    </app-lca-table>
+
+    <app-lca-pagination
+      [currentPage]="currentPage"
+      [totalItems]="totalItems"
+      [itemsPerPage]="itemsPerPage"
+      (pageChange)="onPageChange($event)">
+    </app-lca-pagination>
+  </div>
+</div>

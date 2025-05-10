@@ -1,0 +1,56 @@
+
+/*
+
+.lca-form { Shared with register page, can be specialized 
+  No specific styles here if general form styles are sufficient 
+}
+
+*/
+
+.lca-form .form-group {
+    margin-bottom: 20px;
+}
+.lca-form .lca-input-label {
+    font-weight: bold;
+    margin-bottom: 6px;
+    display: block;
+}
+.lca-textarea-field { /* From register page */
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+    font-family: inherit;
+    transition: border-color 0.2s ease-in-out;
+    min-height: 100px;
+}
+.lca-textarea-field:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+.lca-textarea-field.lca-input-error-state {
+  border-color: #dc3545;
+}
+.lca-textarea-field.lca-input-error-state:focus {
+  box-shadow: 0 0 0 0.2rem rgba(220,53,69,.25);
+}
+.lca-input-error-message {
+  font-size: 0.8em;
+  color: #dc3545;
+  margin-top: 4px;
+}
+
+/* Example for checkbox styling if you add one */
+.lca-checkbox-label {
+  display: flex;
+  align-items: center;
+  font-size: 0.95em;
+  cursor: pointer;
+}
+.lca-checkbox {
+  margin-right: 8px;
+  width: 16px;
+  height: 16px;
+}

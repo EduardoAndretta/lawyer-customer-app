@@ -1,0 +1,72 @@
+<div class="user-details-container page-container">
+  <app-lca-loading-spinner [isLoading]="isLoadingDetails && !userDetails" [overlay]="true"></app-lca-loading-spinner>
+
+  <div *ngIf="userDetails else notFoundOrLoadingUser">
+    <header class="page-header">
+      <h1>User Details: {{ userDetails.name || 'N/A' }} (ID: {{ userDetails.id }})</h1>
+      <div class="header-actions">
+        <app-lca-button lcaStyle="primary" (lcaClick)="openEditModal()">Edit User</app-lca-button>
+        <app-lca-button lcaStyle="success" (lcaClick)="openGrantPermissionsModal()">Grant Permissions</app-lca-button>
+        <app-lca-button lcaStyle="warning" (lcaClick)="openRevokePermissionsModal()" [disabled]="activePermissions.length === 0">Revoke Permissions</app-lca-button>
+      </div>
+    </header>
+
+    <section class="details-section">
+      <h2>Information</h2>
+      <div class="info-grid">
+        <div><strong>Name:</strong> {{ userDetails.name || 'N/A' }}</div>
+        <div><strong>User ID:</strong> {{ userDetails.id }}</div>
+        <div><strong>Has Customer Account:</strong> {{ userDetails.hasCustomerAccount ? 'Yes' : 'No' }}
+             <span *ngIf="userDetails.hasCustomerAccount && userDetails.customerId">(ID: {{ userDetails.customerId }})</span>
+        </div>
+        <div><strong>Has Lawyer Account:</strong> {{ userDetails.hasLawyerAccount ? 'Yes' : 'No' }}
+            <span *ngIf="userDetails.hasLawyerAccount && userDetails.lawyerId">(ID: {{ userDetails.lawyerId }})</span>
+        </div>
+        <!-- Add more fields from UserDetailsInformationItem like email, address, document based on your DTO -->
+        <!-- Example:
+        <div><strong>Email:</strong> {{ userDetails.email || 'N/A' }}</div>
+        <div *ngIf="userDetails.address">
+            <strong>Address:</strong>
+            {{ userDetails.address.street }}, {{ userDetails.address.city }}, {{ userDetails.address.zipCode }}
+        </div>
+        -->
+      </div>
+    </section>
+
+    <section class="permissions-section">
+      <app-lca-permissions-list
+        title="Current User Permissions (System-wide)"
+        [permissions]="activePermissions"
+        [isLoading]="isLoadingPermissions"
+        [canRevoke]="true"
+        (revokePermission)="handleRevokePermissionFromList($event)">
+      </app-lca-permissions-list>
+    </section>
+
+  </div>
+
+  <ng-template #notFoundOrLoadingUser>
+    <div *ngIf="!isLoadingDetails">
+      <h2>User Not Found</h2>
+      <p>The requested user could not be found or you do not have permission to view their details.</p>
+      <app-lca-button routerLink="/dashboard/home">Go to Home</app-lca-button>
+    </div>
+  </ng-template>
+</div>
+
+<!-- Modals -->
+<app-user-edit-modal
+  *ngIf="showEditModal && userDetails"
+  [isOpen]="showEditModal"
+  [userData]="userDetails"
+  (closed)="onEditModalClosed($event)">
+</app-user-edit-modal>
+
+<app-user-permissions-modal
+  *ngIf="showPermissionsModal && userDetails"
+  [isOpen]="showPermissionsModal"
+  [targetUserId]="userDetails.id!"
+  [currentPermissions]="activePermissions"
+  [mode]="permissionsModalMode"
+  (closed)="onPermissionsModalClosed($event)">
+</app-user-permissions-modal>

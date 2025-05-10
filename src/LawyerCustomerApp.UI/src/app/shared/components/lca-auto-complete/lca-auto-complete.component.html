@@ -1,0 +1,29 @@
+<div class="lca-autocomplete-wrapper">
+    <app-lca-input
+      [type]="'text'"
+      [id]="id"
+      [label]="label"
+      [placeholder]="placeholder"
+      [disabled]="disabled"
+      [(ngModel)]="_inputValue"
+      (input)="onInput($event)"
+      (focus)="onFocus()"
+      (keydown)="onKeyDown($event)">
+    </app-lca-input>
+  
+    <div *ngIf="showSuggestions" class="lca-suggestions-container">
+      <div *ngIf="isLoading" class="lca-suggestion-item lca-loading-item">Loading...</div>
+      <ul *ngIf="!isLoading && suggestions.length > 0" class="lca-suggestions-list">
+        <li
+          *ngFor="let suggestion of suggestions; let i = index"
+          class="lca-suggestion-item"
+          [class.active]="i === activeIndex"
+          (mousedown)="selectSuggestion(suggestion)"> <!-- mousedown to fire before blur -->
+          {{ suggestion[displayProperty] || suggestion }}
+        </li>
+      </ul>
+      <div *ngIf="!isLoading && suggestions.length === 0 && _inputValue.length >= minLength" class="lca-suggestion-item lca-no-results">
+        {{ noResultsText }}
+      </div>
+    </div>
+  </div>

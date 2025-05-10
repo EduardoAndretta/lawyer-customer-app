@@ -1,0 +1,31 @@
+<div class="lca-table-wrapper" [class.lca-table-responsive]="responsive">
+    <table class="lca-table"
+           [class.lca-table-striped]="striped"
+           [class.lca-table-bordered]="bordered"
+           [class.lca-table-hover]="hover">
+      <thead>
+        <tr>
+          <th *ngFor="let column of columns" [ngClass]="column.headerClass">
+            {{ column.header }}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngIf="data.length === 0">
+          <td [attr.colspan]="columns.length" class="lca-table-no-data">
+            {{ noDataMessage }}
+          </td>
+        </tr>
+        <tr *ngFor="let item of data" (click)="onRowClick(item)" [class.lca-table-clickable-row]="rowClick.observers.length > 0">
+          <td *ngFor="let column of columns" [ngClass]="getCellClass(item, column)">
+            <ng-container *ngIf="column.template; else defaultCell">
+              <ng-container *ngTemplateOutlet="column.template; context: { $implicit: item, item: item, value: getProperty(item, column.key) }"></ng-container>
+            </ng-container>
+            <ng-template #defaultCell>
+              {{ getProperty(item, column.key) }}
+            </ng-template>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>

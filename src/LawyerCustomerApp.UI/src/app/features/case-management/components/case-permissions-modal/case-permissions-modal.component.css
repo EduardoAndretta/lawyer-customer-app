@@ -1,0 +1,73 @@
+/*
+
+.lca-form {
+  General form styling
+}
+
+*/
+
+.permission-entry {
+  border: 1px solid #e0e0e0;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+}
+
+.permission-entry h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.1em;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 8px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Responsive columns */
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.entry-actions {
+  text-align: right;
+  margin-top: 10px;
+}
+.entry-actions app-lca-button ::ng-deep button {
+    font-size: 0.85em;
+    padding: 6px 10px;
+}
+
+
+.add-entry-button {
+  margin-top: 15px;
+  display: inline-block; /* To allow margin-top */
+}
+.add-entry-button ::ng-deep button {
+    font-size: 0.9em;
+    padding: 8px 12px;
+}
+
+.no-permissions-info {
+    padding: 15px;
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+/* Styling for select within the form row */
+.form-row app-lca-select {
+  width: 100%; /* Make select take full width of its grid cell */
+}
+.form-row ::ng-deep .lca-select-label {
+    font-size: 0.9em;
+    margin-bottom: 4px;
+}
+.form-row ::ng-deep .lca-select-field {
+    font-size: 0.95em;
+    padding: 8px 10px;
+}

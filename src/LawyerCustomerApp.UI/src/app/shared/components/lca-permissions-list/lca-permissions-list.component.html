@@ -1,0 +1,27 @@
+<div class="lca-permissions-list-container">
+    <h5 *ngIf="title">{{ title }}</h5>
+  
+    <app-lca-loading-spinner [isLoading]="isLoading" size="sm"></app-lca-loading-spinner>
+  
+    <div *ngIf="!isLoading && permissions.length === 0" class="lca-no-permissions">
+      {{ noPermissionsMessage }}
+    </div>
+  
+    <ul *ngIf="!isLoading && permissions.length > 0" class="lca-permissions-list">
+      <li *ngFor="let perm of permissions; trackBy: trackByPermission" class="lca-permission-item">
+        <div class="lca-permission-details">
+          <span class="lca-permission-user"><strong>User:</strong> {{ perm.userName || 'N/A' }} (ID: {{perm.userId}})</span>
+          <span class="lca-permission-name"><strong>Permission:</strong> {{ perm.permissionName || 'N/A' }} (ID: {{perm.permissionId}})</span>
+          <span class="lca-permission-role"><strong>Role:</strong> {{ perm.roleName || 'N/A' }} (ID: {{perm.roleId}})</span>
+          <span class="lca-permission-attribute"><strong>Attribute:</strong> {{ perm.attributeName || 'N/A' }} (ID: {{perm.attributeId}})</span>
+        </div>
+        <app-lca-button
+          *ngIf="canRevoke"
+          lcaStyle="danger"
+          size="sm"
+          (lcaClick)="onRevoke(perm)">
+          Revoke
+        </app-lca-button>
+      </li>
+    </ul>
+  </div>

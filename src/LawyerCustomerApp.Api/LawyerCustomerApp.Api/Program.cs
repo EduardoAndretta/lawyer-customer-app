@@ -39,6 +39,11 @@ try
 
     app.UseRouting();
 
+    app.UseCors(options => options
+        .AllowAnyOrigin()
+        .AllowAnyHeader()
+        .AllowAnyMethod());
+
     app.UseAuthentication();
     app.UseAuthorization();
 
