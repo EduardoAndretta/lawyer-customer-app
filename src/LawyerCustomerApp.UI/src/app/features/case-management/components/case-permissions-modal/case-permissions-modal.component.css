@@ -71,3 +71,33 @@
     font-size: 0.95em;
     padding: 8px 10px;
 }
+
+.form-row app-lca-auto-complete {
+  width: 100%;
+}
+
+.form-row app-lca-auto-complete.is-invalid-autocomplete-wrapper ::ng-deep .lca-input-field {
+  border-color: #dc3545 !important;
+}
+.form-row app-lca-auto-complete.is-invalid-autocomplete-wrapper ::ng-deep .lca-input-field:focus {
+  box-shadow: 0 0 0 0.2rem rgba(220,53,69,.25) !important;
+}
+
+.lca-input-error-message.small-text {
+  font-size: 0.8em;
+  color: #dc3545;
+  margin-top: 2px;
+  display: block;
+  width: 100%;
+  padding-left: 5px;
+}
+
+.permission-entry.entry-invalid-combination {
+  border-left: 4px solid #dc3545;
+  background-color: #fbe;
+}
+
+.lca-input-error-message.small-text.combination-error {
+  font-weight: bold;
+  margin-top: 5px;
+}

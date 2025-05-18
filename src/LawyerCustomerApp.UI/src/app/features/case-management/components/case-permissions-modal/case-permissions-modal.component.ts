@@ -1,19 +1,25 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, FormArray, Validators, AbstractControl } from '@angular/forms';
-import { forkJoin, Observable, of, Subscription } from 'rxjs';
-import { map, finalize, startWith, tap } from 'rxjs/operators';
+import { Observable, of, Subscription, forkJoin, BehaviorSubject, combineLatest } from 'rxjs';
+import { map, finalize, catchError, tap, distinctUntilChanged, switchMap, startWith } from 'rxjs/operators';
 
-import { CaseService } from '../../services/case.service';
+import { PermissionService } from '../../../../core/services/permission.service';
 import { ComboDataService } from '../../../../core/services/combo-data.service';
-import { UserSearchService } from '../../../search/services/user-search.service'; // [For user lookup]
-import { UserProfileService } from '../../../../core/services/user-profile.service';
+
+import { UserProfileService, LAWYER_ATTRIBUTE_ID, CUSTOMER_ATTRIBUTE_ID } from '../../../../core/services/user-profile.service';
 import { ToastService } from '../../../../core/services/toast.service';
 
-import { LcaSelectOption } from '../../../../shared/components/lca-select/lca-select.component';
-import { KeyValueItem, PermissionDetail } from '../../../../core/models/common.models';
-import { UserSearchInformationItem } from '../../../../core/models/user.models';
+import { KeyValueItem, KeyValueParametersDto, PaginationParams } from '../../../../core/models/common.models';
 import { LcaPermissionItem } from '../../../../shared/components/lca-permissions-list/lca-permissions-list.component';
+import {
+  GrantPermissionsToCaseParametersDto,
+  RevokePermissionsToCaseParametersDto,
+  EnableUserToGrantPermissionsItem,
+  EnableUserToRevokePermissionsItem,
+  GrantPermissionsToCaseParametersDtoPermissionProperties
+} from '../../../../core/models/permission.models';
 
+type UserForPermissionSelection = EnableUserToGrantPermissionsItem | EnableUserToRevokePermissionsItem;
 
 @Component({
   selector: 'app-case-permissions-modal',
@@ -23,54 +29,123 @@ import { LcaPermissionItem } from '../../../../shared/components/lca-permissions
 export class CasePermissionsModalComponent implements OnInit, OnDestroy {
   @Input() isOpen: boolean = false;
   @Input() caseId!: number;
-  @Input() currentPermissions: LcaPermissionItem[] = []; // Used for revoke mode and to avoid duplicate grants
+  @Input() currentPermissions: LcaPermissionItem[] = [];
   @Input() mode: 'grant' | 'revoke' = 'grant';
 
-  @Output() closed = new EventEmitter<boolean>(); // Emits true if data changed
+  @Output() closed = new EventEmitter<boolean>();
 
   permissionsForm!: FormGroup;
   isLoading: boolean = false;
-  isDataLoading: boolean = false; // For loading combo box data
+  isDataLoading: boolean = true;
   submitted: boolean = false;
 
-  // Combo box options
-  users$: Observable<LcaSelectOption[]> = of([]);
-  grantablePermissions$: Observable<LcaSelectOption[]> = of([]);
-  revokablePermissions$: Observable<LcaSelectOption[]> = of([]); // Based on existing permissions
-  roles$: Observable<LcaSelectOption[]> = of([]);
-  attributes$: Observable<LcaSelectOption[]> = of([]); // For permission context
+  usersList$: BehaviorSubject<UserForPermissionSelection[]> = new BehaviorSubject<UserForPermissionSelection[]>([]);
+  grantablePermissionsList$: BehaviorSubject<KeyValueItem<number>[]> = new BehaviorSubject<KeyValueItem<number>[]>([]);
+  revokablePermissionsList$: BehaviorSubject<KeyValueItem<number>[]> = new BehaviorSubject<KeyValueItem<number>[]>([]);
+  rolesList$: BehaviorSubject<KeyValueItem<number>[]> = new BehaviorSubject<KeyValueItem<number>[]>([]);
+  attributesList$: BehaviorSubject<KeyValueItem<number>[]> = new BehaviorSubject<KeyValueItem<number>[]>([]);
 
-  private attributeIdSubscription!: Subscription;
+  private subscriptions = new Subscription();
   private currentLoggedInUserAttributeId: number | null = null;
+  private readonly COMBO_LIST_PAGE_SIZE = 100;
 
   constructor(
     private fb: FormBuilder,
-    private caseService: CaseService,
+    private permissionService: PermissionService,
     private comboDataService: ComboDataService,
-    private userSearchService: UserSearchService, // For a basic user search for the dropdown
     private userProfileService: UserProfileService,
-    private toastService: ToastService
+    private toastService: ToastService,
+    private cdRef: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
-    this.attributeIdSubscription = this.userProfileService.selectedAccountAttributeId$.subscribe(id => {
+    this.isDataLoading = true;
+
+    const attributeSub = this.userProfileService.selectedAccountAttributeId$.subscribe(id => {
         this.currentLoggedInUserAttributeId = id;
+        if (this.isOpen) {
+            this.loadAllAutoCompleteData();
+        }
     });
+    this.subscriptions.add(attributeSub);
 
     this.permissionsForm = this.fb.group({
       permissionsToModify: this.fb.array([])
     });
 
-    if (this.mode === 'grant') {
-      this.loadGrantComboData();
-      this.addPermissionEntry(); // Add one entry by default for grant
-    } else { // revoke mode
-      this.loadRevokeComboData();
-      // For revoke, pre-populate with existing permissions if designed that way,
-      // or use a multi-select of existing permissions.
-      // Here, we'll assume user selects from a dropdown of *their* existing permissions.
-      this.addPermissionEntry();
+    if (this.currentLoggedInUserAttributeId !== null) {
+        this.loadAllAutoCompleteData();
+    } else {
+        this.toastService.showInfo("Waiting for user context to load permission options...");
+        this.isDataLoading = false; // Allow UI to render, message shown
     }
+    this.addPermissionEntry();
+  }
+
+  private clearAllLists(): void {
+    this.usersList$.next([]);
+    this.grantablePermissionsList$.next([]);
+    this.revokablePermissionsList$.next([]);
+    this.rolesList$.next([]);
+    this.attributesList$.next([]);
+  }
+
+  loadAllAutoCompleteData(): void {
+    if (!this.currentLoggedInUserAttributeId) {
+        this.toastService.showInfo("User context (Attribute ID) is not set. Options might be limited.");
+    }
+
+    this.isDataLoading = true;
+    this.clearAllLists();
+
+    const comboPagination: KeyValueParametersDto = {
+        pagination: { begin: 0, end: this.COMBO_LIST_PAGE_SIZE - 1 }
+    };
+
+    let usersObs$: Observable<UserForPermissionSelection[]>;
+    if (this.mode === 'grant') {
+        usersObs$ = this.permissionService.getUsersEnabledToGrantPermissions({}).pipe( // Empty params for now
+            map(response => response?.items || []),
+            catchError(() => { this.toastService.showError("Failed to load users list for granting."); return of([]); })
+        );
+    } else {
+        usersObs$ = this.permissionService.getUsersEnabledToRevokePermissions({}).pipe( // Empty params for now
+            map(response => response?.items || []),
+            catchError(() => { this.toastService.showError("Failed to load users list for revoking."); return of([]); })
+        );
+    }
+
+    const grantPermsObs$ = this.comboDataService.getPermissionsEnabledForGrantCase(comboPagination).pipe(
+        map(response => response?.items || []),
+        catchError(() => { this.toastService.showError("Failed to load grantable permissions list."); return of([]); })
+    );
+    const revokePermsObs$ = this.comboDataService.getPermissionsEnabledForRevokeCase(comboPagination).pipe(
+        map(response => response?.items || []),
+        catchError(() => { this.toastService.showError("Failed to load revokable permissions list."); return of([]); })
+    );
+    const rolesObs$ = this.comboDataService.getRoles(comboPagination).pipe(
+        map(response => response?.items || []),
+        catchError(() => { this.toastService.showError("Failed to load roles list."); return of([]); })
+    );
+    const attributesObs$ = this.comboDataService.getAttributes(comboPagination).pipe(
+        map(response => response?.items || []),
+        catchError(() => { this.toastService.showError("Failed to load attributes list."); return of([]); })
+    );
+
+    this.subscriptions.add(
+        forkJoin([ usersObs$, grantPermsObs$, revokePermsObs$, rolesObs$, attributesObs$ ])
+        .pipe(finalize(() => {
+            this.isDataLoading = false;
+            this.cdRef.detectChanges();
+        }))
+        .subscribe(([users, grantPerms, revokePerms, roles, attributes]) => {
+            this.usersList$.next(users as UserForPermissionSelection[]); // Cast if necessary
+            this.grantablePermissionsList$.next(grantPerms);
+            this.revokablePermissionsList$.next(revokePerms);
+            this.rolesList$.next(roles);
+            this.attributesList$.next(attributes);
+        })
+    );
   }
 
   get permissionsToModify(): FormArray {
@@ -78,12 +153,65 @@ export class CasePermissionsModalComponent implements OnInit, OnDestroy {
   }
 
   createPermissionEntry(): FormGroup {
-    return this.fb.group({
+    const entry = this.fb.group({
       userId: [null, Validators.required],
       permissionId: [null, Validators.required],
       roleId: [null, Validators.required],
-      attributeId: [null, Validators.required] // The attribute context OF THE PERMISSION being granted/revoked
+      attributeId: [null, Validators.required],
+      // [Internal state for validation based on selected user and attribute]
+      _selectedUserCanBeGrantedForSelectedAttribute: [false]
     });
+
+    // Subscribe to changes in userId and attributeId for this specific entry
+    const userIdControl = entry.get('userId');
+    const attributeIdControl = entry.get('attributeId');
+
+    if (userIdControl && attributeIdControl) {
+        this.subscriptions.add(
+            combineLatest([
+                userIdControl.valueChanges.pipe(startWith(userIdControl.value)),
+                attributeIdControl.valueChanges.pipe(startWith(attributeIdControl.value))
+            ]).pipe(
+                distinctUntilChanged(([prevUser, prevAttr], [currUser, currAttr]) => prevUser === currUser && prevAttr === currAttr),
+                switchMap(([selectedUserId, selectedAttributeId]) => {
+                    if (selectedUserId && selectedAttributeId !== null && selectedAttributeId !== undefined) {
+                        // [Find the full user object from the loaded list]
+                        const user = this.usersList$.value.find(u => u.userId === selectedUserId);
+                        if (user) {
+                           return of(this.checkIfUserCanBeGranted(user, selectedAttributeId));
+                        }
+                    }
+                    return of(false); // [Default to false if not enough info]
+                })
+            ).subscribe(canBeGranted => {
+                entry.get('_selectedUserCanBeGrantedForSelectedAttribute')?.setValue(canBeGranted);
+            })
+        );
+    }
+    return entry;
+  }
+
+  private checkIfUserCanBeGranted(user: UserForPermissionSelection, selectedAttributeId: number): boolean {
+    if (this.mode === 'grant') {
+        const grantUser = user as EnableUserToGrantPermissionsItem;
+        if (selectedAttributeId === 0 || selectedAttributeId === null) { // [Assuming 0 or null means 'As User' (no specific attribute)]
+            return grantUser.canBeGrantAsUser;
+        } else if (selectedAttributeId === LAWYER_ATTRIBUTE_ID) { // [LAWYER_ATTRIBUTE_ID = 1]
+            return grantUser.canBeGrantAsLawyer;
+        } else if (selectedAttributeId === CUSTOMER_ATTRIBUTE_ID) { // [CUSTOMER_ATTRIBUTE_ID = 2]
+            return grantUser.canBeGrantAsCustomer;
+        }
+    } else { // revoke mode
+        const revokeUser = user as EnableUserToRevokePermissionsItem;
+         if (selectedAttributeId === 0 || selectedAttributeId === null) {
+            return revokeUser.canBeRevokeAsUser;
+        } else if (selectedAttributeId === LAWYER_ATTRIBUTE_ID) {
+            return revokeUser.canBeRevokeAsLawyer;
+        } else if (selectedAttributeId === CUSTOMER_ATTRIBUTE_ID) {
+            return revokeUser.canBeRevokeAsCustomer;
+        }
+    }
+    return false;
   }
 
   addPermissionEntry(): void {
@@ -94,89 +222,27 @@ export class CasePermissionsModalComponent implements OnInit, OnDestroy {
     this.permissionsToModify.removeAt(index);
   }
 
-  private mapToLcaSelectOption(items: KeyValueItem<number>[] | null): LcaSelectOption[] {
-    if (!items) return [];
-    return items.map(item => ({ label: item.key || 'Unknown', value: item.value }));
+  // [Item selected handlers for Autocomplete (updates the form control with ID)]
+  onUserSelected(item: UserForPermissionSelection, index: number): void {
+    this.permissionsToModify.at(index).get('userId')?.setValue(item.userId);
   }
-
-  private mapUsersToLcaSelectOption(users: UserSearchInformationItem[] | null): LcaSelectOption[] {
-    if (!users) return [];
-    return users.map(user => ({ label: `${user.name} (ID: ${user.id})`, value: user.id! }));
+  onPermissionSelected(item: KeyValueItem<number>, index: number): void {
+    this.permissionsToModify.at(index).get('permissionId')?.setValue(item.value);
   }
-
-  loadGrantComboData(): void {
-    this.isDataLoading = true;
-    const comboPagination = { pagination: { begin: 0, end: 999 } }; // Fetch all for combos
-
-    // Basic user search for dropdown - this might need a more specific "combo" endpoint for users
-    // Or a typeahead if list is very large. For now, a simple search.
-    // Assuming userSearchService.search can be called with an empty query to list users (or a specific combo endpoint)
-    this.users$ = this.userSearchService.search({ query: '', attributeId: this.currentLoggedInUserAttributeId, pagination: { begin: comboPagination.pagination.begin, end: comboPagination.pagination.end }}).pipe(
-        map(response => this.mapUsersToLcaSelectOption(response.items))
-    );
-
-    this.grantablePermissions$ = this.comboDataService.getPermissionsEnabledForGrantCase(comboPagination).pipe(
-        map(response => this.mapToLcaSelectOption(response.items))
-    );
-    this.roles$ = this.comboDataService.getRoles(comboPagination).pipe(
-        map(response => this.mapToLcaSelectOption(response.items))
-    );
-    this.attributes$ = this.comboDataService.getAttributes(comboPagination).pipe(
-        map(response => this.mapToLcaSelectOption(response.items))
-    );
-
-    // Check when all data is loaded
-    forkJoin([this.users$, this.grantablePermissions$, this.roles$, this.attributes$]).pipe(
-        finalize(() => this.isDataLoading = false)
-    ).subscribe({
-        error: () => this.toastService.showError("Failed to load data for permissions form.")
-    });
+  onRoleSelected(item: KeyValueItem<number>, index: number): void {
+    this.permissionsToModify.at(index).get('roleId')?.setValue(item.value);
   }
-
-  loadRevokeComboData(): void {
-    this.isDataLoading = true;
-    const comboPagination = { pagination: { begin: 0, end: 999 } };
-
-    // For revoke, users are derived from currentPermissions
-    const uniqueUserIds = [...new Set(this.currentPermissions.map(p => p.userId).filter(id => id != null))];
-    if (uniqueUserIds.length > 0) {
-        // This part is tricky: you need to fetch names for these user IDs.
-        // A bulk user details endpoint or multiple calls would be needed.
-        // For simplicity, we'll just show IDs or assume names are in currentPermissions.
-        this.users$ = of(this.currentPermissions.map(p => ({
-            label: `${p.userName || 'User'} (ID: ${p.userId})`,
-            value: p.userId!
-        })).filter((item, index, self) => self.findIndex(t => t.value === item.value) === index)); // Unique users
-    } else {
-        this.users$ = of([]);
-    }
-
-
-    // Revokable permissions, roles, attributes should be derived from existing permissions or combo endpoints
-    this.revokablePermissions$ = this.comboDataService.getPermissionsEnabledForRevokeCase(comboPagination).pipe(
-        map(response => this.mapToLcaSelectOption(response.items))
-    );
-    // Or, more accurately, populate based on distinct permissions in `this.currentPermissions`
-    // this.revokablePermissions$ = of([...new Set(this.currentPermissions.map(p => p.permissionId))]
-    // .map(id => ({ value: id, label: this.currentPermissions.find(p=>p.permissionId === id)?.permissionName || `Perm ID: ${id}` })));
-
-
-    this.roles$ = this.comboDataService.getRoles(comboPagination).pipe(
-        map(response => this.mapToLcaSelectOption(response.items))
-    );
-    this.attributes$ = this.comboDataService.getAttributes(comboPagination).pipe(
-        map(response => this.mapToLcaSelectOption(response.items))
-    );
-
-    forkJoin([this.users$, this.revokablePermissions$, this.roles$, this.attributes$]).pipe(
-        finalize(() => this.isDataLoading = false)
-    ).subscribe({
-        error: () => this.toastService.showError("Failed to load data for permissions form.")
-    });
+  onAttributeSelected(item: KeyValueItem<number>, index: number): void {
+    this.permissionsToModify.at(index).get('attributeId')?.setValue(item.value);
   }
 
   onSubmit(): void {
     this.submitted = true;
+    this.permissionsToModify.controls.forEach((control: AbstractControl) => {
+        control.markAllAsTouched();
+    });
+
+
     if (this.permissionsForm.invalid || this.permissionsToModify.length === 0) {
       this.toastService.showError("Please fill all required fields for each permission entry.");
       return;
@@ -186,62 +252,79 @@ export class CasePermissionsModalComponent implements OnInit, OnDestroy {
         return;
     }
 
+    let allEntriesValid = true;
+    for (let i = 0; i < this.permissionsToModify.length; i++) {
+        const entry = this.permissionsToModify.at(i) as FormGroup;
+        if (!entry.get('_selectedUserCanBeGrantedForSelectedAttribute')?.value) {
+            const selectedUserValue = entry.get('userId')?.value;
+            const selectedUser = this.usersList$.value.find(u => u.userId === selectedUserValue);
+            const userName = selectedUser?.name || `User ID ${selectedUserValue}`;
+            const attributeId = entry.get('attributeId')?.value;
+            const attribute = this.attributesList$.value.find(a => a.value === attributeId);
+            const attributeName = attribute?.key || `Attribute ID ${attributeId}`;
+
+            this.toastService.showError(
+                `Entry #${i + 1}: User "${userName}" cannot have permissions ${this.mode === 'grant' ? 'granted' : 'revoked'} for attribute context "${attributeName}".`
+            );
+            allEntriesValid = false;
+        }
+    }
+    if (!allEntriesValid) {
+        this.isLoading = false;
+        return;
+    }
+
     this.isLoading = true;
     const formValue = this.permissionsForm.value;
-    const permissionsPayload: PermissionDetail[] = formValue.permissionsToModify.map((p: any) => ({
-      userId: +p.userId,
-      permissionId: +p.permissionId,
-      roleId: +p.roleId,
-      attributeId: +p.attributeId // Attribute of the permission itself
+    const permissionsPayload: GrantPermissionsToCaseParametersDtoPermissionProperties[] =
+        formValue.permissionsToModify.map((p: any) => ({
+            userId: +p.userId,
+            permissionId: +p.permissionId,
+            roleId: +p.roleId,
+            attributeId: +p.attributeId
     }));
 
     let apiCall: Observable<any>;
-
     if (this.mode === 'grant') {
-      // Optional: Filter out permissions that already exist to prevent errors.
-      // This depends on how your backend handles duplicate grants.
-      const newPermissions = permissionsPayload.filter(np =>
+      const newPermissions = permissionsPayload.filter((np: GrantPermissionsToCaseParametersDtoPermissionProperties) =>
         !this.currentPermissions.some(cp =>
-            cp.userId === np.userId &&
+            cp.userId       === np.userId &&
             cp.permissionId === np.permissionId &&
-            cp.roleId === np.roleId &&
-            cp.attributeId === np.attributeId
+            cp.roleId       === np.roleId &&
+            cp.attributeId  === np.attributeId
         )
       );
       if (newPermissions.length === 0 && permissionsPayload.length > 0) {
-          this.toastService.showInfo("All selected permissions are already granted.");
-          this.isLoading = false;
-          return;
+          this.toastService.showInfo("All selected permissions are already granted for the given users/attributes.");
+          this.isLoading = false; return;
       }
       if (newPermissions.length === 0 && permissionsPayload.length === 0) {
-          this.toastService.showInfo("No permissions selected to grant.");
-          this.isLoading = false;
-          return;
+           this.toastService.showInfo("No new permissions selected to grant.");
+           this.isLoading = false; return;
       }
-
-      apiCall = this.caseService.grantPermissions({
-        caseId: this.caseId,
-        attributeId: this.currentLoggedInUserAttributeId, // Attribute of the user granting
+      const grantParams: GrantPermissionsToCaseParametersDto = {
+        relatedCaseId: this.caseId,
+        attributeId: this.currentLoggedInUserAttributeId,
         permissions: newPermissions
-      });
-    } else { // revoke
-      apiCall = this.caseService.revokePermissions({
-        caseId: this.caseId,
-        attributeId: this.currentLoggedInUserAttributeId, // Attribute of the user revoking
+      };
+      apiCall = this.permissionService.grantPermissionsToCase(grantParams);
+    } else {
+      const revokeParams: RevokePermissionsToCaseParametersDto = {
+        relatedCaseId: this.caseId,
+        attributeId: this.currentLoggedInUserAttributeId,
         permissions: permissionsPayload
-      });
+      };
+      apiCall = this.permissionService.revokePermissionsFromCase(revokeParams);
     }
 
-    apiCall.pipe(
-      finalize(() => this.isLoading = false)
-    ).subscribe({
-      next: () => {
-        this.closeModal(true); // Signal refresh
-      },
-      error: (err) => {
-        // Handled by interceptor
-      }
-    });
+    this.subscriptions.add(
+        apiCall.pipe(
+        finalize(() => this.isLoading = false)
+        ).subscribe({
+        next: () => this.closeModal(true),
+        error: (err) => { }
+        })
+    );
   }
 
   closeModal(dataChanged: boolean = false): void {
@@ -249,15 +332,21 @@ export class CasePermissionsModalComponent implements OnInit, OnDestroy {
     this.closed.emit(dataChanged);
   }
 
-  // Helper to get control for validation messages in template
   getFormControl(index: number, controlName: string): AbstractControl | null {
     return this.permissionsToModify.at(index)?.get(controlName) || null;
   }
 
+  isPermissionEntryUserAttributeValid(index: number): boolean {
+    const entry = this.permissionsToModify.at(index) as FormGroup;
+    return entry.get('_selectedUserCanBeGrantedForSelectedAttribute')?.value === true;
+  }
 
   ngOnDestroy(): void {
-      if (this.attributeIdSubscription) {
-          this.attributeIdSubscription.unsubscribe();
-      }
+    this.subscriptions.unsubscribe();
+    this.usersList$.complete();
+    this.grantablePermissionsList$.complete();
+    this.revokablePermissionsList$.complete();
+    this.rolesList$.complete();
+    this.attributesList$.complete();
   }
 }

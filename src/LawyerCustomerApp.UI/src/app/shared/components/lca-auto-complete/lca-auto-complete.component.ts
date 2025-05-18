@@ -1,7 +1,7 @@
-import { Component, Input, Output, EventEmitter, ElementRef, HostListener, forwardRef, OnInit } from '@angular/core';
-import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormControl } from '@angular/forms';
-import { Observable, Subject, of } from 'rxjs';
-import { debounceTime, distinctUntilChanged, switchMap, catchError, tap } from 'rxjs/operators';
+import { Component, Input, Output, EventEmitter, ElementRef, HostListener, forwardRef, OnInit, OnChanges, SimpleChanges } from '@angular/core';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormControl, AbstractControl } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, map, startWith } from 'rxjs/operators';
 
 @Component({
   selector: 'app-lca-auto-complete',
@@ -15,91 +15,102 @@ import { debounceTime, distinctUntilChanged, switchMap, catchError, tap } from '
     }
   ]
 })
-export class LcaAutoCompleteComponent implements ControlValueAccessor, OnInit {
-  @Input() searchFunction!: (query: string) => Observable<any[]>; // Function to fetch suggestions
-  @Input() displayProperty: string = 'name'; // Property of suggestion object to display
+export class LcaAutoCompleteComponent implements ControlValueAccessor, OnInit, OnChanges {
+  @Input() items: any[] = [];
+  @Input() displayProperty: string = 'name';
+  @Input() valueProperty: string | null = null;
+
   @Input() placeholder: string = 'Search...';
   @Input() label: string = '';
-  @Input() minLength: number = 2; // Minimum characters to trigger search
-  @Input() debounceMs: number = 300;
+  @Input() minLength: number = 1;
+  @Input() debounceMs: number = 200;
   @Input() id: string = `lca-ac-${Math.random().toString(36).substring(2)}`;
   @Input() disabled: boolean = false;
   @Input() noResultsText: string = 'No results found';
+  @Input() formControlForValidation: AbstractControl | null = null;
 
-  @Output() itemSelected = new EventEmitter<any>(); // Emits the selected suggestion object
+  @Output() itemSelected = new EventEmitter<any>();
+  @Output() inputTextChanged = new EventEmitter<string>();
 
   suggestions: any[] = [];
   showSuggestions: boolean = false;
   isLoading: boolean = false;
-  activeIndex: number = -1; // For keyboard navigation
+  activeIndex: number = -1;
 
-  public searchTerms = new Subject<string>();
-  _inputValue: string = ''; // The text displayed in the input
+  private searchTerms = new Subject<string>();
+  _inputValue: string = '';
 
   onChange: any = () => {};
   onTouched: any = () => {};
 
   constructor(private elementRef: ElementRef) {}
 
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['items'] && !changes['items'].firstChange && this._inputValue) {
+      this.searchTerms.next(this._inputValue);
+    }
+  }
+
   ngOnInit(): void {
     this.searchTerms.pipe(
       debounceTime(this.debounceMs),
       distinctUntilChanged(),
-      tap(() => {
-        this.suggestions = []; // Clear previous suggestions immediately
-        if (this._inputValue.length >= this.minLength) {
-            this.isLoading = true;
-            this.showSuggestions = true; // Show loading state in dropdown
-        } else {
-            this.showSuggestions = false;
-            this.isLoading = false;
+      map((term: string) => {
+        this._inputValue = term;
+        if (!term || term.length < this.minLength || !this.items || this.items.length === 0) {
+          return [];
         }
-      }),
-      switchMap((term: string) => {
-        if (term.length >= this.minLength && this.searchFunction) {
-          return this.searchFunction(term).pipe(
-            catchError(() => {
-              this.isLoading = false;
-              return of([]); // Handle error by returning empty array
-            })
-          );
-        } else {
-          return of([]); // Return empty if term is too short or no search function
-        }
+        const lowerTerm = term.toLowerCase();
+        return this.items.filter(item => {
+          const displayVal = item[this.displayProperty];
+          return displayVal && typeof displayVal === 'string' && displayVal.toLowerCase().includes(lowerTerm);
+        });
       })
-    ).subscribe(results => {
-      this.isLoading = false;
-      this.suggestions = results;
-      this.showSuggestions = this._inputValue.length >= this.minLength && (this.suggestions.length > 0 || this.isLoading); // Keep open if loading
-      this.activeIndex = -1; // Reset active index
+    ).subscribe(filteredItems => {
+      this.suggestions = filteredItems;
+      this.showSuggestions = this._inputValue.length >= this.minLength && (this.suggestions.length > 0 || (this._inputValue.length > 0 && this.noResultsText !== ''));
+      this.activeIndex = -1;
     });
   }
 
   onInput(event: Event): void {
     const term = (event.target as HTMLInputElement).value;
-    this._inputValue = term; // Update internal input value
-    this.onChange(term); // Propagate change for ngModel or formControl (could be text or object)
+    this._inputValue = term;
+    this.onChange(term);
+    this.inputTextChanged.emit(term);
     this.searchTerms.next(term);
   }
 
-  selectSuggestion(suggestion: any): void {
+   selectSuggestion(suggestion: any): void {
     this._inputValue = suggestion[this.displayProperty] || '';
-    this.onChange(suggestion); // For form control, set the whole object
+    const emitValue = this.valueProperty ? suggestion[this.valueProperty] : suggestion;
+    this.onChange(emitValue);
     this.itemSelected.emit(suggestion);
+    this.inputTextChanged.emit(this._inputValue);
+
     this.showSuggestions = false;
-    this.suggestions = [];
     this.onTouched();
   }
 
   writeValue(value: any): void {
-    // If value is an object, display its 'displayProperty'. If string, display as is.
-    if (value && typeof value === 'object' && value[this.displayProperty]) {
-      this._inputValue = value[this.displayProperty];
-    } else if (typeof value === 'string') {
-      this._inputValue = value;
-    } else {
+    if (value && typeof value === 'object' && this.valueProperty && value[this.valueProperty] !== undefined) {    
+      const matchedItem = this.items.find(item => item[this.valueProperty!] === value[this.valueProperty!]); 
+      this._inputValue = matchedItem ? matchedItem[this.displayProperty] : '';
+    } else if (value && typeof value === 'object' && !this.valueProperty) {  
+      this._inputValue = value[this.displayProperty] || '';
+    } else if (value && (typeof value === 'string' || typeof value === 'number')) {
+        
+      if (this.valueProperty && this.items && this.items.length > 0 && typeof this.items[0][this.valueProperty!] !== 'undefined') {
+        const matchedItem = this.items.find(item => item[this.valueProperty!] === value);
+        this._inputValue = matchedItem ? matchedItem[this.displayProperty] : value.toString();
+      } else {
+          this._inputValue = value.toString();
+      }
+    }
+    else {
       this._inputValue = '';
     }
+    this.inputTextChanged.emit(this._inputValue);
   }
 
   registerOnChange(fn: any): void {
@@ -117,21 +128,24 @@ export class LcaAutoCompleteComponent implements ControlValueAccessor, OnInit {
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
     if (!this.elementRef.nativeElement.contains(event.target)) {
-      this.showSuggestions = false; // Close suggestions when clicking outside
+      this.showSuggestions = false;
     }
   }
 
   onFocus(): void {
-    // Optionally, reshow suggestions if input has content
      if (this._inputValue.length >= this.minLength && this.suggestions.length > 0) {
        this.showSuggestions = true;
+     } else if (this._inputValue.length === 0 && this.minLength === 0) {
+        this.searchTerms.next('');
      }
-     this.onTouched(); // Mark as touched on focus
+     this.onTouched();
   }
 
-  // Keyboard navigation
   onKeyDown(event: KeyboardEvent): void {
     if (!this.showSuggestions || this.suggestions.length === 0) {
+      if (event.key === 'ArrowDown' && this._inputValue.length >= this.minLength) {
+          this.searchTerms.next(this._inputValue);
+      }
       return;
     }
 
@@ -139,10 +153,12 @@ export class LcaAutoCompleteComponent implements ControlValueAccessor, OnInit {
       case 'ArrowDown':
         event.preventDefault();
         this.activeIndex = (this.activeIndex + 1) % this.suggestions.length;
+        this.scrollToActive();
         break;
       case 'ArrowUp':
         event.preventDefault();
         this.activeIndex = (this.activeIndex - 1 + this.suggestions.length) % this.suggestions.length;
+        this.scrollToActive();
         break;
       case 'Enter':
         if (this.activeIndex > -1 && this.suggestions[this.activeIndex]) {
@@ -153,6 +169,16 @@ export class LcaAutoCompleteComponent implements ControlValueAccessor, OnInit {
       case 'Escape':
         this.showSuggestions = false;
         break;
+    }
+  }
+
+  private scrollToActive(): void {
+    const suggestionsList = this.elementRef.nativeElement.querySelector('.lca-suggestions-list');
+    if (suggestionsList && this.activeIndex > -1) {
+      const activeItem = suggestionsList.children[this.activeIndex];
+      if (activeItem) {
+        activeItem.scrollIntoView({ block: 'nearest' });
+      }
     }
   }
 }

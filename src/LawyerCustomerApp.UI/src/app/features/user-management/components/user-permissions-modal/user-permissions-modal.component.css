@@ -78,3 +78,43 @@ Reuse styles from case-permissions-modal.component.css or create shared styles
     font-size: 0.95em;
     padding: 8px 10px;
 }
+
+.permission-entry {
+  border: 1px solid #e0e0e0;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+}
+
+.permission-entry h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.1em;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 8px;
+}
+
+.user-permission-form-row {
+  display: grid;
+
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 15px;
+  margin-bottom: 10px;
+}
+@media (min-width: 768px) {
+    .user-permission-form-row {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.user-permission-form-row app-lca-auto-complete { width: 100%; }
+.user-permission-form-row ::ng-deep .lca-select-label { font-size: 0.9em; margin-bottom: 4px; }
+.user-permission-form-row ::ng-deep .lca-select-field { font-size: 0.95em; padding: 8px 10px; }
+.user-permission-form-row app-lca-auto-complete.is-invalid-autocomplete-wrapper ::ng-deep .lca-input-field {
+  border-color: #dc3545 !important;
+}
+.user-permission-form-row app-lca-auto-complete.is-invalid-autocomplete-wrapper ::ng-deep .lca-input-field:focus {
+  box-shadow: 0 0 0 0.2rem rgba(220,53,69,.25) !important;
+}

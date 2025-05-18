@@ -1,11 +1,11 @@
 .lca-autocomplete-wrapper {
     position: relative;
-    width: 100%; /* Or adjust as needed */
+    width: 100%;
   }
   
   .lca-suggestions-container {
     position: absolute;
-    top: 100%; /* Position below the input */
+    top: 100%;
     left: 0;
     right: 0;
     background-color: white;
@@ -14,7 +14,7 @@
     border-radius: 0 0 4px 4px;
     max-height: 200px;
     overflow-y: auto;
-    z-index: 100; /* Ensure it's above other content */
+    z-index: 100;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   }
   

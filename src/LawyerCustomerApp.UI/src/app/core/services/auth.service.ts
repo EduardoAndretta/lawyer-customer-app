@@ -11,6 +11,7 @@ import {
   InvalidateParametersDto
 } from '../models/auth.models';
 import { Router } from '@angular/router';
+import { PermissionService } from './permission.service';
 
 @Injectable({
   providedIn: 'root'
@@ -22,6 +23,7 @@ export class AuthService {
 
   constructor(
     private http: HttpClient,
+    private permissionService: PermissionService,
     private apiConfig: ApiConfigService,
     private tokenStorage: TokenStorageService,
     private userProfileService: UserProfileService,
@@ -91,6 +93,7 @@ export class AuthService {
   private performLocalLogout(): void {
     this.tokenStorage.clearTokens();
     this.userProfileService.clearUserProfile();
+    this.permissionService.clearAllLoadedPermissions();
     this.isAuthenticatedSubject.next(false);
     this.router.navigate(['/login']);
   }

@@ -6,7 +6,7 @@ import { ApiConfigService } from './api-config.service';
 import { UserDetailsInformationDto, UserDetailsParametersDto, UserDetailsInformationItem } from '../models/user.models';
 import { ToastService } from './toast.service';
 
-// Define constants for attribute IDs
+// [Define constants for attribute IDs]
 export const LAWYER_ATTRIBUTE_ID = 1;
 export const CUSTOMER_ATTRIBUTE_ID = 2;
 
@@ -18,7 +18,7 @@ export class UserProfileService {
   private currentUserDetailsSubject = new BehaviorSubject<UserDetailsInformationItem | null>(null);
   public currentUserDetails$ = this.currentUserDetailsSubject.asObservable();
 
-  // Default to customer if available, then lawyer, then null.
+  // [Default to customer if available, then lawyer, then null.]
   private selectedAccountAttributeIdSubject = new BehaviorSubject<number | null>(null);
   public selectedAccountAttributeId$ = this.selectedAccountAttributeIdSubject.asObservable();
 
@@ -44,7 +44,7 @@ export class UserProfileService {
 
     const params: UserDetailsParametersDto = {
       relatedUserId: userId,
-      attributeId: currentSelectedAttributeId // This could be null or a default. API needs to handle this.
+      attributeId: currentSelectedAttributeId // [This could be null or a default. API needs to handle this.]
     };
 
     return this.http.post<UserDetailsInformationDto>(`${this.baseUrl}/details`, params).pipe(
@@ -61,7 +61,7 @@ export class UserProfileService {
       catchError(error => {
         this.currentUserDetailsSubject.next(null);
         this.selectedAccountAttributeIdSubject.next(null);
-        // Error already handled by interceptor
+
         return throwError(() => error);
       })
     );
@@ -91,9 +91,10 @@ export class UserProfileService {
     // Potentially reload data or trigger other actions based on account switch
     // For now, we just update the BehaviorSubject.
     // If user details need to be re-fetched with new attribute context:
-    // if (currentUser && currentUser.id && attributeId) {
-    //   this.loadUserDetails(currentUser.id).subscribe();
-    // }
+    
+    if (currentUser && currentUser.id && attributeId) {
+      this.loadUserDetails(currentUser.id).subscribe();
+    }
   }
 
   getCurrentAttributeId(): number | null {

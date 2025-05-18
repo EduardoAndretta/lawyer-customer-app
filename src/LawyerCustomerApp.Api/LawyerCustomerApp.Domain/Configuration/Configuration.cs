@@ -80,9 +80,9 @@ public static class Configuration
 
         #region Combo
 
-        services.AddScoped<Customer.Interfaces.Services.IService, Customer.Services.Service>();
+        services.AddScoped<Combo.Interfaces.Services.IService, Combo.Services.Service>();
 
-        services.AddScoped<Customer.Interfaces.Services.IRepository, Customer.Repositories.Repository>();
+        services.AddScoped<Combo.Interfaces.Services.IRepository, Combo.Repositories.Repository>();
 
         services.AddScoped<IValidator<Combo.Common.Models.KeyValueParametersDto>, Combo.Validator.KeyValueParametersDtoValidator>();
 

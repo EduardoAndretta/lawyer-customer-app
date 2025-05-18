@@ -1,9 +1,8 @@
-import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, of, Subject, Subscription } from 'rxjs';
-import { debounceTime, distinctUntilChanged, switchMap, catchError, take, map } from 'rxjs/operators';
+import { BehaviorSubject, Observable, of, Subscription } from 'rxjs';
+import { distinctUntilChanged, catchError, map, finalize } from 'rxjs/operators';
 
-// Import services and DTOs - you'll need to create these search services
 import { CaseSearchService } from '../../../search/services/case-search.service';
 import { UserSearchService } from '../../../search/services/user-search.service';
 import { LawyerSearchService } from '../../../search/services/lawyer-search.service';
@@ -11,16 +10,16 @@ import { CustomerSearchService } from '../../../search/services/customer-search.
 import { UserProfileService } from '../../../../core/services/user-profile.service';
 
 import { LcaSelectOption } from '../../../../shared/components/lca-select/lca-select.component';
-import { LcaAutoCompleteComponent } from '../../../../shared/components/lca-auto-complete/lca-auto-complete.component';
 import { ToastService } from '../../../../core/services/toast.service';
-
+import { PaginationParams } from '../../../../core/models/common.models';
+import { LcaAutoCompleteComponent } from '../../../../shared/components/lca-auto-complete/lca-auto-complete.component';
 
 interface SearchResultItem {
-  id: number;
-  name: string; // Or title for cases
+  id: any;
+  name: string;
   type: 'case' | 'user' | 'lawyer' | 'customer';
-  path: string; // Path to details page
-  originalItem: any; // Store the original API response item
+  path: string;
+  originalItem: any;
 }
 
 @Component({
@@ -31,8 +30,10 @@ interface SearchResultItem {
 export class LcaGlobalSearchComponent implements OnInit, OnDestroy {
   @ViewChild('autoComplete') autoCompleteComponent!: LcaAutoCompleteComponent;
 
-  searchQuery: string = '';
-  selectedSearchType: 'case' | 'user' | 'lawyer' | 'customer' = 'case'; // Default search type
+  searchQueryForDisplay: string = '';
+  selectedObjectFromAutocomplete: any = null;
+
+  selectedSearchType: 'case' | 'user' | 'lawyer' | 'customer' = 'case';
   searchTypeOptions: LcaSelectOption[] = [
     { label: 'Search Cases', value: 'case' },
     { label: 'Search Users', value: 'user' },
@@ -40,8 +41,12 @@ export class LcaGlobalSearchComponent implements OnInit, OnDestroy {
     { label: 'Search Customers', value: 'customer' }
   ];
 
+  autocompleteItemsSource$: BehaviorSubject<any[]> = new BehaviorSubject<any[]>([]);
+  isLoadingList: boolean = false;
+
   private currentAttributeId: number | null = null;
-  private attributeIdSubscription!: Subscription;
+  private subscriptions = new Subscription();
+  private readonly GLOBAL_SEARCH_SUGGESTION_LIMIT = 15;
 
   constructor(
     private router: Router,
@@ -50,123 +55,211 @@ export class LcaGlobalSearchComponent implements OnInit, OnDestroy {
     private lawyerSearchService: LawyerSearchService,
     private customerSearchService: CustomerSearchService,
     private userProfileService: UserProfileService,
-    private toastService: ToastService
+    private toastService: ToastService,
+    private cdRef: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
-     this.attributeIdSubscription = this.userProfileService.selectedAccountAttributeId$.subscribe(id => {
+    const attributeSub = this.userProfileService.selectedAccountAttributeId$
+      .pipe(distinctUntilChanged())
+      .subscribe(id => {
         this.currentAttributeId = id;
-        // If search type or query already exists, and attribute changes, you might want to re-trigger or clear search
-    });
+        if (id !== null) {
+          this.loadInitialDataForAutocomplete();
+        } else {
+          this.autocompleteItemsSource$.next([]);
+          this.searchQueryForDisplay = '';
+          if (this.autoCompleteComponent) {
+            this.autoCompleteComponent.writeValue('');
+          }
+        }
+      });
+    this.subscriptions.add(attributeSub);
   }
 
-  // This function will be passed to lca-auto-complete
-  fetchSuggestions = (query: string): Observable<SearchResultItem[]> => {
-    if (!this.currentAttributeId) {
-        this.toastService.showError("Account context (Attribute ID) is not set. Cannot perform search.");
-        return of([]);
+  loadInitialDataForAutocomplete(): void {
+    if (this.currentAttributeId === null) {
+      this.autocompleteItemsSource$.next([]);
+      if (this.searchQueryForDisplay) {
+          this.toastService.showInfo("Select an account context to enable search suggestions.");
+      }
+      return;
     }
 
-    const pagination = { begin: 0, end: 4 }; // For top 5 items (0-indexed)
+    this.isLoadingList = true;
+    this.autocompleteItemsSource$.next([]);
+
     let searchObservable: Observable<any>;
+    const pagination: PaginationParams = { begin: 0, end: this.GLOBAL_SEARCH_SUGGESTION_LIMIT * 2 }; // Fetch a decent chunk
+
+    console.log(`Loading initial data for type: ${this.selectedSearchType}, attribute: ${this.currentAttributeId}`); // DEBUG
 
     switch (this.selectedSearchType) {
       case 'case':
-        searchObservable = this.caseSearchService.search({ query, attributeId: this.currentAttributeId, pagination });
+        searchObservable = this.caseSearchService.search({ query: '', attributeId: this.currentAttributeId, pagination });
         break;
       case 'user':
-        searchObservable = this.userSearchService.search({ query, attributeId: this.currentAttributeId, pagination });
+        searchObservable = this.userSearchService.search({ query: '', attributeId: this.currentAttributeId, pagination });
         break;
       case 'lawyer':
-        searchObservable = this.lawyerSearchService.search({ query, attributeId: this.currentAttributeId, pagination });
+        searchObservable = this.lawyerSearchService.search({ query: '', attributeId: this.currentAttributeId, pagination });
         break;
       case 'customer':
-        searchObservable = this.customerSearchService.search({ query, attributeId: this.currentAttributeId, pagination });
+        searchObservable = this.customerSearchService.search({ query: '', attributeId: this.currentAttributeId, pagination });
         break;
       default:
-        return of([]);
+        searchObservable = of({ items: [] });
     }
 
-    return searchObservable.pipe(
-      map((response: any) => {
-        if (response && response.items) {
-          return response.items.map((item: any) => this.transformToSearchResultItem(item, this.selectedSearchType));
-        }
-        return [];
-      }),
+    searchObservable.pipe(
+      map(response => response.items || []),
       catchError(err => {
-        // console.error(`Error searching ${this.selectedSearchType}:`, err);
-        // Error handled by interceptor
+        this.toastService.showError(`Failed to load ${this.selectedSearchType} list.`);
         return of([]);
+      }),
+      finalize(() => {
+        this.isLoadingList = false;
+        this.cdRef.detectChanges();
+        })
+    ).subscribe(items => {
+      console.log(items)
+
+      this.autocompleteItemsSource$.next(items);
+    });
+
+    const dataLoadSub = searchObservable.pipe(
+      map(response => response.items || []),
+      catchError(err => {
+        this.toastService.showError(`Failed to load initial ${this.selectedSearchType} list.`);
+        console.error(`Error loading initial data for ${this.selectedSearchType}:`, err);
+        return of([]);
+      }),
+      finalize(() => {
+        this.isLoadingList = false;
+        this.cdRef.detectChanges();
       })
-    );
+    ).subscribe(items => {
+      console.log(`Loaded ${items.length} items for ${this.selectedSearchType}:`, items); // DEBUG
+      this.autocompleteItemsSource$.next(items);
+    });
+    this.subscriptions.add(dataLoadSub);
   }
 
-  private transformToSearchResultItem(item: any, type: 'case' | 'user' | 'lawyer' | 'customer'): SearchResultItem {
+  private transformToSearchResultItem(item: any, type: 'case' | 'user' | 'lawyer' | 'customer'): SearchResultItem | null {
+    if (!item) return null;
     let nameOrTitle = '';
     let path = '';
-    let id = item.id || (type === 'lawyer' ? item.lawyerId : null) || (type === 'customer' ? item.customerId : null) || item.caseId;
+    let idValue = null;
 
     switch (type) {
       case 'case':
         nameOrTitle = item.title || 'Untitled Case';
-        path = `/dashboard/cases/${item.id}`;
-        id = item.id;
+        idValue = item.id;
+        path = `/dashboard/cases/${idValue}`;
         break;
       case 'user':
         nameOrTitle = item.name || 'Unnamed User';
-        path = `/dashboard/users/${item.id}`;
-        id = item.id;
+        idValue = item.id;
+        path = `/dashboard/users/${idValue}`;
         break;
       case 'lawyer':
         nameOrTitle = item.name || 'Unnamed Lawyer';
-        path = `/dashboard/lawyers/${item.lawyerId}`; // Use lawyerId for lawyers
-        id = item.lawyerId;
+        idValue = item.lawyerId;
+        path = `/dashboard/lawyers/${idValue}`;
         break;
       case 'customer':
         nameOrTitle = item.name || 'Unnamed Customer';
-        path = `/dashboard/customers/${item.customerId}`; // Use customerId for customers
-        id = item.customerId;
+        idValue = item.customerId;
+        path = `/dashboard/customers/${idValue}`;
         break;
+      default: return null;
     }
-    return { id, name: nameOrTitle, type, path, originalItem: item };
+    return { id: idValue, name: nameOrTitle, type, path, originalItem: item };
   }
 
-  onSuggestionSelected(selectedItem: SearchResultItem): void {
-    if (selectedItem && selectedItem.path) {
-      this.router.navigate([selectedItem.path]);
-      this.searchQuery = ''; // Clear search input after navigation
+  
+  onSuggestionSelectedFromAutocomplete(selectedItemFullObject: any): void {
+    if (!selectedItemFullObject) return;
+
+    const searchResult = this.transformToSearchResultItem(selectedItemFullObject, this.selectedSearchType);
+    if (searchResult && searchResult.path) {
+      this.router.navigate([searchResult.path]);
+
+      this.selectedObjectFromAutocomplete = null;
+      this.searchQueryForDisplay = '';
+
       if (this.autoCompleteComponent) {
-        this.autoCompleteComponent.writeValue(''); // Clear lca-auto-complete's internal value
-        this.autoCompleteComponent.showSuggestions = false;
+          this.autoCompleteComponent.writeValue('');
+          this.autoCompleteComponent.suggestions = [];
+          this.autoCompleteComponent.showSuggestions = false;
       }
     }
   }
-
+  
   onSearchTypeChange(type: 'case' | 'user' | 'lawyer' | 'customer'): void {
+    if (this.selectedSearchType === type) return;
+
+    console.log(`Search type changed to: ${type}`);
     this.selectedSearchType = type;
-    // Optionally clear previous query or trigger a new search if query exists
-    if (this.searchQuery && this.searchQuery.length >= (this.autoCompleteComponent?.minLength || 2)) {
-        this.autoCompleteComponent?.searchTerms.next(this.searchQuery); // Trigger search with new type
+    this.searchQueryForDisplay = '';    
+    this.selectedObjectFromAutocomplete = null;
+
+    if (this.autoCompleteComponent) {
+        this.autoCompleteComponent.writeValue('');
+        this.autoCompleteComponent.suggestions = [];
+        this.autoCompleteComponent.showSuggestions = false;
+    }
+
+    if (this.currentAttributeId !== null) {
+      this.loadInitialDataForAutocomplete();
+    } else {
+      this.autocompleteItemsSource$.next([]);
     }
   }
 
-  expandSearch(): void {
-    if (!this.searchQuery.trim()) {
+  getAutocompleteDisplayProperty(): string {
+    switch (this.selectedSearchType) {
+      case 'case': return 'title';
+      case 'user':
+      case 'lawyer':
+      case 'customer':
+        return 'name';
+      default: return 'name';
+    }
+  }
+
+   getAutocompleteValueProperty(): string | null {
+    // If you want ngModel of autocomplete to store the ID:
+    // switch (this.selectedSearchType) {
+    //   case 'case': return 'id';
+    //   case 'user': return 'id';
+    //   case 'lawyer': return 'lawyerId';
+    //   case 'customer': return 'customerId';
+    //   default: return 'id';
+    // }
+    // If you want ngModel to store the full object (simpler for this case, as itemSelected gives full object anyway):
+    return null;
+  }
+
+   expandSearch(): void {
+    if (!this.searchQueryForDisplay?.trim()) {
         this.toastService.showInfo("Please enter a search term.");
+        return;
+    }
+    if (this.currentAttributeId === null) {
+        this.toastService.showInfo("Please select an account context before expanding search.");
         return;
     }
     this.router.navigate(['/dashboard/search'], {
       queryParams: {
-        query: this.searchQuery,
+        query: this.searchQueryForDisplay,
         type: this.selectedSearchType
       }
     });
   }
-
+  
   ngOnDestroy(): void {
-    if(this.attributeIdSubscription) {
-        this.attributeIdSubscription.unsubscribe();
-    }
+    this.subscriptions.unsubscribe();
+    this.autocompleteItemsSource$.complete();
   }
 }

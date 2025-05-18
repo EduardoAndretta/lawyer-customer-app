@@ -532,6 +532,7 @@ public record GrantPermissionsToUserParametersDto
         public int? PermissionId { get; init; }
         public int? UserId { get; init; }
         public int? RoleId { get; init; }
+        public int? AttributeId { get; init; }
     }
 
     public GrantPermissionsToUserParameters ToOrdinary()
@@ -549,6 +550,7 @@ public record GrantPermissionsToUserParametersDto
                     PermissionId = item?.PermissionId ?? 0,
                     UserId       = item?.UserId       ?? 0,
                     RoleId       = item?.RoleId       ?? 0,
+                    AttributeId  = item?.AttributeId
                 }) 
             ?? new Collection<GrantPermissionsToUserParameters.PermissionProperties>()
         };
@@ -571,6 +573,7 @@ public class GrantPermissionsToUserParameters
         public required int PermissionId { get; init; }
         public required int UserId { get; init; }
         public required int RoleId { get; init; }
+        public int? AttributeId { get; init; }
     }
 }
 
@@ -593,6 +596,8 @@ public record RevokePermissionsToUserParametersDto
         public int? PermissionId { get; init; }
         public int? UserId { get; init; }
         public int? RoleId { get; init; }
+        public int? AttributeId { get; init; }
+
     }
 
     public RevokePermissionsToUserParameters ToOrdinary()
@@ -610,6 +615,7 @@ public record RevokePermissionsToUserParametersDto
                     PermissionId = item?.PermissionId ?? 0,
                     UserId       = item?.UserId       ?? 0,
                     RoleId       = item?.RoleId       ?? 0,
+                    AttributeId  = item?.AttributeId,
                 }) 
             ?? new Collection<RevokePermissionsToUserParameters.PermissionProperties>()
         };
@@ -632,6 +638,7 @@ public class RevokePermissionsToUserParameters
         public required int PermissionId { get; init; }
         public required int UserId { get; init; }
         public required int RoleId { get; init; }
+        public int? AttributeId { get; init; }
     }
 }
 
@@ -644,10 +651,12 @@ public record EnlistedPermissionsFromUserInformationDto
         public string? UserName { get; init; }
         public string? PermissionName { get; init; }
         public string? RoleName { get; init; }
+        public string? AttributeName { get; init; }
 
         public int? UserId { get; init; }
         public int? PermissionId { get; init; }
         public int? RoleId { get; init; }
+        public int? AttributeId { get; init; }
     }
 }
 
@@ -660,10 +669,12 @@ public record EnlistedPermissionsFromUserInformation
         public required string UserName { get; init; }
         public required string PermissionName { get; init; }
         public required string RoleName { get; init; }
+        public string? AttributeName { get; init; }
 
         public required int UserId { get; init; }
         public required int PermissionId { get; init; }
         public required int RoleId { get; init; }
+        public int? AttributeId { get; init; }
     }
 
     public EnlistedPermissionsFromUserInformationDto ToDto()
@@ -676,10 +687,12 @@ public record EnlistedPermissionsFromUserInformation
                     UserName       = x.UserName,
                     PermissionName = x.PermissionName,
                     RoleName       = x.RoleName,
+                    AttributeName  = x.AttributeName,
 
                     UserId       = x.UserId,
                     PermissionId = x.PermissionId,
-                    RoleId       = x.RoleId
+                    RoleId       = x.RoleId,
+                    AttributeId  = x.AttributeId
                 })
         };
     }

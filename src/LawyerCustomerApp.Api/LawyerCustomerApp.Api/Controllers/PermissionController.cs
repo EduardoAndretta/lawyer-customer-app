@@ -410,4 +410,83 @@ public class Controller : ControllerBase
     }
 
     #endregion
+
+    [HttpPost("search/enable-users-to-grant-permissions"), Authorize(Policy = "internal-jwt-bearer")]
+    public async Task<ActionResult<SearchEnabledUsersToGrantPermissionsInformationDto>> Post(
+        [FromBody] SearchEnabledUsersToGrantPermissionsParametersDto parameters,
+        CancellationToken cancellationToken = default)
+    {
+        int userId = int.TryParse(User.FindFirst("user_id")?.Value, out userId) ? userId : 0;
+        int roleId = int.TryParse(User.FindFirst("role_id")?.Value, out roleId) ? roleId : 0;
+
+        parameters = parameters with
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+
+        var contextualizer = Contextualizer.Init(cancellationToken);
+
+        if (!ModelState.IsValid)
+        {
+            var resultContructor = new ResultConstructor();
+
+            resultContructor.SetConstructor(
+                new ModelStateError()
+                {
+                    Status     = 400,
+                    SourceCode = this.GetType().Name,
+                    Errors     = string.Join("; ", ModelState.Values.SelectMany(e => e.Errors).Select(em => em.ErrorMessage))
+                });
+
+            return resultContructor.Build().HandleActionResult(this);
+        }
+
+        var result = await _service.SearchEnabledUsersToGrantPermissionsAsync(parameters, contextualizer);
+
+        if (result.IsFinished)
+            return result.HandleActionResult(this);
+
+        return NoContent();
+    }
+
+    [HttpPost("search/enable-users-to-revoke-permissions"), Authorize(Policy = "internal-jwt-bearer")]
+    public async Task<ActionResult<SearchEnabledUsersToRevokePermissionsInformationDto>> Post(
+        [FromBody] SearchEnabledUsersToRevokePermissionsParametersDto parameters,
+        CancellationToken cancellationToken = default)
+    {
+        int userId = int.TryParse(User.FindFirst("user_id")?.Value, out userId) ? userId : 0;
+        int roleId = int.TryParse(User.FindFirst("role_id")?.Value, out roleId) ? roleId : 0;
+
+        parameters = parameters with
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+
+        var contextualizer = Contextualizer.Init(cancellationToken);
+
+        if (!ModelState.IsValid)
+        {
+            var resultContructor = new ResultConstructor();
+
+            resultContructor.SetConstructor(
+                new ModelStateError()
+                {
+                    Status     = 400,
+                    SourceCode = this.GetType().Name,
+                    Errors     = string.Join("; ", ModelState.Values.SelectMany(e => e.Errors).Select(em => em.ErrorMessage))
+                });
+
+            return resultContructor.Build().HandleActionResult(this);
+        }
+
+        var result = await _service.SearchEnabledUsersToRevokePermissionsAsync(parameters, contextualizer);
+
+        if (result.IsFinished)
+            return result.HandleActionResult(this);
+
+        return NoContent();
+    }
+
 }

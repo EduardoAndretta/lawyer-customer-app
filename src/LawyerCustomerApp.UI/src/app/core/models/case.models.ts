@@ -41,6 +41,8 @@ export interface CaseDetailsParametersDto {
 export interface CaseDetailsInformationItem {
   title?: string | null;
   description?: string | null;
+  status?: string | null;
+  private?: boolean | null;
   id?: number | null;
   userId?: number | null;
   customerId?: number | null;

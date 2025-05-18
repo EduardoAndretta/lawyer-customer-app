@@ -146,6 +146,7 @@ public abstract class InternalValues
                     UserId       = item.UserId,
                     PermissionId = item.PermissionId,
                     RoleId       = item.RoleId,
+                    AttributeId  = item.AttributeId,
 
                     Result = item.Result
                 };
@@ -166,6 +167,7 @@ public abstract class InternalValues
                 public required int UserId { get; set; }
                 public required int PermissionId { get; set; }
                 public required int RoleId { get; set; }
+                public int? AttributeId { get; set; }
 
                 // [Result]
                 public Result Result { get; set; } = new Result();
@@ -179,6 +181,7 @@ public abstract class InternalValues
                 public required int UserId { get; set; }
                 public required int PermissionId { get; set; }
                 public required int RoleId { get; set; }
+                public int? AttributeId { get; set; }
 
                 // [Result]
                 public Result Result { get; set; } = new Result();
@@ -202,6 +205,7 @@ public abstract class InternalValues
                     UserId       = item.UserId,
                     PermissionId = item.PermissionId,
                     RoleId       = item.RoleId,
+                    AttributeId  = item.AttributeId,
 
                     Result = item.Result
                 };
@@ -222,6 +226,7 @@ public abstract class InternalValues
                 public required int UserId { get; set; }
                 public required int PermissionId { get; set; }
                 public required int RoleId { get; set; }
+                public int? AttributeId { get; set; }
 
                 // [Result]
                 public Result Result { get; set; } = new Result();
@@ -235,6 +240,7 @@ public abstract class InternalValues
                 public required int UserId { get; set; }
                 public required int PermissionId { get; set; }
                 public required int RoleId { get; set; }
+                public int? AttributeId { get; set; }
 
                 // [Result]
                 public Result Result { get; set; } = new Result();

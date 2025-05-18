@@ -14,8 +14,24 @@ public abstract record PermissionResult
         public bool HasViewOwnCustomerAccountUserPermission { get; init; } = false;
     }
 
+    public record Count : PermissionResult
+    {
+        public bool HasViewAnyUserPermission { get; init; } = false;
+        public bool HasViewAnyCustomerAccountUserPermission { get; init; } = false;
+
+        public bool HasViewPublicUserPermission { get; init; } = false;
+        public bool HasViewPublicCustomerAccountUserPermission { get; init; } = false;
+
+        public bool HasViewOwnUserPermission { get; init; } = false;
+        public bool HasViewOwnCustomerAccountUserPermission { get; init; } = false;
+    }
+
+
     public record Details : PermissionResult
     {
+        public bool HasViewUserPermission { get; init; } = false;
+        public bool HasViewCustomerAccountUserPermission { get; init; } = false;
+
         public bool HasViewAnyUserPermission { get; init; } = false;
         public bool HasViewAnyCustomerAccountUserPermission { get; init; } = false;
 

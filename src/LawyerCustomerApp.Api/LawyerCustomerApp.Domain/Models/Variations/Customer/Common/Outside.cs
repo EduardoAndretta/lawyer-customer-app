@@ -134,7 +134,6 @@ public record RegisterParametersDto
     public int? RoleId { get; init; }
 
     public string? Phone { get; init; }
-    public string? Address { get; init; }
 
     public RegisterParameters ToOrdinary()
     {
@@ -143,8 +142,7 @@ public record RegisterParametersDto
             UserId = this.UserId ?? 0,
             RoleId = this.RoleId ?? 0,
 
-            Phone   = this.Phone   ?? string.Empty,
-            Address = this.Address ?? string.Empty,
+            Phone = this.Phone ?? string.Empty,
         };
     }
 }
@@ -155,15 +153,13 @@ public class RegisterParameters
     public required int RoleId { get; init; } = 0;
 
     public required string Phone { get; init; } = string.Empty;
-    public required string Address { get; init; } = string.Empty;
 
     public RegisterParametersDto ToDto()
     {
         return new RegisterParametersDto
         {
-            UserId  = this.UserId,
-            Phone   = this.Phone,
-            Address = this.Address
+            UserId = this.UserId,
+            Phone  = this.Phone
         };
     }
 }

@@ -11,6 +11,7 @@ using LawyerCustomerApp.External.Interfaces;
 using LawyerCustomerApp.External.Models;
 using LawyerCustomerApp.External.Models.Context;
 using Microsoft.Extensions.Configuration;
+using System;
 using System.Text;
 
 using PermissionSymbols = LawyerCustomerApp.External.Models.Permission.Permissions;
@@ -119,54 +120,58 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
         ('HasViewPermissionsAnyCasePermission', @ViewPermissionsAnyCasePermissionId),
         ('HasViewPermissionsOwnCasePermission', @ViewPermissionsOwnCasePermissionId),
         ('HasViewPermissionsCasePermission',    @ViewPermissionsCasePermissionId),
-
-        ('HasViewOwnCasePermission',    @ViewViewOwnCasePermissionId),
-        ('HasViewPublicCasePermission', @ViewViewPublicCasePermissionId),
-        ('HasViewAnyCasePermission',    @ViewViewAnyCasePermissionId),
-        ('HasViewCasePermission',       @ViewViewCasePermissionId)
+        ('HasViewOwnCasePermission',            @ViewOwnCasePermissionId),
+        ('HasViewPublicCasePermission',         @ViewPublicCasePermissionId),
+        ('HasViewAnyCasePermission',            @ViewAnyCasePermissionId),
+        ('HasViewCasePermission',               @ViewCasePermissionId)
 ),
 [grants] AS (
 
     -- [user grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PGU].[attribute_id], 
+        1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants_user] [PGU]
       ON [PGU].[permission_id] = [PC].[permission_id] AND 
          [PGU].[user_id]       = @UserId              AND 
-         [PGU].[role_id]       = @RoleId              AND 
-         (@AttributeId IS NULL OR [PGU].[attribute_id] IS NULL OR [PGU].[attribute_id] = @AttributeId)
+         [PGU].[role_id]       = @RoleId
 
-    UNION ALL
+    UNION
 
     -- [role grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PG].[attribute_id], 
+        1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants] [PG]
       ON [PG].[permission_id] = [PC].[permission_id] AND
-         [PG].[role_id]       = @RoleId              AND
-         (@AttributeId IS NULL OR [PG].[attribute_id] IS NULL OR [PG].[attribute_id] = @AttributeId)
+         [PG].[role_id]       = @RoleId
 
-    UNION ALL
+    UNION
 
     -- [case ACL grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PGC].[attribute_id], 
+        1 AS [granted]
     FROM [permission_checks] [PC]
-    JOIN [permission_grants_cases] [PGC]
+    JOIN [permission_grants_case] [PGC]
       ON [PGC].[permission_id]   = [PC].[permission_id] AND 
          [PGC].[user_id]         = @UserId              AND 
          [PGC].[role_id]         = @RoleId              AND 
-         [PGC].[related_case_id] = @RelatedCaseId       AND 
-         (@AttributeId IS NULL OR [PGC].[attribute_id] IS NULL OR [PGC].[attribute_id] = @AttributeId)
+         [PGC].[related_case_id] = @RelatedCaseId
 )
 SELECT
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsAnyCasePermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPermissionsAnyCasePermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsOwnCasePermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPermissionsOwnCasePermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsCasePermission'    THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPermissionsCasePermission],
-
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnCasePermission'    THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnCasePermission]
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicCasePermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicCasePermission]
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyCasePermission'    THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyCasePermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewCasePermission'       THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewCasePermission]
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsAnyCasePermission' AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPermissionsAnyCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsOwnCasePermission' AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPermissionsOwnCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsCasePermission'    AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPermissionsCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnCasePermission'            AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicCasePermission'         AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyCasePermission'            AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewCasePermission'               AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewCasePermission]
 FROM [permission_checks] [PC]
 LEFT JOIN [grants] [G] ON [G].[permission_name] = [PC].[permission_name];";
 
@@ -181,7 +186,7 @@ LEFT JOIN [grants] [G] ON [G].[permission_name] = [PC].[permission_name];";
                 ViewAnyCasePermissionId    = permission.ViewAnyCasePermissionId,
                 ViewCasePermissionId       = permission.ViewCasePermissionId,
 
-                AttributeId   = parameters.UserId,
+                AttributeId   = parameters.AttributeId,
                 UserId        = parameters.UserId,
                 RelatedCaseId = parameters.RelatedCaseId,
                 RoleId        = parameters.RoleId
@@ -194,7 +199,7 @@ LEFT JOIN [grants] [G] ON [G].[permission_name] = [PC].[permission_name];";
             const string queryCaseInformations = @"
 SELECT 
     [C].[private]                                         AS [Private], 
-    (CASE WHEN [C].[user_id] = @UserId THEN 1 ELSE 0 END) AS [Owner],
+    (CASE WHEN [C].[user_id] = @UserId THEN 1 ELSE 0 END) AS [Owner]
 FROM [cases] [C] WHERE [C].[id] = @RelatedCaseId";
 
             var queryCaseInformationParameters = new
@@ -244,12 +249,12 @@ SELECT
    [P].[id]   AS [PermissionId],
    [R].[id]   AS [RoleId],
    [A].[id]   AS [AttributeId]
-FROM [permission_grants_cases] [PGC]
+FROM [permission_grants_case] [PGC]
 LEFT JOIN [users]       [U] ON [U].[id] = [PGC].[user_id]
 LEFT JOIN [permissions] [P] ON [P].[id] = [PGC].[permission_id]
 LEFT JOIN [roles]       [R] ON [R].[id] = [PGC].[role_id]
 LEFT JOIN [attributes]  [A] ON [A].[id] = [PGC].[attribute_id]
-WHERE [C].[id] = @RelatedCaseId";
+WHERE [PGC].[related_case_id] = @RelatedCaseId";
 
             EnlistedPermissionsFromCaseInformation information;
 
@@ -366,62 +371,62 @@ WHERE [C].[id] = @RelatedCaseId";
         const string queryPermissions = @"
 WITH [permission_checks]([permission_name], [permission_id]) AS (
     VALUES
-        ('HasRegisterCasePermission',           @RegisterCasePermissionId),
-        ('HasEditOwnCasePermission',            @EditOwnCasePermissionId),
-        ('HasAnyCasePermission',                @EditAnyCasePermissionId),
-        ('HasViewAnyCasePermission',            @ViewAnyCasePermissionId),
-        ('HasViewOwnCasePermission',            @ViewOwnCasePermissionId),
-        ('HasViewPublicCasePermission',         @ViewPublicCasePermissionId),
-        ('HasViewPermissionsOwnCasePermission', @ViewPermissionsOwnCasePermissionId),
-        ('HasViewPermissionsAnyCasePermission', @ViewPermissionsAnyCasePermissionId),
-        ('HasAssignLawyerOwnCasePermission',    @AssignLawyerOwnCasePermissionId),
-        ('HasAssignLawyerAnyCasePermission',    @AssignLawyerAnyCasePermissionId),
-        ('HasAssignCustomerOwnCasePermission',  @AssignCustomerOwnCasePermissionId),
-        ('HasAssignCustomerAnyCasePermission',  @AssignCustomerAnyCasePermissionId),
-        ('HasGrantPermissionsOwnCasePermission',@GrantPermissionsOwnCasePermissionId),
-        ('HasGrantPermissionsAnyCasePermission',@GrantPermissionsAnyCasePermissionId),
-        ('HasRevokePermissionsOwnCasePermission',@RevokePermissionsOwnCasePermissionId),
-        ('HasRevokePermissionsAnyCasePermission',@RevokePermissionsAnyCasePermissionId)
+        ('HasRegisterCasePermission',             @RegisterCasePermissionId),
+        ('HasEditOwnCasePermission',              @EditOwnCasePermissionId),
+        ('HasAnyCasePermission',                  @EditAnyCasePermissionId),
+        ('HasViewAnyCasePermission',              @ViewAnyCasePermissionId),
+        ('HasViewOwnCasePermission',              @ViewOwnCasePermissionId),
+        ('HasViewPublicCasePermission',           @ViewPublicCasePermissionId),
+        ('HasViewPermissionsOwnCasePermission',   @ViewPermissionsOwnCasePermissionId),
+        ('HasViewPermissionsAnyCasePermission',   @ViewPermissionsAnyCasePermissionId),
+        ('HasAssignLawyerOwnCasePermission',      @AssignLawyerOwnCasePermissionId),
+        ('HasAssignLawyerAnyCasePermission',      @AssignLawyerAnyCasePermissionId),
+        ('HasAssignCustomerOwnCasePermission',    @AssignCustomerOwnCasePermissionId),
+        ('HasAssignCustomerAnyCasePermission',    @AssignCustomerAnyCasePermissionId),
+        ('HasGrantPermissionsOwnCasePermission',  @GrantPermissionsOwnCasePermissionId),
+        ('HasGrantPermissionsAnyCasePermission',  @GrantPermissionsAnyCasePermissionId),
+        ('HasRevokePermissionsOwnCasePermission', @RevokePermissionsOwnCasePermissionId),
+        ('HasRevokePermissionsAnyCasePermission', @RevokePermissionsAnyCasePermissionId)
 ),
 [grants] AS (
     SELECT
         [PC].[permission_name],
+        [PGU].[attribute_id],
         1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants_user] [PGU]
       ON [PGU].[permission_id] = [PC].[permission_id] AND 
          [PGU].[user_id]       = @UserId              AND 
-         [PGU].[role_id]       = @RoleId              AND 
-         (@AttributeId IS NULL OR [PGU].[attribute_id] IS NULL OR [PGU].[attribute_id] = @AttributeId)
+         [PGU].[role_id]       = @RoleId
     UNION
     SELECT
         [PC].[permission_name],
+        [PG].[attribute_id],
         1 AS [granted]
-    FROM [case_permission_checks] [PC]
+    FROM [permission_checks] [PC]
     JOIN [permission_grants] [PG]
       ON [PG].[permission_id] = [PC].[permission_id] AND 
-         [PG].[role_id]       = @RoleId               AND 
-         (@AttributeId IS NULL OR [PG].[attribute_id] IS NULL OR [PG].[attribute_id] = @AttributeId)
+         [PG].[role_id]       = @RoleId
 )
 SELECT
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRegisterCasePermission'             THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RegisterCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasEditOwnCasePermission'              THEN COALESCE([G].[granted],0) ELSE 0 END) AS [EditOwnCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasAnyCasePermission'                  THEN COALESCE([G].[granted],0) ELSE 0 END) AS [AnyCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyCasePermission'              THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewAnyCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnCasePermission'              THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewOwnCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicCasePermission'           THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPublicCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsOwnCasePermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsOwnCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsAnyCasePermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsAnyCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasAssignLawyerOwnCasePermission'      THEN COALESCE([G].[granted],0) ELSE 0 END) AS [AssignLawyerOwnCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasAssignLawyerAnyCasePermission'      THEN COALESCE([G].[granted],0) ELSE 0 END) AS [AssignLawyerAnyCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasAssignCustomerOwnCasePermission'    THEN COALESCE([G].[granted],0) ELSE 0 END) AS [AssignCustomerOwnCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasAssignCustomerAnyCasePermission'    THEN COALESCE([G].[granted],0) ELSE 0 END) AS [AssignCustomerAnyCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsOwnCasePermission'  THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsOwnCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsAnyCasePermission'  THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsAnyCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsOwnCasePermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RevokePermissionsOwnCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsAnyCasePermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RevokePermissionsAnyCase]
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRegisterCasePermission'             AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RegisterCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasEditOwnCasePermission'              AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [EditOwnCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasAnyCasePermission'                  AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [AnyCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyCasePermission'              AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewAnyCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnCasePermission'              AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewOwnCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicCasePermission'           AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPublicCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsOwnCasePermission'   AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsOwnCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsAnyCasePermission'   AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsAnyCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasAssignLawyerOwnCasePermission'      AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [AssignLawyerOwnCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasAssignLawyerAnyCasePermission'      AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [AssignLawyerAnyCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasAssignCustomerOwnCasePermission'    AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [AssignCustomerOwnCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasAssignCustomerAnyCasePermission'    AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [AssignCustomerAnyCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsOwnCasePermission'  AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsOwnCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsAnyCasePermission'  AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsAnyCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsOwnCasePermission' AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RevokePermissionsOwnCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsAnyCasePermission' AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RevokePermissionsAnyCase]
 FROM [permission_checks] [PC]
-LEFT JOIN [user_grants_and_role_grants] [G] ON [G].[permission_name] = [PC].[permission_name]";
+LEFT JOIN [grants] [G] ON [G].[permission_name] = [PC].[permission_name]";
 
         var queryPermissionsParameters = new
         {
@@ -543,23 +548,23 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
 [grants] AS (
     SELECT
         [PC].[permission_name],
+        [PGC].[attribute_id],
         1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants_case] [PGC]
       ON [PGC].[permission_id]     = [PC].[permission_id] AND
          [PGC].[user_id]           = @UserId              AND
          [PGC].[role_id]           = @RoleId              AND
-         [PGC].[related_case_id]   = @RelatedCaseId       AND
-         (@AttributeId IS NULL OR [PGC].[attribute_id] IS NULL OR [PGC].[attribute_id] = @AttributeId)
+         [PGC].[related_case_id]   = @RelatedCaseId
 )
 SELECT
-    MAX(CASE WHEN [PC].[permission_name] = 'HasEditCasePermission'               THEN COALESCE([G].[granted],0) ELSE 0 END) AS [EditCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewCasePermission'               THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsCasePermission'    THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasAssignLawyerCasePermission'       THEN COALESCE([G].[granted],0) ELSE 0 END) AS [AssignLawyerCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasAssignCustomerCasePermission'     THEN COALESCE([G].[granted],0) ELSE 0 END) AS [AssignCustomerCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsCasePermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsCase],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsCasePermission'  THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RevokePermissionsCase]
+    MAX(CASE WHEN [PC].[permission_name] = 'HasEditCasePermission'              AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [EditCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewCasePermission'              AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsCasePermission'   AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasAssignLawyerCasePermission'      AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [AssignLawyerCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasAssignCustomerCasePermission'    AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [AssignCustomerCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsCasePermission'  AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsCase],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsCasePermission' AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RevokePermissionsCase]
 FROM [permission_checks] [PC]
 LEFT JOIN [acl_grants] [G] ON [G].[permission_name] = [PC].[permission_name];";
 
@@ -728,9 +733,10 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
     ('HasViewOwnCasePermission',                            @ViewOwnCasePermissionId),
     ('HasViewPublicCasePermission',                         @ViewPublicCasePermissionId),
     ('HasViewCasePermission',                               @ViewCasePermissionId),
+
     ('HasGrantPermissionsAnyUserPermission',                @GrantPermissionsAnyUserPermissionId),
     ('HasGrantPermissionsAnyLawyerAccountUserPermission',   @GrantPermissionsAnyLawyerAccountUserPermissionId),
-    ('HasGrantPermissionsAnyCustomerAccountUserPermission', @GrantPermissionsAnyCustomeAccountUserPermissionId),
+    ('HasGrantPermissionsAnyCustomerAccountUserPermission', @GrantPermissionsAnyCustomerAccountUserPermissionId),
     ('HasGrantPermissionsOwnUserPermission',                @GrantPermissionsOwnUserPermissionId),
     ('HasGrantPermissionsOwnLawyerAccountUserPermission',   @GrantPermissionsOwnLawyerAccountUserPermissionId),
     ('HasGrantPermissionsOwnCustomerAccountUserPermission', @GrantPermissionsOwnCustomerAccountUserPermissionId),
@@ -753,88 +759,101 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
 [grants] AS (
 
     -- [user grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PGU].[attribute_id],
+        1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants_user] [PGU]
       ON [PGU].[permission_id] = [PC].[permission_id] AND 
          [PGU].[user_id]       = @UserId              AND 
-         [PGU].[role_id]       = @RoleId              AND
-         ([PGU].[attribute_id] IS NULL OR [PGU].[attribute_id] = @AttributeId)
+         [PGU].[role_id]       = @RoleId
 
-    UNION ALL
+    UNION
 
     -- [role grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PG].[attribute_id],
+        1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants] [PG]
       ON [PG].[permission_id] = [PC].[permission_id] AND
-         [PG].[role_id]       = @RoleId              AND
-         (PG].[attribute_id] IS NULL OR [PG].[attribute_id] = @AttributeId)
+         [PG].[role_id]       = @RoleId
 
-    UNION ALL
+    UNION
 
     -- [case ACL grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PGC].[attribute_id],
+         1 AS [granted]
     FROM [permission_checks] [PC]
-    JOIN [permission_grants_cases] [PGC]
+    JOIN [permission_grants_case] [PGC]
       ON [PGC].[permission_id]   = [PC].[permission_id] AND 
          [PGC].[user_id]         = @UserId              AND 
          [PGC].[role_id]         = @RoleId              AND 
-         [PGC].[related_case_id] = @RelatedCaseId       AND
-         (PGC].[attribute_id] IS NULL OR [PGC].[attribute_id] = @AttributeId)
+         [PGC].[related_case_id] = @RelatedCaseId
 )
 SELECT
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsAnyCasePermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsAnyCasePermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsOwnCasePermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsOwnCasePermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsCasePermission'    THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsCasePermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyCasePermission'             THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyCasePermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnCasePermission'             THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnCasePermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicCasePermission'          THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicCasePermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewCasePermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewCasePermission],
-
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsAnyUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsAnyUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsAnyLawyerAccountUserPermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsAnyLawyerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsAnyCustomerAccountUserPermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsAnyCustomerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsOwnUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsOwnUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsOwnLawyerAccountUserPermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsOwnLawyerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsOwnCustomerAccountUserPermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsOwnCustomerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsUserPermission'                   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsLawyerAccountUserPermission'      THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsLawyerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsCustomerAccountUserPermission'    THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsCustomerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsAnyCasePermission' AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsAnyCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsOwnCasePermission' AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsOwnCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsCasePermission'    AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyCasePermission'             AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnCasePermission'             AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicCasePermission'          AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewCasePermission'                AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewCasePermission],
     
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnUserPermission'                             THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnLawyerAccountUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnLawyerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnCustomerAccountUserPermission'              THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnCustomerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicUserPermission'                          THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicLawyerAccountUserPermission'             THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicLawyerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicCustomerAccountUserPermission'           THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicCustomerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyUserPermission'                             THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyLawyerAccountUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyLawyerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyCustomerAccountUserPermission'              THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyCustomerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewUserPermission'                                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewLawyerAccountUserPermission'                   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewLawyerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewCustomerAccountUserPermission'                 THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewCustomerAccountUserPermission]
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsAnyUserPermission'                AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsAnyUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsAnyLawyerAccountUserPermission'   AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsAnyLawyerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsAnyCustomerAccountUserPermission' AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsAnyCustomerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsOwnUserPermission'                AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsOwnUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsOwnLawyerAccountUserPermission'   AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsOwnLawyerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsOwnCustomerAccountUserPermission' AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsOwnCustomerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsUserPermission'                   AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsLawyerAccountUserPermission'      AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsLawyerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsCustomerAccountUserPermission'    AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasGrantPermissionsCustomerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnUserPermission'                            AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnLawyerAccountUserPermission'               AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnLawyerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnCustomerAccountUserPermission'             AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnCustomerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicUserPermission'                         AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicLawyerAccountUserPermission'            AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicLawyerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicCustomerAccountUserPermission'          AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicCustomerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyUserPermission'                            AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyLawyerAccountUserPermission'               AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyLawyerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyCustomerAccountUserPermission'             AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyCustomerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewUserPermission'                               AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewLawyerAccountUserPermission'                  AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewLawyerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewCustomerAccountUserPermission'                AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewCustomerAccountUserPermission]
 FROM [permission_checks] [PC]
 LEFT JOIN [grants] [G] ON [G].[permission_name] = [PC].[permission_name];";
 
         var queryPermissionsParameters = new
         {
-            GrantPermissionsCasePermissionId    = permission.GrantPermissionsCasePermissionId,
-            GrantPermissionsOwnCasePermissionId = permission.GrantPermissionsOwnCasePermissionId,
             GrantPermissionsAnyCasePermissionId = permission.GrantPermissionsAnyCasePermissionId,
+            GrantPermissionsOwnCasePermissionId = permission.GrantPermissionsOwnCasePermissionId,
+            GrantPermissionsCasePermissionId    = permission.GrantPermissionsCasePermissionId,
 
-            ViewCasePermissionId        = permission.ViewCasePermissionId,
-            ViewOwnCasePermissionId     = permission.ViewOwnCasePermissionId,
-            ViewAnyCasePermissionId     = permission.ViewAnyCasePermissionId,
-            ViewPublicCasePermissionId  = permission.ViewPublicCasePermissionId,
+            ViewAnyCasePermissionId    = permission.ViewAnyCasePermissionId,
+            ViewOwnCasePermissionId    = permission.ViewOwnCasePermissionId,
+            ViewPublicCasePermissionId = permission.ViewPublicCasePermissionId,
+            ViewCasePermissionId       = permission.ViewCasePermissionId,
 
             GrantPermissionsAnyUserPermissionId                = permission.GrantPermissionsAnyUserPermissionId,
             GrantPermissionsAnyLawyerAccountUserPermissionId   = permission.GrantPermissionsAnyLawyerAccountUserPermissionId,
             GrantPermissionsAnyCustomerAccountUserPermissionId = permission.GrantPermissionsAnyCustomerAccountUserPermissionId,
-                                                                             
+
             GrantPermissionsOwnUserPermissionId                = permission.GrantPermissionsOwnUserPermissionId,
             GrantPermissionsOwnLawyerAccountUserPermissionId   = permission.GrantPermissionsOwnLawyerAccountUserPermissionId,
             GrantPermissionsOwnCustomerAccountUserPermissionId = permission.GrantPermissionsOwnCustomerAccountUserPermissionId,
+
+            GrantPermissionsUserPermissionId                = permission.GrantPermissionsUserPermissionId,
+            GrantPermissionsLawyerAccountUserPermissionId   = permission.GrantPermissionsLawyerAccountUserPermissionId,
+            GrantPermissionsCustomerAccountUserPermissionId = permission.GrantPermissionsCustomerAccountUserPermissionId,
+
+            ViewOwnUserPermissionId                = permission.ViewOwnUserPermissionId,
+            ViewOwnLawyerAccountUserPermissionId   = permission.ViewOwnLawyerAccountUserPermissionId,
+            ViewOwnCustomerAccountUserPermissionId = permission.ViewOwnCustomerAccountUserPermissionId,
 
             ViewPublicUserPermissionId                = permission.ViewPublicUserPermissionId,
             ViewPublicLawyerAccountUserPermissionId   = permission.ViewPublicLawyerAccountUserPermissionId,
@@ -844,10 +863,9 @@ LEFT JOIN [grants] [G] ON [G].[permission_name] = [PC].[permission_name];";
             ViewAnyLawyerAccountUserPermissionId   = permission.ViewAnyLawyerAccountUserPermissionId,
             ViewAnyCustomerAccountUserPermissionId = permission.ViewAnyCustomerAccountUserPermissionId,
 
-            ViewOwnUserPermissionId                = permission.ViewOwnUserPermissionId,
-            ViewOwnLawyerAccountUserPermissionId   = permission.ViewOwnLawyerAccountUserPermissionId,
-            ViewOwnCustomerAccountUserPermissionId = permission.ViewOwnCustomerAccountUserPermissionId,
-
+            ViewUserPermissionId                = permission.ViewUserPermissionId,
+            ViewLawyerAccountUserPermissionId   = permission.ViewLawyerAccountUserPermissionId,
+            ViewCustomerAccountUserPermissionId = permission.ViewCustomerAccountUserPermissionId,
 
             UserId        = parameters.UserId,
             RelatedCaseId = parameters.RelatedCaseId,
@@ -863,7 +881,7 @@ LEFT JOIN [grants] [G] ON [G].[permission_name] = [PC].[permission_name];";
 
         var queryCaseInformationParameters = new
         {
-            UserId = parameters.UserId,
+            UserId        = parameters.UserId,
             RelatedCaseId = parameters.RelatedCaseId
         };
 
@@ -1014,12 +1032,12 @@ LEFT JOIN [grants] [G] ON [G].[permission_name] = [PC].[permission_name];";
             }
         }
 
-        const string queryAttributes = "SELECT [A].[id] AS [Id], [A].[name] AS [Name] FROM [Attributes]";
+        const string queryAttributes = "SELECT [A].[id] AS [Id], [A].[name] AS [Name] FROM [Attributes] [A]";
 
         var attributes = await connection.Connection.QueryAsync<(int Id, string Name)>(queryAttributes);
 
         const string queryAllowedPermissions = @"
-SELECT [P].[id] AS [Id] FROM [Permissions] WHERE [P].[name] IN 
+SELECT [P].[id] AS [Id] FROM [Permissions] [P] WHERE [P].[name] IN 
 ('VIEW_CASE', 'VIEW_PERMISSIONS_CASE', 'ASSIGN_LAWYER_CASE', 'ASSIGN_CUSTOMER_CASE', 'ASSIGN_CUSTOMER_CASE', 'GRANT_PERMISSIONS_CASE', 'REVOKE_PERMISSIONS_CASE')";
 
         var allowedPermissions = await connection.Connection.QueryAsync<int?>(queryAllowedPermissions);
@@ -1042,37 +1060,46 @@ SELECT [P].[id] AS [Id] FROM [Permissions] WHERE [P].[name] IN
             var hasPermissionToAssignUser = await ValuesExtensions.GetValue(async () =>
             {
                 var queryParameters = new
-                {
-                    // [NOT ACL]
+                {                  
+                    HasViewOwnUserPermission = permissionsResult.HasViewOwnUserPermission,
+                    HasViewAnyUserPermission = permissionsResult.HasViewAnyUserPermission,
 
-                    HasGrantPermissionAnyUserPermission                = permissionsResult.HasGrantPermissionsAnyUserPermission,
-                    HasGrantPermissionAnyLawyerAccountUserPermission   = permissionsResult.HasGrantPermissionsAnyLawyerAccountUserPermission,
-                    HasGrantPermissionAnyCustomerAccountUserPermission = permissionsResult.HasGrantPermissionsAnyCustomerAccountUserPermission,
-
-                    HasViewAnyUserPermission                = permissionsResult.HasViewAnyUserPermission,
+                    HasViewPublicUserPermission             = permissionsResult.HasViewPublicUserPermission,
+                    HasViewOwnLawyerAccountUserPermission   = permissionsResult.HasViewOwnLawyerAccountUserPermission,
                     HasViewAnyLawyerAccountUserPermission   = permissionsResult.HasViewAnyLawyerAccountUserPermission,
-                    HasViewAnyCustomerAccountUserPermission = permissionsResult.HasViewAnyCustomerAccountUserPermission,
-
-                    HasViewPublicUserPermission                = permissionsResult.HasViewPublicUserPermission,
+                   
                     HasViewPublicLawyerAccountUserPermission   = permissionsResult.HasViewPublicLawyerAccountUserPermission,
+                    HasViewOwnCustomerAccountUserPermission    = permissionsResult.HasViewOwnCustomerAccountUserPermission,
+                    HasViewAnyCustomerAccountUserPermission    = permissionsResult.HasViewAnyCustomerAccountUserPermission,
                     HasViewPublicCustomerAccountUserPermission = permissionsResult.HasViewPublicCustomerAccountUserPermission,
+                    
+                    HasGrantPermissionsOwnUserPermission = permissionsResult.HasGrantPermissionsOwnUserPermission,
+                    HasGrantPermissionsAnyUserPermission = permissionsResult.HasGrantPermissionsAnyUserPermission,
 
-                    // [ACL]
+                    HasGrantPermissionsOwnLawyerAccountUserPermission = permissionsResult.HasGrantPermissionsOwnLawyerAccountUserPermission,
+                    HasGrantPermissionsAnyLawyerAccountUserPermission = permissionsResult.HasGrantPermissionsAnyLawyerAccountUserPermission,
 
+                    HasGrantPermissionsOwnCustomerAccountUserPermission = permissionsResult.HasGrantPermissionsOwnCustomerAccountUserPermission,
+                    HasGrantPermissionsAnyCustomerAccountUserPermission = permissionsResult.HasGrantPermissionsAnyCustomerAccountUserPermission,
+ 
                     ViewUserPermissionId                = permission.ViewUserPermissionId,
-                    ViewLawyerAccountUserPermissionId   = permission.ViewUserPermissionId,
-                    ViewCustomerAccountUserPermissionId = permission.ViewUserPermissionId,
+                    ViewLawyerAccountUserPermissionId   = permission.ViewLawyerAccountUserPermissionId,
+                    ViewCustomerAccountUserPermissionId = permission.ViewCustomerAccountUserPermissionId,
 
-                    GrantPermissionsUserPermissionId                = permission.GrantPermissionsUserPermissionId,
-                    GrantPermissionsLawyerAccountUserPermissionId   = permission.GrantPermissionsLawyerAccountUserPermissionId,
-                    GrantPermissionsCustomerAccountUserPermissionId = permission.GrantPermissionsUserPermissionId,
+                    GrantPermissionsUserPermissionId                 = permission.GrantPermissionsUserPermissionId,
+                    GrantPermissionsLawyerAccountUserPermissionId    = permission.GrantPermissionsLawyerAccountUserPermissionId,
+                    GrantPermissionsCustomerAccountUserPermissionId  = permission.GrantPermissionsCustomerAccountUserPermissionId,
 
-                    Attribute = attributes.First(x => x.Id == item.AttributeId),
+                    AttributeName = attributes.First(x => x.Id == item.AttributeId).Name,
 
                     AttributeId  = item.AttributeId,
                     UserId       = item.UserId,
                     PermissionId = item.PermissionId,
-                    RoleId       = item.RoleId
+                    RoleId       = item.RoleId,
+
+                    RelatedCaseId  = parameters.RelatedCaseId,
+
+                    ExternalUserId = parameters.UserId,
                 };
 
                 var queryText = @$"
@@ -1179,7 +1206,7 @@ WITH [view_permission] AS (
         END AS [apply]
     FROM [users] [U]
     LEFT JOIN [lawyers] [L] ON [L].[user_id] = [U].[id]
-    LEFT JOIN [customer] [C] ON [C].[user_id] = [U].[id]
+    LEFT JOIN [customers] [C] ON [C].[user_id] = [U].[id]
     WHERE [U].[id] = @UserId
 ),
 [grant_permission] AS (
@@ -1270,7 +1297,7 @@ WITH [view_permission] AS (
         END AS [apply]
     FROM [users] [U]
     LEFT JOIN [lawyers] [L] ON [L].[user_id] = [U].[id]
-    LEFT JOIN [customer] [C] ON [C].[user_id] = [U].[id]
+    LEFT JOIN [customers] [C] ON [C].[user_id] = [U].[id]
     WHERE [U].[id] = @UserId
 )
 
@@ -1513,9 +1540,10 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
     ('HasViewOwnCasePermission',                             @ViewOwnCasePermissionId),
     ('HasViewPublicCasePermission',                          @ViewPublicCasePermissionId),
     ('HasViewCasePermission',                                @ViewCasePermissionId),
+
     ('HasRevokePermissionsAnyUserPermission',                @RevokePermissionsAnyUserPermissionId),
     ('HasRevokePermissionsAnyLawyerAccountUserPermission',   @RevokePermissionsAnyLawyerAccountUserPermissionId),
-    ('HasRevokePermissionsAnyCustomerAccountUserPermission', @RevokePermissionsAnyCustomeAccountUserPermissionId),
+    ('HasRevokePermissionsAnyCustomerAccountUserPermission', @RevokePermissionsAnyCustomerAccountUserPermissionId),
     ('HasRevokePermissionsOwnUserPermission',                @RevokePermissionsOwnUserPermissionId),
     ('HasRevokePermissionsOwnLawyerAccountUserPermission',   @RevokePermissionsOwnLawyerAccountUserPermissionId),
     ('HasRevokePermissionsOwnCustomerAccountUserPermission', @RevokePermissionsOwnCustomerAccountUserPermissionId),
@@ -1538,80 +1566,86 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
 [grants] AS (
 
     -- [user grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PGU].[attribute_id], 
+        1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants_user] [PGU]
       ON [PGU].[permission_id] = [PC].[permission_id] AND 
          [PGU].[user_id]       = @UserId              AND 
-         [PGU].[role_id]       = @RoleId              AND
-         ([PGU].[attribute_id] IS NULL OR [PGU].[attribute_id] = @AttributeId)
+         [PGU].[role_id]       = @RoleId
 
-    UNION ALL
+    UNION
 
     -- [role grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PG].[attribute_id], 
+        1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants] [PG]
       ON [PG].[permission_id] = [PC].[permission_id] AND
-         [PG].[role_id]       = @RoleId              AND
-         (PG].[attribute_id] IS NULL OR [PG].[attribute_id] = @AttributeId)
+         [PG].[role_id]       = @RoleId
 
-    UNION ALL
+    UNION
 
     -- [case ACL grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PGC].[attribute_id], 
+        1 AS [granted]
     FROM [permission_checks] [PC]
-    JOIN [permission_grants_cases] [PGC]
+    JOIN [permission_grants_case] [PGC]
       ON [PGC].[permission_id]   = [PC].[permission_id] AND 
          [PGC].[user_id]         = @UserId              AND 
          [PGC].[role_id]         = @RoleId              AND 
-         [PGC].[related_case_id] = @RelatedCaseId       AND
-         (PGC].[attribute_id] IS NULL OR [PGC].[attribute_id] = @AttributeId)
+         [PGC].[related_case_id] = @RelatedCaseId
 )
 SELECT
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsAnyCasePermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsAnyCasePermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsOwnCasePermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsOwnCasePermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsCasePermission'    THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsCasePermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyCasePermission'              THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyCasePermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnCasePermission'              THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnCasePermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicCasePermission'           THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicCasePermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewCasePermission'                 THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsAnyCasePermission' AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsAnyCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsOwnCasePermission' AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsOwnCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsCasePermission'    AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyCasePermission'              AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnCasePermission'              AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicCasePermission'           AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicCasePermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewCasePermission'                 AND ([G].[attribute_id] IS NULL OR [G].[attribute_id] = @AttributeId) THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewCasePermission],
 
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsAnyUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsAnyUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsAnyLawyerAccountUserPermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsAnyLawyerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsAnyCustomerAccountUserPermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsAnyCustomerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsOwnUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsOwnUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsOwnLawyerAccountUserPermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsOwnLawyerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsOwnCustomerAccountUserPermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsOwnCustomerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsUserPermission'                   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsLawyerAccountUserPermission'      THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsLawyerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsCustomerAccountUserPermission'    THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsCustomerAccountUserPermission],
-    
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnUserPermission'                             THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnLawyerAccountUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnLawyerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnCustomerAccountUserPermission'              THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnCustomerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicUserPermission'                          THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicLawyerAccountUserPermission'             THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicLawyerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicCustomerAccountUserPermission'           THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicCustomerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyUserPermission'                             THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyLawyerAccountUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyLawyerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyCustomerAccountUserPermission'              THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyCustomerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewUserPermission'                                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewLawyerAccountUserPermission'                   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewLawyerAccountUserPermission],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewCustomerAccountUserPermission'                 THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewCustomerAccountUserPermission]
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsAnyUserPermission'                AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsAnyUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsAnyLawyerAccountUserPermission'   AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsAnyLawyerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsAnyCustomerAccountUserPermission' AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsAnyCustomerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsOwnUserPermission'                AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsOwnUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsOwnLawyerAccountUserPermission'   AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsOwnLawyerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsOwnCustomerAccountUserPermission' AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsOwnCustomerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsUserPermission'                   AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsLawyerAccountUserPermission'      AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsLawyerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsCustomerAccountUserPermission'    AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasRevokePermissionsCustomerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnUserPermission'                             AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnLawyerAccountUserPermission'                AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnLawyerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnCustomerAccountUserPermission'              AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewOwnCustomerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicUserPermission'                          AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicLawyerAccountUserPermission'             AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicLawyerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicCustomerAccountUserPermission'           AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewPublicCustomerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyUserPermission'                             AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyLawyerAccountUserPermission'                AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyLawyerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyCustomerAccountUserPermission'              AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewAnyCustomerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewUserPermission'                                AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewLawyerAccountUserPermission'                   AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewLawyerAccountUserPermission],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewCustomerAccountUserPermission'                 AND [G].[attribute_id] IS NULL THEN COALESCE([G].[granted],0) ELSE 0 END) AS [HasViewCustomerAccountUserPermission]
 FROM [permission_checks] [PC]
 LEFT JOIN [grants] [G] ON [G].[permission_name] = [PC].[permission_name];";
 
         var queryPermissionsParameters = new
         {
-            RevokePermissionsCasePermissionId    = permission.RevokePermissionsCasePermissionId,
-            RevokePermissionsOwnCasePermissionId = permission.RevokePermissionsOwnCasePermissionId,
-            RevokePermissionsAnyCasePermissionId = permission.RevokePermissionsAnyCasePermissionId,
 
-            ViewCasePermissionId       = permission.ViewCasePermissionId,
-            ViewOwnCasePermissionId    = permission.ViewOwnCasePermissionId,
+            RevokePermissionsAnyCasePermissionId = permission.RevokePermissionsAnyCasePermissionId,
+            RevokePermissionsOwnCasePermissionId = permission.RevokePermissionsOwnCasePermissionId,
+            RevokePermissionsCasePermissionId    = permission.RevokePermissionsCasePermissionId,
+
             ViewAnyCasePermissionId    = permission.ViewAnyCasePermissionId,
+            ViewOwnCasePermissionId    = permission.ViewOwnCasePermissionId,
             ViewPublicCasePermissionId = permission.ViewPublicCasePermissionId,
+            ViewCasePermissionId       = permission.ViewCasePermissionId,
 
             RevokePermissionsAnyUserPermissionId                = permission.RevokePermissionsAnyUserPermissionId,
             RevokePermissionsAnyLawyerAccountUserPermissionId   = permission.RevokePermissionsAnyLawyerAccountUserPermissionId,
@@ -1621,6 +1655,14 @@ LEFT JOIN [grants] [G] ON [G].[permission_name] = [PC].[permission_name];";
             RevokePermissionsOwnLawyerAccountUserPermissionId   = permission.RevokePermissionsOwnLawyerAccountUserPermissionId,
             RevokePermissionsOwnCustomerAccountUserPermissionId = permission.RevokePermissionsOwnCustomerAccountUserPermissionId,
 
+            RevokePermissionsUserPermissionId                = permission.RevokePermissionsUserPermissionId,
+            RevokePermissionsLawyerAccountUserPermissionId   = permission.RevokePermissionsLawyerAccountUserPermissionId,
+            RevokePermissionsCustomerAccountUserPermissionId = permission.RevokePermissionsCustomerAccountUserPermissionId,
+
+            ViewOwnUserPermissionId                = permission.ViewOwnUserPermissionId,
+            ViewOwnLawyerAccountUserPermissionId   = permission.ViewOwnLawyerAccountUserPermissionId,
+            ViewOwnCustomerAccountUserPermissionId = permission.ViewOwnCustomerAccountUserPermissionId,
+
             ViewPublicUserPermissionId                = permission.ViewPublicUserPermissionId,
             ViewPublicLawyerAccountUserPermissionId   = permission.ViewPublicLawyerAccountUserPermissionId,
             ViewPublicCustomerAccountUserPermissionId = permission.ViewPublicCustomerAccountUserPermissionId,
@@ -1629,9 +1671,9 @@ LEFT JOIN [grants] [G] ON [G].[permission_name] = [PC].[permission_name];";
             ViewAnyLawyerAccountUserPermissionId   = permission.ViewAnyLawyerAccountUserPermissionId,
             ViewAnyCustomerAccountUserPermissionId = permission.ViewAnyCustomerAccountUserPermissionId,
 
-            ViewOwnUserPermissionId                = permission.ViewOwnUserPermissionId,
-            ViewOwnLawyerAccountUserPermissionId   = permission.ViewOwnLawyerAccountUserPermissionId,
-            ViewOwnCustomerAccountUserPermissionId = permission.ViewOwnCustomerAccountUserPermissionId,
+            ViewUserPermissionId                = permission.ViewUserPermissionId,
+            ViewLawyerAccountUserPermissionId   = permission.ViewLawyerAccountUserPermissionId,
+            ViewCustomerAccountUserPermissionId = permission.ViewCustomerAccountUserPermissionId,
 
             UserId        = parameters.UserId,
             RelatedCaseId = parameters.RelatedCaseId,
@@ -1800,12 +1842,12 @@ LEFT JOIN [grants] [G] ON [G].[permission_name] = [PC].[permission_name];";
             }
         }
 
-        const string queryAttributes = "SELECT [A].[id] AS [Id], [A].[name] AS [Name] FROM [Attributes]";
+        const string queryAttributes = "SELECT [A].[id] AS [Id], [A].[name] AS [Name] FROM [Attributes] [A]";
 
         var attributes = await connection.Connection.QueryAsync<(int Id, string Name)>(queryAttributes);
 
         const string queryAllowedPermissions = @"
-SELECT [P].[id] AS [Id] FROM [Permissions] WHERE [P].[name] IN 
+SELECT [P].[id] AS [Id] FROM [Permissions] [P] WHERE [P].[name] IN 
 ('VIEW_CASE', 'VIEW_PERMISSIONS_CASE', 'ASSIGN_LAWYER_CASE', 'ASSIGN_CUSTOMER_CASE', 'ASSIGN_CUSTOMER_CASE', 'GRANT_PERMISSIONS_CASE', 'REVOKE_PERMISSIONS_CASE')";
 
         var allowedPermissions = await connection.Connection.QueryAsync<int>(queryAllowedPermissions);
@@ -1829,44 +1871,45 @@ SELECT [P].[id] AS [Id] FROM [Permissions] WHERE [P].[name] IN
             {
                 var queryParameters = new
                 {
-                    // [NOT ACL]
+                    HasViewOwnUserPermission = permissionsResult.HasViewOwnUserPermission,
+                    HasViewAnyUserPermission = permissionsResult.HasViewAnyUserPermission,
 
-                    HasRevokePermissionOwnUserPermission                = permissionsResult.HasRevokePermissionsOwnUserPermission,
-                    HasRevokePermissionOwnLawyerAccountUserPermission   = permissionsResult.HasRevokePermissionsOwnLawyerAccountUserPermission,
-                    HasRevokePermissionOwnCustomerAccountUserPermission = permissionsResult.HasRevokePermissionsOwnCustomerAccountUserPermission,
-
-                    HasRevokePermissionAnyUserPermission                = permissionsResult.HasRevokePermissionsAnyUserPermission,
-                    HasRevokePermissionAnyLawyerAccountUserPermission   = permissionsResult.HasRevokePermissionsAnyLawyerAccountUserPermission,
-                    HasRevokePermissionAnyCustomerAccountUserPermission = permissionsResult.HasRevokePermissionsAnyCustomerAccountUserPermission,
-
-                    HasViewAnyUserPermission                = permissionsResult.HasViewAnyUserPermission,
+                    HasViewPublicUserPermission             = permissionsResult.HasViewPublicUserPermission,
+                    HasViewOwnLawyerAccountUserPermission   = permissionsResult.HasViewOwnLawyerAccountUserPermission,
                     HasViewAnyLawyerAccountUserPermission   = permissionsResult.HasViewAnyLawyerAccountUserPermission,
-                    HasViewAnyCustomerAccountUserPermission = permissionsResult.HasViewAnyCustomerAccountUserPermission,
-
-                    HasViewPublicUserPermission                = permissionsResult.HasViewPublicUserPermission,
+                   
                     HasViewPublicLawyerAccountUserPermission   = permissionsResult.HasViewPublicLawyerAccountUserPermission,
+                    HasViewOwnCustomerAccountUserPermission    = permissionsResult.HasViewOwnCustomerAccountUserPermission,
+                    HasViewAnyCustomerAccountUserPermission    = permissionsResult.HasViewAnyCustomerAccountUserPermission,
                     HasViewPublicCustomerAccountUserPermission = permissionsResult.HasViewPublicCustomerAccountUserPermission,
 
-                    HasViewOwnUserPermission                = permissionsResult.HasViewOwnUserPermission,
-                    HasViewOwnLawyerAccountUserPermission   = permissionsResult.HasViewOwnLawyerAccountUserPermission,
-                    HasViewOwnCustomerAccountUserPermission = permissionsResult.HasViewOwnCustomerAccountUserPermission,
+                    HasRevokePermissionsOwnUserPermission = permissionsResult.HasRevokePermissionsOwnUserPermission,
+                    HasRevokePermissionsAnyUserPermission = permissionsResult.HasRevokePermissionsAnyUserPermission,
 
-                    // [ACL]
+                    HasRevokePermissionsOwnLawyerAccountUserPermission = permissionsResult.HasRevokePermissionsOwnLawyerAccountUserPermission,
+                    HasRevokePermissionsAnyLawyerAccountUserPermission = permissionsResult.HasRevokePermissionsAnyLawyerAccountUserPermission,
 
+                    HasRevokePermissionsOwnCustomerAccountUserPermission = permissionsResult.HasRevokePermissionsOwnCustomerAccountUserPermission,
+                    HasRevokePermissionsAnyCustomerAccountUserPermission = permissionsResult.HasRevokePermissionsAnyCustomerAccountUserPermission,
+ 
                     ViewUserPermissionId                = permission.ViewUserPermissionId,
-                    ViewLawyerAccountUserPermissionId   = permission.ViewUserPermissionId,
-                    ViewCustomerAccountUserPermissionId = permission.ViewUserPermissionId,
+                    ViewLawyerAccountUserPermissionId   = permission.ViewLawyerAccountUserPermissionId,
+                    ViewCustomerAccountUserPermissionId = permission.ViewCustomerAccountUserPermissionId,
 
-                    RevokePermissionUserPermissionId                = permission.RevokePermissionsUserPermissionId,
-                    RevokePermissionLawyerAccountUserPermissionId   = permission.RevokePermissionsLawyerAccountUserPermissionId,
-                    RevokePermissionCustomerAccountUserPermissionId = permission.RevokePermissionsUserPermissionId,
+                    RevokePermissionsUserPermissionId                 = permission.RevokePermissionsUserPermissionId,
+                    RevokePermissionsLawyerAccountUserPermissionId    = permission.RevokePermissionsLawyerAccountUserPermissionId,
+                    RevokePermissionsCustomerAccountUserPermissionId  = permission.RevokePermissionsCustomerAccountUserPermissionId,
 
-                    Attribute = attributes.First(x => x.Id == item.AttributeId),
+                    AttributeName = attributes.First(x => x.Id == item.AttributeId).Name,
 
                     AttributeId  = item.AttributeId,
                     UserId       = item.UserId,
                     PermissionId = item.PermissionId,
-                    RoleId       = item.RoleId
+                    RoleId       = item.RoleId,
+
+                    RelatedCaseId  = parameters.RelatedCaseId,
+
+                    ExternalUserId = parameters.UserId,
                 };
 
                 var queryText = @$"
@@ -1887,7 +1930,7 @@ WITH [view_permission] AS (
                     -- [Layer 2: permission_grants_relationship (ACL Grant)] [VIEW_USER]
 
                     ([U].[private] = 1 AND (
-                        @ViewUserPermissionId IS NOT NULL EXISTS (
+                        @ViewUserPermissionId IS NOT NULL AND EXISTS (
                             SELECT 1 FROM [permission_grants_relationship] [PGRu]
                             WHERE
                                 [PGRu].[related_user_id] = @UserId               AND 
@@ -1970,10 +2013,10 @@ WITH [view_permission] AS (
                     END = 1
                 )
             THEN 1 ELSE 0
-        END AS apply
+        END AS [apply]
     FROM [users] [U]
     LEFT JOIN [lawyers] [L] ON [L].[user_id] = [U].[id]
-    LEFT JOIN [customer] [C] ON [C].[user_id] = [U].[id]
+    LEFT JOIN [customers] [C] ON [C].[user_id] = [U].[id]
     WHERE [U].[id] = @UserId
 ),
 [revoke_permission] AS (
@@ -2021,8 +2064,8 @@ WITH [view_permission] AS (
                                 WHEN (
                                     @RevokePermissionsLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
                                         SELECT 1 FROM [permission_grants_relationship] [PGRu2]
-                                        WHERE
-                                            [PGRu2].[related_user_id] = @UserId                                         AND 
+                                        WHERE 
+                                            [PGRu2].[related_user_id] = @UserId                                        AND 
                                             [PGRu2].[user_id]         = @ExternalUserId                                 AND 
                                             [PGRu2].[role_id]         = @RoleId                                         AND 
                                             [PGRu2].[permission_id]   = @RevokePermissionsLawyerAccountUserPermissionId AND 
@@ -2064,7 +2107,7 @@ WITH [view_permission] AS (
         END AS [apply]
     FROM [users] [U]
     LEFT JOIN [lawyers] [L] ON [L].[user_id] = [U].[id]
-    LEFT JOIN [customer] [C] ON [C].[user_id] = [U].[id]
+    LEFT JOIN [customers] [C] ON [C].[user_id] = [U].[id]
     WHERE [U].[id] = @UserId
 )
 
@@ -2123,21 +2166,23 @@ FROM [view_permission], [revoke_permission];";
 
         var deletedItems = await ValuesExtensions.GetValue(async () =>
         {
-            var items = internalValues.Data.Items.Values.Select(x => new
-            {
-                RelatedCaseId = parameters.RelatedCaseId,
+            var dynamicParameter = new DynamicParameters();
 
-                AttributeId  = x.AttributeId,
-                PermissionId = x.PermissionId,
-                UserId       = x.UserId,
-                RoleId       = x.RoleId
-            });
+            dynamicParameter.Add($"RelatedCaseId", parameters.RelatedCaseId);
 
             var stringBuilder = new StringBuilder();
 
-            stringBuilder.Append(@"DELETE [permission_grants_case] WHERE [case_id] = @RelatedCaseId AND [user_id] = @UserId AND [permission_id] = @PermissionId AND [attribute_id] = @AttributeId;");
+            foreach (var (item, index) in internalValues.Data.Items.Values.Select((item, index) => (item, index)))
+            {
+                dynamicParameter.Add($"PermissionId({index})", item.PermissionId);
+                dynamicParameter.Add($"UserId({index})", item.UserId);
+                dynamicParameter.Add($"RoleId({index})", item.RoleId);
+                dynamicParameter.Add($"AttributeId({index})", item.AttributeId);
 
-            var deletedItems = await connection.Connection.ExecuteAsync(stringBuilder.ToString(), items);
+                stringBuilder.Append($"DELETE FROM [permission_grants_case] WHERE [related_case_id] = @RelatedCaseId AND [user_id] = @UserId({index}) AND [permission_id] = @PermissionId({index}) AND [user_id] = @UserId({index}) AND [attribute_id] = @AttributeId({index});");
+            }
+
+            var deletedItems = await connection.Connection.ExecuteAsync(stringBuilder.ToString(), dynamicParameter);
 
             return deletedItems;
         });
@@ -2266,26 +2311,35 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
 [grants] AS (
 
     -- [user grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PGU].[attribute_id], 
+        1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants_user] [PGU]
       ON [PGU].[permission_id] = [PC].[permission_id] AND 
          [PGU].[user_id]       = @UserId              AND 
          [PGU].[role_id]       = @RoleId
 
-    UNION ALL
+    UNION
 
     -- [role grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT
+        [PC].[permission_name],
+        [PG].[attribute_id], 
+        1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants] [PG]
       ON [PG].[permission_id] = [PC].[permission_id] AND
          [PG].[role_id]       = @RoleId
 
-    UNION ALL
+    UNION
 
     -- [case ACL grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PGR].[attribute_id], 
+        1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants_relationship] [PGR]
       ON [PGR].[permission_id]   = [PC].[permission_id] AND 
@@ -2506,41 +2560,36 @@ WHERE [U].[id] = @RelatedUserId";
         const string queryPermissions = @"
 WITH [permission_checks]([permission_name], [permission_id]) AS (
     VALUES
-        ('HasRegisterUserPermission',                           @RegisterUserPermissionId),
-        ('HasRegisterLawyerAccountUserPermission',              @RegisterLawyerAccountUserPermissionId),
-        ('HasRegisterCustomerAccountUserPermission',            @RegisterCustomerAccountUserPermissionId),
-
-        ('HasEditOwnUserPermission',                            @EditOwnUserPermissionId),
-        ('HasEditAnyUserPermission',                            @EditAnyUserPermissionId),
-        ('HasEditOwnLawyerAccountUserPermission',               @EditOwnLawyerAccountUserPermissionId),
-        ('HasEditAnyLawyerAccountUserPermission',               @EditAnyLawyerAccountUserPermissionId),
-        ('HasEditOwnCustomerAccountUserPermission',             @EditOwnCustomerAccountUserPermissionId),
-        ('HasEditAnyCustomerAccountUserPermission',             @EditAnyCustomerAccountUserPermissionId),
-
-        ('HasViewOwnUserPermission',                            @ViewOwnUserPermissionId),
-        ('HasViewAnyUserPermission',                            @ViewAnyUserPermissionId),
-        ('HasViewPublicUserPermission',                         @ViewPublicUserPermissionId),
-        ('HasViewOwnLawyerAccountUserPermission',               @ViewOwnLawyerAccountUserPermissionId),
-        ('HasViewAnyLawyerAccountUserPermission',               @ViewAnyLawyerAccountUserPermissionId),
-        ('HasViewPublicLawyerAccountUserPermission',            @ViewPublicLawyerAccountUserPermissionId),
-        ('HasViewOwnCustomerAccountUserPermission',             @ViewOwnCustomerAccountUserPermissionId),
-        ('HasViewAnyCustomerAccountUserPermission',             @ViewAnyCustomerAccountUserPermissionId),
-        ('HasViewPublicCustomerAccountUserPermission',          @ViewPublicCustomerAccountUserPermissionId),
-
+        ('HasRegisterUserPermission',                            @RegisterUserPermissionId),
+        ('HasRegisterLawyerAccountUserPermission',               @RegisterLawyerAccountUserPermissionId),
+        ('HasRegisterCustomerAccountUserPermission',             @RegisterCustomerAccountUserPermissionId),
+        ('HasEditOwnUserPermission',                             @EditOwnUserPermissionId),
+        ('HasEditAnyUserPermission',                             @EditAnyUserPermissionId),
+        ('HasEditOwnLawyerAccountUserPermission',                @EditOwnLawyerAccountUserPermissionId),
+        ('HasEditAnyLawyerAccountUserPermission',                @EditAnyLawyerAccountUserPermissionId),
+        ('HasEditOwnCustomerAccountUserPermission',              @EditOwnCustomerAccountUserPermissionId),
+        ('HasEditAnyCustomerAccountUserPermission',              @EditAnyCustomerAccountUserPermissionId),
+        ('HasViewOwnUserPermission',                             @ViewOwnUserPermissionId),
+        ('HasViewAnyUserPermission',                             @ViewAnyUserPermissionId),
+        ('HasViewPublicUserPermission',                          @ViewPublicUserPermissionId),
+        ('HasViewOwnLawyerAccountUserPermission',                @ViewOwnLawyerAccountUserPermissionId),
+        ('HasViewAnyLawyerAccountUserPermission',                @ViewAnyLawyerAccountUserPermissionId),
+        ('HasViewPublicLawyerAccountUserPermission',             @ViewPublicLawyerAccountUserPermissionId),
+        ('HasViewOwnCustomerAccountUserPermission',              @ViewOwnCustomerAccountUserPermissionId),
+        ('HasViewAnyCustomerAccountUserPermission',              @ViewAnyCustomerAccountUserPermissionId),
+        ('HasViewPublicCustomerAccountUserPermission',           @ViewPublicCustomerAccountUserPermissionId),
         ('HasViewPermissionsOwnUserPermission',                  @ViewPermissionsOwnUserPermissionId),
         ('HasViewPermissionsAnyUserPermission',                  @ViewPermissionsAnyUserPermissionId),
         ('HasViewPermissionsOwnLawyerAccountUserPermission',     @ViewPermissionsOwnLawyerAccountUserPermissionId),
         ('HasViewPermissionsAnyLawyerAccountUserPermission',     @ViewPermissionsAnyLawyerAccountUserPermissionId),
         ('HasViewPermissionsOwnCustomerAccountUserPermission',   @ViewPermissionsOwnCustomerAccountUserPermissionId),
         ('HasViewPermissionsAnyCustomerAccountUserPermission',   @ViewPermissionsAnyCustomerAccountUserPermissionId),
-
         ('HasGrantPermissionsOwnUserPermission',                 @GrantPermissionsOwnUserPermissionId),
         ('HasGrantPermissionsAnyUserPermission',                 @GrantPermissionsAnyUserPermissionId),
         ('HasGrantPermissionsOwnLawyerAccountUserPermission',    @GrantPermissionsOwnLawyerAccountUserPermissionId),
         ('HasGrantPermissionsAnyLawyerAccountUserPermission',    @GrantPermissionsAnyLawyerAccountUserPermissionId),
         ('HasGrantPermissionsOwnCustomerAccountUserPermission',  @GrantPermissionsOwnCustomerAccountUserPermissionId),
         ('HasGrantPermissionsAnyCustomerAccountUserPermission',  @GrantPermissionsAnyCustomerAccountUserPermissionId),
-
         ('HasRevokePermissionsOwnUserPermission',                @RevokePermissionsOwnUserPermissionId),
         ('HasRevokePermissionsAnyUserPermission',                @RevokePermissionsAnyUserPermissionId),
         ('HasRevokePermissionsOwnLawyerAccountUserPermission',   @RevokePermissionsOwnLawyerAccountUserPermissionId),
@@ -2551,6 +2600,7 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
 [grants] AS (
     SELECT
         [PC].[permission_name],
+        [PGU].[attribute_id],
         1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants_user] [PGU]
@@ -2560,6 +2610,7 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
     UNION
     SELECT
         [PC].[permission_name],
+        [PG].[attribute_id],
         1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants] [PG]
@@ -2567,41 +2618,36 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
          [PG].[role_id]       = @RoleId
 )
 SELECT
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRegisterUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RegisterUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRegisterLawyerAccountUserPermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RegisterLawyerAccountUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasRegisterCustomerAccountUserPermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RegisterCustomerAccountUser],
-
-    MAX(CASE WHEN [PC].[permission_name] = 'HasEditOwnUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [EditOwnUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasEditAnyUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [EditAnyUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasEditOwnLawyerAccountUserPermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [EditOwnLawyerAccountUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasEditAnyLawyerAccountUserPermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [EditAnyLawyerAccountUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasEditOwnCustomerAccountUserPermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [EditOwnCustomerAccountUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasEditAnyCustomerAccountUserPermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [EditAnyCustomerAccountUser],
-
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnUserPermission'                   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewOwnUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyUserPermission'                   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewAnyUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPublicUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnLawyerAccountUserPermission'      THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewOwnLawyerAccountUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyLawyerAccountUserPermission'      THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewAnyLawyerAccountUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicLawyerAccountUserPermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPublicLawyerAccountUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnCustomerAccountUserPermission'    THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewOwnCustomerAccountUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyCustomerAccountUserPermission'    THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewAnyCustomerAccountUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicCustomerAccountUserPermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPublicCustomerAccountUser],
-
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsOwnUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsOwnUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsAnyUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsAnyUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsOwnLawyerAccountUserPermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsOwnLawyerAccountUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsAnyLawyerAccountUserPermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsAnyLawyerAccountUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsOwnCustomerAccountUserPermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsOwnCustomerAccountUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsAnyCustomerAccountUserPermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsAnyCustomerAccountUser],
-
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsOwnUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsOwnUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsAnyUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsAnyUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsOwnLawyerAccountUserPermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsOwnLawyerAccountUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsAnyLawyerAccountUserPermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsAnyLawyerAccountUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsOwnCustomerAccountUserPermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsOwnCustomerAccountUser],
-    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsAnyCustomerAccountUserPermission' THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsAnyCustomerAccountUser],
-
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRegisterUserPermission'                            THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RegisterUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRegisterLawyerAccountUserPermission'               THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RegisterLawyerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasRegisterCustomerAccountUserPermission'             THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RegisterCustomerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasEditOwnUserPermission'                             THEN COALESCE([G].[granted],0) ELSE 0 END) AS [EditOwnUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasEditAnyUserPermission'                             THEN COALESCE([G].[granted],0) ELSE 0 END) AS [EditAnyUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasEditOwnLawyerAccountUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [EditOwnLawyerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasEditAnyLawyerAccountUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [EditAnyLawyerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasEditOwnCustomerAccountUserPermission'              THEN COALESCE([G].[granted],0) ELSE 0 END) AS [EditOwnCustomerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasEditAnyCustomerAccountUserPermission'              THEN COALESCE([G].[granted],0) ELSE 0 END) AS [EditAnyCustomerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnUserPermission'                             THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewOwnUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyUserPermission'                             THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewAnyUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicUserPermission'                          THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPublicUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnLawyerAccountUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewOwnLawyerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyLawyerAccountUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewAnyLawyerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicLawyerAccountUserPermission'             THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPublicLawyerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewOwnCustomerAccountUserPermission'              THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewOwnCustomerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewAnyCustomerAccountUserPermission'              THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewAnyCustomerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPublicCustomerAccountUserPermission'           THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPublicCustomerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsOwnUserPermission'                  THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsOwnUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsAnyUserPermission'                  THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsAnyUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsOwnLawyerAccountUserPermission'     THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsOwnLawyerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsAnyLawyerAccountUserPermission'     THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsAnyLawyerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsOwnCustomerAccountUserPermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsOwnCustomerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasViewPermissionsAnyCustomerAccountUserPermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [ViewPermissionsAnyCustomerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsOwnUserPermission'                 THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsOwnUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsAnyUserPermission'                 THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsAnyUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsOwnLawyerAccountUserPermission'    THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsOwnLawyerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsAnyLawyerAccountUserPermission'    THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsAnyLawyerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsOwnCustomerAccountUserPermission'  THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsOwnCustomerAccountUser],
+    MAX(CASE WHEN [PC].[permission_name] = 'HasGrantPermissionsAnyCustomerAccountUserPermission'  THEN COALESCE([G].[granted],0) ELSE 0 END) AS [GrantPermissionsAnyCustomerAccountUser],
     MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsOwnUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RevokePermissionsOwnUser],
     MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsAnyUserPermission'                THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RevokePermissionsAnyUser],
     MAX(CASE WHEN [PC].[permission_name] = 'HasRevokePermissionsOwnLawyerAccountUserPermission'   THEN COALESCE([G].[granted],0) ELSE 0 END) AS [RevokePermissionsOwnLawyerAccountUser],
@@ -2760,6 +2806,7 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
 [grants] AS (
     SELECT
         [PC].[permission_name],
+        [PGR].[attribute_id],
         1 AS [granted]
     FROM [user_permission_checks] [PC]
     JOIN [permission_grants_relationship] [PGR]
@@ -2900,15 +2947,18 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
     ('HasGrantPermissionsAnyUserPermission', @GrantPermissionsAnyUserPermissionId),
     ('HasGrantPermissionsOwnUserPermission', @GrantPermissionsOwnUserPermissionId),
     ('HasGrantPermissionsUserPermission',    @GrantPermissionsUserPermissionId),
-    ('HasViewOwnUserPermission',            @ViewOwnUserPermissionId),
-    ('HasViewPublicUserPermission',         @ViewPublicUserPermissionId),
-    ('HasViewAnyUserPermission',            @ViewAnyUserPermissionId),
-    ('HasViewUserPermission',               @ViewUserPermissionId)
+    ('HasViewOwnUserPermission',             @ViewOwnUserPermissionId),
+    ('HasViewPublicUserPermission',          @ViewPublicUserPermissionId),
+    ('HasViewAnyUserPermission',             @ViewAnyUserPermissionId),
+    ('HasViewUserPermission',                @ViewUserPermissionId)
 ),
 [grants] AS (
 
     -- [user grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PGU].[attribute_id], 
+        1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants_user] [PGU]
       ON [PGU].[permission_id] = [PC].[permission_id] AND 
@@ -2918,7 +2968,10 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
     UNION ALL
 
     -- [role grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PG].[attribute_id], 
+        1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants] [PG]
       ON [PG].[permission_id] = [PC].[permission_id] AND
@@ -2927,7 +2980,10 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
     UNION ALL
 
     -- [case ACL grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PGR].[attribute_id], 
+        1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants_relationship] [PGR]
       ON [PGR].[permission_id]   = [PC].[permission_id] AND 
@@ -3019,7 +3075,8 @@ FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
 
                             UserId       = x.UserId,
                             PermissionId = x.PermissionId,
-                            RoleId       = x.RoleId
+                            RoleId       = x.RoleId,
+                            AttributeId  = x.AttributeId
                         })
             }
         };
@@ -3057,6 +3114,26 @@ FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
                 continue;
 
             if(result.IsFinished)
+            {
+                internalValues.Data.Items[item.Id].Result = result;
+
+                internalValues.Data.Finish(item.Id);
+            }
+        }
+
+        // [Attribute Id]
+        var attributeIdResultDictionary = await ValidateAttributeId(
+            internalValues.Data.Items.Values.Where(x => x.AttributeId.HasValue)
+                .Select(x => x.AttributeId!.Value)
+                .Distinct(),
+            contextualizer);
+
+        foreach (var item in internalValues.Data.Items.Values.Where(x => x.AttributeId.HasValue))
+        {
+            if (!attributeIdResultDictionary.TryGetValue(item.AttributeId!.Value, out var result))
+                continue;
+
+            if (result.IsFinished)
             {
                 internalValues.Data.Items[item.Id].Result = result;
 
@@ -3193,7 +3270,8 @@ WITH [view_permission] AS (
                             [PGRu2].[related_user_id] = @UserId                           AND 
                             [PGRu2].[user_id]         = @ExternalUserId                   AND 
                             [PGRu2].[role_id]         = @RoleId                           AND 
-                            [PGRu2].[permission_id]   = @GrantPermissionsUserPermissionId)
+                            [PGRu2].[permission_id]   = @GrantPermissionsUserPermissionId
+                        )
                     )
                     OR @HasGrantPermissionsAnyUserPermission = 1)   
                 )
@@ -3250,6 +3328,7 @@ FROM [view_permission], [grant_permission];";
                             UserId       = item.UserId,
                             PermissionId = item.PermissionId,
                             RoleId       = item.RoleId,
+                            AttributeId  = item.AttributeId,
 
                             Result = item.Result
                         })
@@ -3272,8 +3351,8 @@ FROM [view_permission], [grant_permission];";
 
             var stringBuilder = new StringBuilder();
 
-            stringBuilder.Append(@" INSERT OR IGNORE INTO [permission_grants_relationship] ([related_user_id], [permission_id], [role_id], [user_id]) 
-                                                                            VALUES (@RelatedUserId, @PermissionId, @RoleId, @UserId);");
+            stringBuilder.Append(@" INSERT OR IGNORE INTO [permission_grants_relationship] ([related_user_id], [permission_id], [role_id], [user_id], [attribute_id]) 
+                                                                            VALUES (@RelatedUserId, @PermissionId, @RoleId, @UserId, @AttributeId);");
 
             var includedItems = await connection.Connection.ExecuteAsync(stringBuilder.ToString(), items);
 
@@ -3292,6 +3371,7 @@ FROM [view_permission], [grant_permission];";
                         UserId       = item.UserId,
                         PermissionId = item.PermissionId,
                         RoleId       = item.RoleId,
+                        AttributeId  = item.AttributeId,
 
                         Result = item.Result
                     })
@@ -3390,26 +3470,35 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
 [grants] AS (
 
     -- [user grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PGU].[attribute_id], 
+        1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants_user] [PGU]
       ON [PGU].[permission_id] = [PC].[permission_id] AND 
          [PGU].[user_id]       = @UserId              AND 
          [PGU].[role_id]       = @RoleId
 
-    UNION ALL
+    UNION
 
     -- [role grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PG].[attribute_id], 
+        1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants] [PG]
       ON [PG].[permission_id] = [PC].[permission_id] AND
          [PG].[role_id]       = @RoleId
 
-    UNION ALL
+    UNION
 
     -- [case ACL grants]
-    SELECT [PC].[permission_name], 1 AS [granted]
+    SELECT 
+        [PC].[permission_name], 
+        [PGR].[attribute_id], 
+        1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants_relationship] [PGR]
       ON [PGR].[permission_id]   = [PC].[permission_id] AND 
@@ -3451,7 +3540,7 @@ LEFT JOIN [grants] [G] ON [G].[permission_name] = [PC].[permission_name];";
         const string queryUserInformations = @"
 SELECT 
     [U].[private]                                    AS [Private], 
-    (CASE WHEN [U].[id] = @UserId THEN 1 ELSE 0 END) AS [Owner],
+    (CASE WHEN [U].[id] = @UserId THEN 1 ELSE 0 END) AS [Owner]
 FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
 
         var queryUserInformationParameters = new
@@ -3502,7 +3591,8 @@ FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
 
                             UserId       = x.UserId,
                             PermissionId = x.PermissionId,
-                            RoleId       = x.RoleId
+                            RoleId       = x.RoleId,
+                            AttributeId  = x.AttributeId
                         })
             }
         };
@@ -3540,6 +3630,26 @@ FROM [users] [U] WHERE [U].[id] = @RelatedUserId";
                 continue;
 
             if(result.IsFinished)
+            {
+                internalValues.Data.Items[item.Id].Result = result;
+
+                internalValues.Data.Finish(item.Id);
+            }
+        }
+
+        // [Role Id]
+        var attributeIdResultDictionary = await ValidateRoleId(
+            internalValues.Data.Items.Values.Where(x => x.AttributeId.HasValue)
+                .Select(x => x.AttributeId!.Value)
+                .Distinct(),
+            contextualizer);
+
+        foreach (var item in internalValues.Data.Items.Values.Where(x => x.AttributeId.HasValue))
+        {
+            if (!attributeIdResultDictionary.TryGetValue(item.AttributeId!.Value, out var result))
+                continue;
+
+            if (result.IsFinished)
             {
                 internalValues.Data.Items[item.Id].Result = result;
 
@@ -3727,6 +3837,7 @@ FROM [view_permission], [revoke_permission];";
                             UserId       = item.UserId,
                             PermissionId = item.PermissionId,
                             RoleId       = item.RoleId,
+                            AttributeId  = item.AttributeId,
 
                             Result = item.Result
                         })
@@ -3737,21 +3848,25 @@ FROM [view_permission], [revoke_permission];";
         }
           
         var deletedItems = await ValuesExtensions.GetValue(async () =>
-        { 
-            var items = internalValues.Data.Items.Values.Select(x => new
-            {
-                RelatedUserId = parameters.RelatedUserId,
+        {
+            var dynamicParameter = new DynamicParameters();
 
-                PermissionId = x.PermissionId,
-                UserId       = x.UserId,
-                RoleId       = x.RoleId
-            });
+            dynamicParameter.Add($"RelatedUserId", parameters.RelatedUserId);
 
             var stringBuilder = new StringBuilder();
 
-            stringBuilder.Append(@"DELETE [permission_grants_relationship] WHERE [related_user_id] = @RelatedUserId AND [user_id] = @UserId AND [permission_id] = @PermissionId;");
+            foreach (var (item, index) in internalValues.Data.Items.Values.Select((item, index) => (item, index)))
+            {
+                dynamicParameter.Add($"PermissionId({index})", item.PermissionId);
+                dynamicParameter.Add($"UserId({index})", item.UserId);
+                dynamicParameter.Add($"RoleId({index})", item.RoleId);
+                dynamicParameter.Add($"AttributeId({index})", item.AttributeId);
 
-            var deletedItems = await connection.Connection.ExecuteAsync(stringBuilder.ToString(), items);
+                stringBuilder.Append($"DELETE [permission_grants_relationship] WHERE [related_user_id] = @RelatedUserId AND [user_id] = @UserId({index}) AND [permission_id] = @PermissionId({index}) AND [user_id] = @UserId({index}) AND [attribute_id] = @AttributeId({index});");
+            }
+
+            var deletedItems = await connection.Connection.ExecuteAsync(stringBuilder.ToString(), dynamicParameter);
+
             return deletedItems;
         });
 
@@ -3767,6 +3882,7 @@ FROM [view_permission], [revoke_permission];";
                         UserId       = item.UserId,
                         PermissionId = item.PermissionId,
                         RoleId       = item.RoleId,
+                        AttributeId  = item.AttributeId,
 
                         Result = item.Result
                     })
@@ -3885,6 +4001,7 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
 [grants] AS (
     SELECT
         [PC].[permission_name],
+        [PGU].[attribute_id],
         1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants_user] [PGU]
@@ -3894,6 +4011,7 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
     UNION
     SELECT
         [PC].[permission_name],
+        [PG].[attribute_id],
         1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants] [PG]
@@ -4001,9 +4119,9 @@ SELECT
                         SELECT 1
                         FROM [permission_grants_relationship] [PGRu]
                         WHERE
-                            [PGRu].[related_user_id] = @UserId                AND 
-                            [PGRu].[user_id]         = @ExternalUserId        AND 
-                            [PGRu].[role_id]         = @RoleId                AND 
+                            [PGRu].[related_user_id] = @UserId               AND 
+                            [PGRu].[user_id]         = @ExternalUserId       AND 
+                            [PGRu].[role_id]         = @RoleId               AND 
                             [PGRu].[permission_id]   = @ViewUserPermissionId
                     )
                     OR @HasViewAnyUserPermission = 1
@@ -4165,8 +4283,8 @@ SELECT
             (@GrantPermissionsCustomerAccountUserPermissionId IS NOT NULL AND EXISTS (
                 SELECT 1 FROM [permission_grants_relationship] [PGR]
                 WHERE 
-                    [PGR].[related_user_id] = [U].[id]                                       AND
-                    [PGR].[user_id]         = @UserId                                        AND
+                    [PGR].[related_user_id] = [U].[id]                                         AND
+                    [PGR].[user_id]         = @UserId                                          AND
                     [PGR].[permission_id]   = @GrantPermissionsCustomerAccountUserPermissionId AND
                     [PGR].[role_id]         = @RoleId
             ))
@@ -4352,6 +4470,7 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
 [grants] AS (
     SELECT
         [PC].[permission_name],
+        [PGU].[attribute_id],
         1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants_user] [PGU]
@@ -4361,6 +4480,7 @@ WITH [permission_checks]([permission_name], [permission_id]) AS (
     UNION
     SELECT
         [PC].[permission_name],
+        [PG].[attribute_id],
         1 AS [granted]
     FROM [permission_checks] [PC]
     JOIN [permission_grants] [PG]
@@ -4468,9 +4588,9 @@ SELECT
                         SELECT 1
                         FROM [permission_grants_relationship] [PGRu]
                         WHERE
-                            [PGRu].[related_user_id] = @UserId                AND 
-                            [PGRu].[user_id]         = @ExternalUserId        AND 
-                            [PGRu].[role_id]         = @RoleId                AND 
+                            [PGRu].[related_user_id] = @UserId               AND 
+                            [PGRu].[user_id]         = @ExternalUserId       AND 
+                            [PGRu].[role_id]         = @RoleId               AND 
                             [PGRu].[permission_id]   = @ViewUserPermissionId
                     )
                     OR @HasViewAnyUserPermission = 1
@@ -4596,8 +4716,8 @@ SELECT
             (@RevokePermissionsLawyerAccountUserPermissionId IS NOT NULL AND EXISTS (
                 SELECT 1 FROM [permission_grants_relationship] [PGR]
                 WHERE 
-                    [PGR].[related_user_id] = [U].[id]                                       AND
-                    [PGR].[user_id]         = @UserId                                        AND
+                    [PGR].[related_user_id] = [U].[id]                                        AND
+                    [PGR].[user_id]         = @UserId                                         AND
                     [PGR].[permission_id]   = @RevokePermissionsLawyerAccountUserPermissionId AND
                     [PGR].[role_id]         = @RoleId
             ))

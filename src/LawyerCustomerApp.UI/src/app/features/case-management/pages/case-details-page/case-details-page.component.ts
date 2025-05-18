@@ -6,8 +6,9 @@ import { switchMap, tap, finalize } from 'rxjs/operators';
 import { CaseService } from '../../services/case.service';
 import { UserProfileService } from '../../../../core/services/user-profile.service';
 import { ToastService } from '../../../../core/services/toast.service';
-import { CaseDetailsInformationItem, CasePermissionsInformationItem } from '../../../../core/models/case.models'; // Make sure DTOs exist
+import { CaseDetailsInformationItem } from '../../../../core/models/case.models';
 import { LcaPermissionItem } from '../../../../shared/components/lca-permissions-list/lca-permissions-list.component';
+import { PermissionService } from '../../../../core/services/permission.service';
 
 
 @Component({
@@ -17,7 +18,7 @@ import { LcaPermissionItem } from '../../../../shared/components/lca-permissions
 })
 export class CaseDetailsPageComponent implements OnInit, OnDestroy {
   caseDetails: CaseDetailsInformationItem | null = null;
-  activePermissions: LcaPermissionItem[] = []; // Use LcaPermissionItem for consistency
+  activePermissions: LcaPermissionItem[] = [];
   isLoadingDetails: boolean = false;
   isLoadingPermissions: boolean = false;
   caseId!: number;
@@ -33,6 +34,7 @@ export class CaseDetailsPageComponent implements OnInit, OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
+    private permissionService: PermissionService,
     private caseService: CaseService,
     private userProfileService: UserProfileService,
     private toastService: ToastService
@@ -84,20 +86,18 @@ export class CaseDetailsPageComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadPermissions(): void {
-    if (!this.caseId || !this.currentAttributeId) return;
-    this.isLoadingPermissions = true;
-    this.caseService.getPermissions({ relatedCaseId: this.caseId, attributeId: this.currentAttributeId }).pipe(
-        finalize(() => this.isLoadingPermissions = false)
-    ).subscribe(response => {
+loadPermissions(): void {
+  if (!this.caseId || !this.currentAttributeId) return;
+  this.isLoadingPermissions = true;
+
+  this.permissionService.enlistPermissionsFromCase({ relatedCaseId: this.caseId, attributeId: this.currentAttributeId })
+    .pipe(finalize(() => this.isLoadingPermissions = false))
+    .subscribe(response => {
       if (response && response.items) {
-        this.activePermissions = response.items.map((p: CasePermissionsInformationItem) => ({ ...p } as LcaPermissionItem));
-      } else {
-        this.activePermissions = [];
-        // this.toastService.showInfo('No active permissions found or failed to load.');
-      }
+        this.activePermissions = response.items.map(p => ({ ...p } as LcaPermissionItem));
+      } else { this.activePermissions = []; }
     });
-  }
+}
 
   openEditModal(): void {
     if (this.caseDetails) {

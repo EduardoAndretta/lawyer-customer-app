@@ -52,6 +52,7 @@ const COMPONENTS = [
     ...COMPONENTS,
     // ...PIPES,
     // ...DIRECTIVES,
+    CommonModule,
     FormsModule, // Re-export FormsModule and ReactiveFormsModule if used by feature modules directly
     ReactiveFormsModule
   ]

@@ -21,6 +21,21 @@ public abstract record PermissionResult
         public bool HasViewPublicCasePermission { get; init; } = false;
     }
 
+    public record Count : PermissionResult
+    {
+        public bool HasViewOwnCasePermission { get; init; } = false;
+        public bool HasViewAnyCasePermission { get; init; } = false;
+        public bool HasViewPublicCasePermission { get; init; } = false;
+    }
+
+    public record Details : PermissionResult
+    {
+        public bool HasViewOwnCasePermission { get; init; } = false;
+        public bool HasViewAnyCasePermission { get; init; } = false;
+        public bool HasViewPublicCasePermission { get; init; } = false;
+        public bool HasViewCasePermission { get; init; } = false;
+    }
+
     public record Register : PermissionResult
     {
         public bool HasRegisterCasePermission { get; init; } = false;

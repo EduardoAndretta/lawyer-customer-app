@@ -1,4 +1,4 @@
-import { PaginationParams, PermissionDetail, BasePermissionsInformationItem } from './common.models';
+import { PaginationParams } from './common.models';
 
 // [Lawyer Search]
 export interface LawyerSearchParametersDto {

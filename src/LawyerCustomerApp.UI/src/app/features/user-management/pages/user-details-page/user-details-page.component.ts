@@ -4,10 +4,18 @@ import { Subscription, Observable, of } from 'rxjs';
 import { switchMap, tap, finalize } from 'rxjs/operators';
 
 import { UserService } from '../../services/user.service';
+import { PermissionService } from '../../../../core/services/permission.service';
 import { UserProfileService } from '../../../../core/services/user-profile.service';
 import { ToastService } from '../../../../core/services/toast.service';
-import { UserDetailsInformationItem, UserPermissionsInformationItem } from '../../../../core/models/user.models';
+import { UserDetailsInformationItem } from '../../../../core/models/user.models';
 import { LcaPermissionItem } from '../../../../shared/components/lca-permissions-list/lca-permissions-list.component';
+
+import {
+  EnlistPermissionsFromUserParametersDto,
+  RevokePermissionsToUserParametersDto,
+  GrantPermissionsToUserParametersDtoPermissionProperties
+} from '../../../../core/models/permission.models';
+
 
 @Component({
   selector: 'app-user-details-page',
@@ -17,36 +25,38 @@ import { LcaPermissionItem } from '../../../../shared/components/lca-permissions
 export class UserDetailsPageComponent implements OnInit, OnDestroy {
   userDetails: UserDetailsInformationItem | null = null;
   activePermissions: LcaPermissionItem[] = [];
-  isLoadingDetails: boolean = false;
   isLoadingPermissions: boolean = false;
-  userId!: number; // The ID of the user being viewed
+  isLoadingDetails: boolean = false;
+  viewedUserId!: number;
 
   showEditModal: boolean = false;
   showPermissionsModal: boolean = false;
   permissionsModalMode: 'grant' | 'revoke' = 'grant';
 
-  private routeSubscription!: Subscription;
-  private attributeIdSubscription!: Subscription;
-  private loggedInUserAttributeId: number | null = null; // Attribute of the logged-in user making requests
+  private subscriptions = new Subscription();
+  
+  private loggedInUserAttributeId: number | null = null;
+
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private userService: UserService,
-    private userProfileService: UserProfileService, // For logged-in user's context
+    private permissionService: PermissionService,
+    private userProfileService: UserProfileService,
     private toastService: ToastService
   ) {}
 
   ngOnInit(): void {
-    this.attributeIdSubscription = this.userProfileService.selectedAccountAttributeId$.subscribe(id => {
+    const attributeSub = this.userProfileService.selectedAccountAttributeId$.subscribe(id => {
       this.loggedInUserAttributeId = id;
-      if (this.userId && this.loggedInUserAttributeId) {
-        this.loadUserDetails();
+      if (this.viewedUserId) {
         this.loadPermissions();
       }
     });
+    this.subscriptions.add(attributeSub);
 
-    this.routeSubscription = this.route.paramMap.pipe(
+    const routeSub = this.route.paramMap.pipe(
       tap(params => {
         const id = params.get('id');
         if (!id) {
@@ -54,22 +64,24 @@ export class UserDetailsPageComponent implements OnInit, OnDestroy {
           this.router.navigate(['/dashboard/home']);
           return;
         }
-        this.userId = +id;
+        this.viewedUserId = +id;
       }),
       switchMap(() => {
-        if (this.userId && this.loggedInUserAttributeId) {
+        if (this.viewedUserId) {
           this.loadUserDetails();
           this.loadPermissions();
         }
         return of(null);
       })
     ).subscribe();
+    this.subscriptions.add(routeSub);
   }
 
   loadUserDetails(): void {
-    if (!this.userId || !this.loggedInUserAttributeId) return;
+    if (!this.viewedUserId) return;
     this.isLoadingDetails = true;
-    this.userService.getDetails({ relatedUserId: this.userId, attributeId: this.loggedInUserAttributeId }).pipe(
+   
+    this.userService.getDetails({ relatedUserId: this.viewedUserId }).pipe(
         finalize(() => this.isLoadingDetails = false)
     ).subscribe(response => {
       if (response && response.item) {
@@ -82,13 +94,26 @@ export class UserDetailsPageComponent implements OnInit, OnDestroy {
   }
 
   loadPermissions(): void {
-    if (!this.userId || !this.loggedInUserAttributeId) return;
+    if (!this.viewedUserId) return;
     this.isLoadingPermissions = true;
-    this.userService.getPermissions({ relatedUserId: this.userId, attributeId: this.loggedInUserAttributeId }).pipe(
+  
+    const params: EnlistPermissionsFromUserParametersDto = {
+        relatedUserId: this.viewedUserId
+    };
+    this.permissionService.enlistPermissionsFromUser(params).pipe(
         finalize(() => this.isLoadingPermissions = false)
     ).subscribe(response => {
       if (response && response.items) {
-        this.activePermissions = response.items.map(p => ({ ...p } as LcaPermissionItem));
+        this.activePermissions = response.items.map(p => ({
+            userName: p.userName,
+            permissionName: p.permissionName,
+            roleName: p.roleName,
+            attributeName: (p as any).attributeName || 'N/A (User-Level)',
+            userId: p.userId,
+            permissionId: p.permissionId,
+            roleId: p.roleId,
+            attributeId: (p as any).attributeId || null
+        } as LcaPermissionItem));
       } else {
         this.activePermissions = [];
       }
@@ -110,11 +135,19 @@ export class UserDetailsPageComponent implements OnInit, OnDestroy {
   }
 
   openGrantPermissionsModal(): void {
+    if (!this.userDetails) {
+      this.toastService.showError("User details not loaded. Cannot grant permissions.");
+      return;
+    }
     this.permissionsModalMode = 'grant';
     this.showPermissionsModal = true;
   }
 
   openRevokePermissionsModal(): void {
+     if (!this.userDetails) {
+      this.toastService.showError("User details not loaded. Cannot revoke permissions.");
+      return;
+    }
      if (this.activePermissions.length === 0) {
         this.toastService.showInfo("No permissions to revoke for this user.");
         return;
@@ -131,31 +164,29 @@ export class UserDetailsPageComponent implements OnInit, OnDestroy {
   }
 
   handleRevokePermissionFromList(permissionToRevoke: LcaPermissionItem): void {
-    if (!this.loggedInUserAttributeId) {
-        this.toastService.showError("Your account context not set.");
-        return;
-    }
-    const payload = {
-        relatedUserId: this.userId,
-        attributeId: this.loggedInUserAttributeId,
-        permissions: [{
-            attributeId: permissionToRevoke.attributeId,
-            permissionId: permissionToRevoke.permissionId,
-            userId: permissionToRevoke.userId, // Should be this.userId
-            roleId: permissionToRevoke.roleId
-        }]
+    const permissionsToRevokePayload: GrantPermissionsToUserParametersDtoPermissionProperties[] = [{ // Using this DTO type as it's more complete
+        permissionId: permissionToRevoke.permissionId!,
+        userId: this.viewedUserId,
+        roleId: permissionToRevoke.roleId!,
+        attributeId: permissionToRevoke.attributeId
+    }];
+
+
+    const payload: RevokePermissionsToUserParametersDto = {
+        relatedUserId: this.viewedUserId,
+        permissions: permissionsToRevokePayload
     };
+
     this.isLoadingPermissions = true;
-    this.userService.revokePermissions(payload).pipe(
+    this.permissionService.revokePermissionsFromUser(payload).pipe(
         finalize(() => this.isLoadingPermissions = false)
     ).subscribe({
         next: () => this.loadPermissions(),
-        error: () => {}
+        error: (err) => { }
     });
   }
 
   ngOnDestroy(): void {
-    if (this.routeSubscription) this.routeSubscription.unsubscribe();
-    if (this.attributeIdSubscription) this.attributeIdSubscription.unsubscribe();
+    this.subscriptions.unsubscribe();
   }
 }

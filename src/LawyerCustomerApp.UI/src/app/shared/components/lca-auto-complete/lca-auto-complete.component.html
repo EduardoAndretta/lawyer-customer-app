@@ -18,7 +18,7 @@
           *ngFor="let suggestion of suggestions; let i = index"
           class="lca-suggestion-item"
           [class.active]="i === activeIndex"
-          (mousedown)="selectSuggestion(suggestion)"> <!-- mousedown to fire before blur -->
+          (mousedown)="selectSuggestion(suggestion)">
           {{ suggestion[displayProperty] || suggestion }}
         </li>
       </ul>

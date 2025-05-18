@@ -1,8 +1,8 @@
-import { Component, Input, Output, EventEmitter, forwardRef } from '@angular/core';
-import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { Component, Input, forwardRef, OnInit, Injector } from '@angular/core';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR, NgControl } from '@angular/forms';
 
 export interface LcaSelectOption {
-  value: any;
+  value: any; // This can be an object
   label: string;
   disabled?: boolean;
 }
@@ -19,27 +19,55 @@ export interface LcaSelectOption {
     }
   ]
 })
-export class LcaSelectComponent implements ControlValueAccessor {
+export class LcaSelectComponent implements ControlValueAccessor, OnInit {
   @Input() options: LcaSelectOption[] = [];
   @Input() label: string = '';
   @Input() placeholder: string = 'Select an option';
   @Input() id: string = `lca-select-${Math.random().toString(36).substring(2)}`;
   @Input() disabled: boolean = false;
-  @Input() multiple: boolean = false; // For multi-select
+  @Input() multiple: boolean = false;
   @Input() errorMessage: string | null = null;
+  @Input() valueProperty: string | null = null;
+  @Input() compareWithFn: (o1: any, o2: any) => boolean =
+  (o1: any, o2: any) => this.defaultCompareFn(o1, o2);
 
-  _value: any | any[]; // Can be single or array for multiple
+  _value: any | any[];
+  ngControl: NgControl | null = null;
+
   onChange: any = () => {};
   onTouched: any = () => {};
+
+  constructor(private injector: Injector) {
+    this.compareWithFn = this.defaultCompareFn.bind(this);
+  }
+
+  ngOnInit(): void {
+    this.ngControl = this.injector.get(NgControl, null);
+    if (this.ngControl) {
+      this.ngControl.valueAccessor = this;
+    }
+  }
+
+ get compareFunctionBinding(): (o1: any, o2: any) => boolean {
+    return this.compareWithFn;
+  }
+
+  private defaultCompareFn(o1: any, o2: any): boolean {
+    if (o1 && o2 && this.valueProperty) {
+      return o1[this.valueProperty] === o2[this.valueProperty];
+    }
+    return o1 === o2;
+  }
 
   get value(): any | any[] {
     return this._value;
   }
 
   set value(val: any | any[]) {
-    this._value = val;
-    this.onChange(val);
-    this.onTouched();
+    if (!this.compareWithFn(this._value, val)) {
+      this._value = val;
+      this.onChange(this._value);
+    }
   }
 
   writeValue(value: any | any[]): void {
@@ -58,21 +86,12 @@ export class LcaSelectComponent implements ControlValueAccessor {
     this.disabled = isDisabled;
   }
 
-  onSelectionChange(event: Event): void {
-    const selectElement = event.target as HTMLSelectElement;
-    if (this.multiple) {
-      this.value = Array.from(selectElement.selectedOptions).map(option => option.value);
-    } else {
-      this.value = selectElement.value;
-    }
+  onModelChange(newValue: any | any[]): void {
+    this.value = newValue; // Updates _value and calls onChange
+    this.onTouched();
   }
 
   onBlur(): void {
     this.onTouched();
-  }
-
-  // Helper for comparing objects in select, if options have object values
-  compareFn(c1: any, c2: any): boolean {
-    return c1 && c2 ? c1 === c2 : c1 === c2; // Basic comparison, adjust if complex objects
   }
 }

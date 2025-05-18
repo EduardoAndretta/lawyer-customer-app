@@ -12,9 +12,9 @@ import { finalize } from 'rxjs/operators';
 })
 export class CaseEditModalComponent implements OnInit {
   @Input() isOpen: boolean = false;
-  @Input() caseData!: CaseDetailsInformationItem; // Assuming this has ID and current values
+  @Input() caseData!: CaseDetailsInformationItem;
 
-  @Output() closed = new EventEmitter<boolean>(); // Emits true if data was changed and needs refresh
+  @Output() closed = new EventEmitter<boolean>();
 
   editForm!: FormGroup;
   isLoading: boolean = false;
@@ -35,10 +35,8 @@ export class CaseEditModalComponent implements OnInit {
     this.editForm = this.fb.group({
       title: [this.caseData.title || '', Validators.required],
       description: [this.caseData.description || '', Validators.required],
-      // Add other editable fields from your Swagger's example for /api/case/edit
-      // For example:
-      // status: [this.caseData.status || '', Validators.required],
-      // private: [this.caseData.private || false]
+      status: [this.caseData.status || '', Validators.required],
+      private: [this.caseData.private || false]
     });
   }
 
@@ -55,11 +53,11 @@ export class CaseEditModalComponent implements OnInit {
 
     const payload: CaseEditParametersDto = {
       relatedCaseId: this.caseData.id,
-      values: { // Structure this according to your API's "values" object for edit
+      values: {
         title: formValues.title,
         description: formValues.description,
-        // status: formValues.status,
-        // private: formValues.private
+        status: formValues.status,
+        private: formValues.private
       }
     };
 
@@ -67,10 +65,9 @@ export class CaseEditModalComponent implements OnInit {
       finalize(() => this.isLoading = false)
     ).subscribe({
       next: () => {
-        this.closeModal(true); // Signal that data changed
+        this.closeModal(true);
       },
       error: (err) => {
-        // Error handled by interceptor
       }
     });
   }

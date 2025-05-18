@@ -1,23 +1,30 @@
 <div class="lca-select-wrapper">
-    <label *ngIf="label" [for]="id" class="lca-select-label">{{ label }}</label>
-    <select
-      [id]="id"
-      class="lca-select-field"
-      [disabled]="disabled"
-      [multiple]="multiple"
-      (change)="onSelectionChange($event)"
-      (blur)="onBlur()"
-      [ngModel]="value"
-      [compareWith]="compareFn"
-      [class.lca-select-error-state]="errorMessage"
-      > <!-- ngModel used for initial value binding and two-way if needed outside reactive forms -->
-      <option *ngIf="placeholder && !multiple && (value === null || value === undefined || value === '')" [ngValue]="null" disabled selected>{{ placeholder }}</option>
-      <option *ngFor="let option of options" [ngValue]="option.value" [disabled]="option.disabled">
-        {{ option.label }}
-      </option>
-    </select>
-    <div *ngIf="errorMessage" class="lca-select-error-message">
-      {{ errorMessage }}
-    </div>
-    <!-- Add reactive forms error display if needed, similar to lca-input -->
+  <label *ngIf="label" [for]="id" class="lca-select-label">{{ label }}</label>
+  <select
+    [id]="id"
+    class="lca-select-field"
+    [disabled]="disabled"
+    [multiple]="multiple"
+    [ngModel]="_value"
+    (ngModelChange)="onModelChange($event)"
+    (blur)="onBlur()"
+    [compareWith]="compareFunctionBinding"
+    [class.lca-select-error-state]="errorMessage || (ngControl?.invalid && (ngControl?.touched || ngControl?.dirty))"
+  >
+    <option *ngIf="placeholder && !multiple" [ngValue]="null" [selected]="_value === null || _value === undefined">
+      {{ placeholder }}
+    </option>
+    <option *ngFor="let option of options"
+            [ngValue]="option.value"
+            [disabled]="option.disabled">
+      {{ option.label }}
+    </option>
+  </select>
+  <div *ngIf="errorMessage" class="lca-select-error-message">
+    {{ errorMessage }}
   </div>
+  <div *ngIf="ngControl?.invalid && (ngControl?.touched || ngControl?.dirty) && !errorMessage" class="lca-input-error-message">
+    <span *ngIf="ngControl?.errors?.['required']">{{label || 'This field'}} is required.</span>
+    <!-- Add other reactive form error messages if needed -->
+  </div>
+</div>

@@ -77,18 +77,20 @@ export class LcaSidebarComponent implements OnInit, OnDestroy {
     }
   }
 
-  onAccountTypeChange(attributeId: number | string | null): void { // Value from select can be string
+  onAccountTypeChange(attributeId: number | string | null): void {
     if (attributeId === null || attributeId === undefined) return;
 
-    const numericAttributeId = +attributeId; // Ensure it's a number
+    const numericAttributeId = +attributeId;
 
     if (this.isAccountSelectDisabled) {
         this.toastService.showInfo("Please navigate to the Home page to change your account type.");
-        // To revert selection if lca-select doesn't handle its disabled state perfectly:
-        // setTimeout(() => this.userProfileService.setSelectedAccount(this.userProfileService.getCurrentAttributeId()), 0);
+        
+        setTimeout(() => this.userProfileService.setSelectedAccount(this.userProfileService.getCurrentAttributeId()), 0);
+        
         return;
     }
     this.userProfileService.setSelectedAccount(numericAttributeId);
+
     this.toastService.showSuccess(`Switched to ${numericAttributeId === LAWYER_ATTRIBUTE_ID ? 'Lawyer' : 'Customer'} context.`);
   }
 
@@ -106,7 +108,7 @@ export class LcaSidebarComponent implements OnInit, OnDestroy {
     this.showLawyerRegisterModal = false;
     if (success && this.currentUserDetails?.id) {
       this.toastService.showInfo("Refreshing user profile...");
-      // Refresh user details to reflect the new account
+      // [Refresh user details to reflect the new account]
       this.userProfileService.loadUserDetails(this.currentUserDetails.id).subscribe();
     }
   }
@@ -125,7 +127,7 @@ export class LcaSidebarComponent implements OnInit, OnDestroy {
     this.showCustomerRegisterModal = false;
      if (success && this.currentUserDetails?.id) {
       this.toastService.showInfo("Refreshing user profile...");
-      // Refresh user details to reflect the new account
+      // [Refresh user details to reflect the new account]
       this.userProfileService.loadUserDetails(this.currentUserDetails.id).subscribe();
     }
   }

@@ -250,6 +250,8 @@ public record EditParametersDto
 
     [JsonIgnore]
     public int? RoleId { get; init; }
+    
+    public int? AttributeId { get; init; }
 
     public int? RelatedCaseId { get; init; }
 
@@ -304,8 +306,9 @@ public record EditParametersDto
             {
                 RelatedCaseId = this.RelatedCaseId ?? 0,
 
-                UserId = this.UserId ?? 0,
-                RoleId = this.RoleId ?? 0
+                UserId      = this.UserId      ?? 0,
+                RoleId      = this.RoleId      ?? 0,
+                AttributeId = this.AttributeId ?? 0
             };
         }
 
@@ -313,8 +316,9 @@ public record EditParametersDto
         {
             RelatedCaseId = this.RelatedCaseId ?? 0,
 
-            UserId = this.UserId ?? 0,
-            RoleId = this.RoleId ?? 0,
+            UserId      = this.UserId      ?? 0,
+            RoleId      = this.RoleId      ?? 0,
+            AttributeId = this.AttributeId ?? 0,
 
             Title       = TryParseToString(jsonNode["title"]),
             Description = TryParseToString(jsonNode["description"]),
@@ -345,6 +349,7 @@ public record EditParameters
 
     public required int UserId { get; init; }
     public required int RoleId { get; init; }
+    public required int AttributeId { get; init; }
 
     public PatchField<string?> Title { get; init; } = new();
     public PatchField<string?> Description { get; init; } = new();

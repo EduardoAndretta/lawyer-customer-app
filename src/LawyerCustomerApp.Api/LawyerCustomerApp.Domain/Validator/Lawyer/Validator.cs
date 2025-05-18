@@ -155,12 +155,6 @@ public class RegisterParametersDtoValidator : AbstractValidator<RegisterParamete
             .WithMessage("GreaterThanOrEqualTo")
             .WithState(new string[] { "RoleId", "0" });
 
-        RuleFor(a => a.Address)
-            .MaxLength(100)
-            .WithMessage("MaxLength")
-            .WithState(new string[] { "Address", "100" })
-                .When(a => !string.IsNullOrWhiteSpace(a.Phone));
-
         RuleFor(a => a.Phone)
             .MaxLength(15)
             .WithMessage("MaxLength")

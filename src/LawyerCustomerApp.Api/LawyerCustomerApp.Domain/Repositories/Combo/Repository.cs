@@ -75,8 +75,8 @@ internal class Repository : IRepository
 
             const string queryText = $@"
 SELECT
-    [P].[name],
-    [P].[id]
+    [P].[name] AS [Key],
+    [P].[id]   AS [Value]
 FROM [permissions] [P]
 WHERE [P].[name] IN ('VIEW_CASE', 'VIEW_PERMISSIONS_CASE', 'ASSIGN_LAWYER_CASE', 'ASSIGN_CUSTOMER_CASE', 'ASSIGN_CUSTOMER_CASE', 'GRANT_PERMISSIONS_CASE', 'REVOKE_PERMISSIONS_CASE')
 ORDER BY [P].[id] DESC
@@ -154,8 +154,8 @@ LIMIT @Limit OFFSET @Offset;";
 
             const string queryText = $@"
 SELECT
-    [P].[name],
-    [P].[id]
+    [P].[name] AS [Key],
+    [P].[id]   AS [Value]
 FROM [permissions] [P]
 WHERE [P].[name] IN ('VIEW_CASE', 'VIEW_PERMISSIONS_CASE', 'ASSIGN_LAWYER_CASE', 'ASSIGN_CUSTOMER_CASE', 'ASSIGN_CUSTOMER_CASE', 'GRANT_PERMISSIONS_CASE', 'REVOKE_PERMISSIONS_CASE')
 ORDER BY [P].[id] DESC
@@ -233,8 +233,8 @@ LIMIT @Limit OFFSET @Offset;";
 
             const string queryText = $@"
 SELECT
-    [P].[name],
-    [P].[id]
+    [P].[name] AS [Key],
+    [P].[id]   AS [Value]
 FROM [permissions] [P]
 WHERE [P].[name] IN ('GRANT_PERMISSIONS_USER', 'REVOKE_PERMISSIONS_USER', 'GRANT_PERMISSIONS_LAWYER_ACCOUNT_USER', 'REVOKE_PERMISSIONS_USER', 'CHAT_USER', 'VIEW_USER', 'VIEW_LAWYER_ACCOUNT_USER', 'VIEW_CUSTOMER_ACCOUNT_USER', 'VIEW_PERMISSIONS_USER', 'VIEW_PERMISSIONS_LAWYER_ACCOUNT_USER', 'VIEW_PERMISSIONS_CUSTOMER_ACCOUNT_USER', 'EDIT_USER')
 ORDER BY [P].[id] DESC
@@ -312,8 +312,8 @@ LIMIT @Limit OFFSET @Offset;";
 
             const string queryText = $@"
 SELECT
-    [P].[name],
-    [P].[id]
+    [P].[name] AS [Key],
+    [P].[id]   AS [Value]
 FROM [permissions] [P]
 WHERE [P].[name] IN ('GRANT_PERMISSIONS_USER', 'REVOKE_PERMISSIONS_USER', 'GRANT_PERMISSIONS_LAWYER_ACCOUNT_USER', 'REVOKE_PERMISSIONS_USER', 'CHAT_USER', 'VIEW_USER', 'VIEW_LAWYER_ACCOUNT_USER', 'VIEW_CUSTOMER_ACCOUNT_USER', 'VIEW_PERMISSIONS_USER', 'VIEW_PERMISSIONS_LAWYER_ACCOUNT_USER', 'VIEW_PERMISSIONS_CUSTOMER_ACCOUNT_USER', 'EDIT_USER')
 ORDER BY [P].[id] DESC
@@ -391,8 +391,8 @@ LIMIT @Limit OFFSET @Offset;";
 
             const string queryText = $@"
 SELECT
-    [A].[name],
-    [A].[id]
+    [A].[name] AS [Key],
+    [A].[id]   AS [Value]
 FROM [attributes] [A]
 ORDER BY [A].[id] DESC
 LIMIT @Limit OFFSET @Offset;";
@@ -469,8 +469,8 @@ LIMIT @Limit OFFSET @Offset;";
 
             const string queryText = $@"
 SELECT
-    [R].[name],
-    [R].[id]
+    [R].[name] AS [Key],
+    [R].[id]   AS [Value]
 FROM [roles] [R]
 ORDER BY [R].[id] DESC
 LIMIT @Limit OFFSET @Offset;";

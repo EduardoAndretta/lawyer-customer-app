@@ -123,6 +123,7 @@ internal class GrantPermissionsToUserSuccess : ConstructorWithDetails<GrantPermi
                 UserId       = item.UserId,
                 PermissionId = item.PermissionId,
                 RoleId       = item.RoleId,
+                AttributeId  = item.AttributeId,
 
                 Result = item.Result.BuildResponse(serviceProvider)
             });
@@ -143,6 +144,7 @@ internal class GrantPermissionsToUserSuccess : ConstructorWithDetails<GrantPermi
             public required int UserId { get; set; }
             public required int PermissionId { get; set; }
             public required int RoleId { get; set; }
+            public int? AttributeId { get; set; }
 
             public required Result Result { get; set; }
         }
@@ -168,6 +170,7 @@ internal class RevokePermissionsToUserSuccess : ConstructorWithDetails<RevokePer
                 UserId       = item.UserId,
                 PermissionId = item.PermissionId,
                 RoleId       = item.RoleId,
+                AttributeId  = item.AttributeId,
 
                 Result = item.Result.BuildResponse(serviceProvider)
             });
@@ -188,6 +191,7 @@ internal class RevokePermissionsToUserSuccess : ConstructorWithDetails<RevokePer
             public required int UserId { get; set; }
             public required int PermissionId { get; set; }
             public required int RoleId { get; set; }
+            public int? AttributeId { get; set; }
 
             public required Result Result { get; set; }
         }
