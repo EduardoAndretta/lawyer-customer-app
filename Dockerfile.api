@@ -1,0 +1,43 @@
+# Dockerfile.api
+# Stage 1: Build the application
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+ARG UI_ORIGIN_URL_ARG # Will be passed by podman build --build-arg
+WORKDIR /src
+
+# Source path is relative to REPO_ROOT
+COPY ["LawyerCustomerApp/src/LawyerCustomerApp.Api/LawyerCustomerApp.Api/LawyerCustomerApp.Application.csproj", "LawyerCustomerApp.Api/LawyerCustomerApp.Api/"]
+COPY ["LawyerCustomerApp/src/LawyerCustomerApp.Api/LawyerCustomerApp.Domain/LawyerCustomerApp.Domain.csproj", "LawyerCustomerApp.Api/LawyerCustomerApp.Domain/"]
+COPY ["LawyerCustomerApp/src/LawyerCustomerApp.Api/LawyerCustomerApp.External/LawyerCustomerApp.External.csproj", "LawyerCustomerApp.Api/LawyerCustomerApp.External/"]
+COPY ["LawyerCustomerApp/src/LawyerCustomerApp.Api/LawyerCustomerApp.Infrastructure/LawyerCustomerApp.Infrastructure.csproj", "LawyerCustomerApp.Api/LawyerCustomerApp.Infrastructure/"]
+
+RUN dotnet restore "LawyerCustomerApp.Api/LawyerCustomerApp.Api/LawyerCustomerApp.Application.csproj"
+
+# Copy all source code from LawyerCustomerApp/src into the image's /src/LawyerCustomerApp/src
+# (this creates /src/LawyerCustomerApp/src/... inside the image)
+COPY ./LawyerCustomerApp/src/ ./LawyerCustomerApp/src/
+
+# Copy the Database folder from REPO_ROOT/Database into the image's /src/Database
+COPY ./Database/ /src/Database/
+
+# Copy appsettings.template.json from REPO_ROOT into the image's /src/LawyerCustomerApp/src/LawyerCustomerApp.Api/LawyerCustomerApp.Api/appsettings.json
+# The destination path for appsettings is correct based on how you've copied the source code above.
+COPY ./appsettings.template.json /src/LawyerCustomerApp/src/LawyerCustomerApp.Api/LawyerCustomerApp.Api/appsettings.json
+RUN sed -i "s|PLACEHOLDER_UI_ORIGIN|${UI_ORIGIN_URL_ARG}|g" /src/LawyerCustomerApp/src/LawyerCustomerApp.Api/LawyerCustomerApp.Api/appsettings.json
+
+# Publish the application
+# The WORKDIR for publish should now be based on the image's internal structure
+WORKDIR /src/LawyerCustomerApp/src/LawyerCustomerApp.Api/LawyerCustomerApp.Api
+RUN dotnet publish "LawyerCustomerApp.Application.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+# Stage 2: Create the runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+WORKDIR /app
+EXPOSE 8080
+
+# Copy published output from build stage
+COPY --from=build /app/publish .
+# Copy the Database folder from the build stage to the final image's /app/Database location
+# This makes the 'Data Source=Database/app.db' connection string work
+COPY --from=build /src/Database ./Database
+
+ENTRYPOINT ["dotnet", "LawyerCustomerApp.Application.dll"]

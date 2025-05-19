@@ -1,0 +1,42 @@
+<div class="lca-select-wrapper">
+  <label *ngIf="label" [for]="id" class="lca-select-label">{{ label }}</label>
+  <select
+    [id]="id"
+    class="lca-select-field"
+    [disabled]="disabled"
+    [multiple]="multiple"
+    [ngModel]="_value"
+    (ngModelChange)="onModelChange($event)"
+    (blur)="onBlur()"
+    [compareWith]="compareFunctionBinding"
+    [class.lca-select-error-state]="errorMessage || (ngControl?.invalid && (ngControl?.touched || ngControl?.dirty))"
+  >
+    <!-- 
+      The placeholder option:
+      - [ngValue]="null" makes the model null if this is selected.
+      - REMOVED [selected] attribute. ngModel should handle this.
+      - We don't strictly need [selected] here as ngModel + compareWith should manage it.
+        However, some browsers might default to the first option visually if _value is initially null/undefined
+        and the placeholder is the first option. Using [attr.selected] can be more explicit if needed,
+        but usually not required with ngModel.
+    -->
+    <option *ngIf="placeholder && !multiple" [ngValue]="null">
+      {{ placeholder }}
+    </option>
+    
+    <option *ngFor="let option of options"
+            [ngValue]="option.value"
+            [disabled]="option.disabled">
+      {{ option.label }}
+    </option>
+  </select>
+  <div *ngIf="errorMessage" class="lca-select-error-message">
+    {{ errorMessage }}
+  </div>
+  <!-- Reactive Forms error display -->
+  <div *ngIf="ngControl?.invalid && (ngControl?.touched || ngControl?.dirty) && !errorMessage" class="lca-input-error-message">
+    <span *ngIf="ngControl?.errors?.['required']">{{label || 'This field'}} is required.</span>
+    <!-- Add other built-in reactive form error messages here if needed -->
+    <!-- e.g., <span *ngIf="ngControl?.errors?.['minlength']">Too short</span> -->
+  </div>
+</div>

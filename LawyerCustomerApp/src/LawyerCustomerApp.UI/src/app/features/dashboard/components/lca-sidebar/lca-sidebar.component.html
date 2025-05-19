@@ -1,0 +1,102 @@
+<div class="sidebar-content">
+  <div class="user-profile-section" *ngIf="currentUserDetails as user"> <!-- Use local currentUserDetails -->
+    <h4>Welcome, {{ user.name || 'User' }}</h4>
+    <p *ngIf="!user.name && !user.id" class="text-muted small">Loading user details...</p>
+
+    <div class="account-select-wrapper" *ngIf="accountOptions.length > 0">
+      <app-lca-select
+        label="Current Account Context"
+        valueProperty="value"
+        [options]="accountOptions"
+        [ngModel]="selectedAccountAttributeId$ | async"
+        (ngModelChange)="onAccountTypeChange($event)"
+        [disabled]="isAccountSelectDisabled || accountOptions.length <= 1">
+      </app-lca-select>
+      <small *ngIf="isAccountSelectDisabled && accountOptions.length > 1" class="text-muted">
+        (Change on Home page)
+      </small>
+    </div>
+    <div *ngIf="accountOptions.length === 0 && user.id" class="text-muted small no-accounts-message">
+        No active Lawyer or Customer accounts found.
+    </div>
+  </div>
+  <div *ngIf="!currentUserDetails" class="user-profile-section"> <!-- Check local currentUserDetails -->
+     <h4>Loading user...</h4>
+  </div>
+
+
+  <nav class="sidebar-nav">
+    <ul>
+      <li><a routerLink="/dashboard/home" routerLinkActive="active-link">Home</a></li>
+
+      <!-- Global Search Page - Always available -->
+      <li><a routerLink="/dashboard/search" routerLinkActive="active-link">Global Search Page</a></li>
+
+      <!-- Manage Users - Always available -->
+      <li><a routerLink="/dashboard/users" routerLinkActive="active-link">Manage Users</a></li>
+
+      <!-- Manage Lawyers - Conditional -->
+      <li *ngIf="(selectedAccountAttributeId$ | async) !== null; else lawyerLinkDisabled">
+        <a routerLink="/dashboard/lawyers" routerLinkActive="active-link">Manage Lawyers</a>
+      </li>
+      <ng-template #lawyerLinkDisabled>
+          <li><span class="disabled-nav-link">Manage Lawyers <small>(Select Account)</small></span></li>
+      </ng-template>
+
+      <!-- Manage Customers - Conditional -->
+      <li *ngIf="(selectedAccountAttributeId$ | async) !== null; else customerLinkDisabled">
+        <a routerLink="/dashboard/customers" routerLinkActive="active-link">Manage Customers</a>
+      </li>
+      <ng-template #customerLinkDisabled>
+          <li><span class="disabled-nav-link">Manage Customers <small>(Select Account)</small></span></li>
+      </ng-template>
+
+      <!-- Manage Cases - Conditional -->
+      <li *ngIf="(selectedAccountAttributeId$ | async) !== null; else caseLinkDisabled">
+        <a routerLink="/dashboard/cases" routerLinkActive="active-link">Manage Cases</a>
+      </li>
+      <ng-template #caseLinkDisabled>
+          <li><span class="disabled-nav-link">Manage Cases <small>(Select Account)</small></span></li>
+      </ng-template>
+    </ul>
+  </nav>
+
+  <!-- Account Actions -->
+  <div class="account-actions" *ngIf="currentUserDetails as user">
+    <app-lca-button
+      *ngIf="user.id && !user.hasLawyerAccount"
+      lcaStyle="info"
+      (lcaClick)="openRegisterLawyerModal()"
+      [fullWidth]="true"
+      class="register-account-btn">
+      Create Lawyer Account
+    </app-lca-button>
+    <app-lca-button
+      *ngIf="user.id && !user.hasCustomerAccount"
+      lcaStyle="info"
+      (lcaClick)="openRegisterCustomerModal()"
+      [fullWidth]="true"
+      class="register-account-btn">
+      Create Customer Account
+    </app-lca-button>
+  </div>
+
+  <div class="sidebar-footer">
+    <app-lca-button lcaStyle="secondary" (lcaClick)="logout()" [fullWidth]="true">
+      Logout
+    </app-lca-button>
+  </div>
+</div>
+
+<!-- Modals for registration -->
+<app-lawyer-register-modal
+  *ngIf="showLawyerRegisterModal"
+  [isOpen]="showLawyerRegisterModal"
+  (closed)="onLawyerRegisterModalClosed($event)">
+</app-lawyer-register-modal>
+
+<app-customer-register-modal
+  *ngIf="showCustomerRegisterModal"
+  [isOpen]="showCustomerRegisterModal"
+  (closed)="onCustomerRegisterModalClosed($event)">
+</app-customer-register-modal>

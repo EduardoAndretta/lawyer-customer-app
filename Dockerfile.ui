@@ -1,0 +1,31 @@
+# Dockerfile.ui
+# Stage 1: Build the Angular application
+FROM node:20-alpine AS build
+ARG API_BASE_URL_ARG # Will be passed by podman build --build-arg
+ARG NG_BUILD_CONFIGURATION=production
+WORKDIR /app
+
+# Source paths are relative to REPO_ROOT
+COPY ./LawyerCustomerApp/src/LawyerCustomerApp.UI/package.json ./LawyerCustomerApp/src/LawyerCustomerApp.UI/package-lock.json ./LawyerCustomerApp/src/LawyerCustomerApp.UI/
+RUN cd ./LawyerCustomerApp/src/LawyerCustomerApp.UI && npm ci
+
+COPY ./LawyerCustomerApp/src/LawyerCustomerApp.UI ./LawyerCustomerApp/src/LawyerCustomerApp.UI
+
+COPY ./environment.prod.template.ts /app/LawyerCustomerApp/src/LawyerCustomerApp.UI/src/environments/environment.prod.ts
+RUN sed -i "s|PLACEHOLDER_API_URL|${API_BASE_URL_ARG}|g" /app/LawyerCustomerApp/src/LawyerCustomerApp.UI/src/environments/environment.prod.ts
+
+WORKDIR /app/LawyerCustomerApp/src/LawyerCustomerApp.UI
+RUN npm run build -- --configuration ${NG_BUILD_CONFIGURATION}
+
+# Stage 2: Serve the application with Nginx
+FROM nginx:alpine
+EXPOSE 80
+
+# Copy the built application from the build stage
+# Adjust 'dist/lawyer-customer-app-ui' if your Angular project name/output path is different
+COPY --from=build /app/LawyerCustomerApp/src/LawyerCustomerApp.UI/dist/lawyer-customer-app /usr/share/nginx/html
+
+# Copy custom Nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+CMD ["nginx", "-g", "daemon off;"]
