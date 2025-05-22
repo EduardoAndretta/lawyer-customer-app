@@ -1,3 +1,5 @@
+import { PaginationParams } from "./common.models";
+
 // [Global Permissions Related With User]
 export interface GlobalPermissionsRelatedWithUserParametersDto {
 
@@ -203,21 +205,20 @@ export interface EnableUserToGrantPermissionsItem {
   userId: number;
   hasLawyerAccount: boolean;
   hasCustomerAccount: boolean;
-  canBeGrantAsUser: boolean;    // Grant as general user (no specific attribute)
-  canBeGrantAsLawyer: boolean;  // Grant in context of their Lawyer account
-  canBeGrantAsCustomer: boolean;// Grant in context of their Customer account
+  canBeGrantAsUser: boolean;
+  canBeGrantAsLawyer: boolean;
+  canBeGrantAsCustomer: boolean;
 }
 export interface EnableUsersToGrantPermissionsInformationDto {
   items: EnableUserToGrantPermissionsItem[] | null;
 }
-// Input parameters DTO (currently empty {} in your example, define if it changes)
+
 export interface EnableUsersToGrantPermissionsParametersDto {
-  // query?: string; // If you add server-side search/pagination later
-  // pagination?: PaginationParams;
+  query?: string;
+  pagination?: PaginationParams;
 }
 
 
-// For /api/permission/search/enable-users-to-revoke-permissions
 export interface EnableUserToRevokePermissionsItem {
   name: string | null;
   userId: number;
@@ -230,8 +231,7 @@ export interface EnableUserToRevokePermissionsItem {
 export interface EnableUsersToRevokePermissionsInformationDto {
   items: EnableUserToRevokePermissionsItem[] | null;
 }
-// Input parameters DTO
 export interface EnableUsersToRevokePermissionsParametersDto {
-  // query?: string;
-  // pagination?: PaginationParams;
+  query?: string;
+  pagination?: PaginationParams;
 }

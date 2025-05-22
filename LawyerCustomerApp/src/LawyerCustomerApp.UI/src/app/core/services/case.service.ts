@@ -10,11 +10,7 @@ import {
   CaseRegisterParametersDto,
   CaseEditParametersDto,
   CaseAssignLawyerParametersDto,
-  CaseAssignCustomerParametersDto,
-  CasePermissionsParametersDto,
-  CasePermissionsInformationDto,
-  CaseGrantPermissionsParametersDto,
-  CaseRevokePermissionsParametersDto
+  CaseAssignCustomerParametersDto
 } from '../models/case.models';
 
 @Injectable({
@@ -70,33 +66,6 @@ export class CaseService {
   assignCustomer(params: CaseAssignCustomerParametersDto): Observable<any> {
     return this.http.put(`${this.baseUrl}/assign-customer`, params).pipe(
       tap(() => this.toastService.showSuccess('Customer assigned successfully!')),
-      catchError(error => {
-        throw error;
-      })
-    );
-  }
-
-  getPermissions(params: CasePermissionsParametersDto): Observable<CasePermissionsInformationDto | null> {
-    return this.http.post<CasePermissionsInformationDto>(`${this.baseUrl}/permissions`, params).pipe(
-      catchError(error => {
-        console.error('Failed to get case permissions:', error);
-        return of(null);
-      })
-    );
-  }
-
-  grantPermissions(params: CaseGrantPermissionsParametersDto): Observable<any> {
-    return this.http.put(`${this.baseUrl}/grant-permissions`, params).pipe(
-      tap(() => this.toastService.showSuccess('Permissions granted successfully!')),
-      catchError(error => {
-        throw error;
-      })
-    );
-  }
-
-  revokePermissions(params: CaseRevokePermissionsParametersDto): Observable<any> {
-    return this.http.put(`${this.baseUrl}/revoke-permissions`, params).pipe(
-      tap(() => this.toastService.showSuccess('Permissions revoked successfully!')),
       catchError(error => {
         throw error;
       })

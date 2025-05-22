@@ -22,7 +22,7 @@ export class LcaAutoCompleteComponent implements ControlValueAccessor, OnInit, O
 
   @Input() placeholder: string = 'Search...';
   @Input() label: string = '';
-  @Input() minLength: number = 1;
+  @Input() minLength: number = 0;
   @Input() debounceMs: number = 200;
   @Input() id: string = `lca-ac-${Math.random().toString(36).substring(2)}`;
   @Input() disabled: boolean = false;

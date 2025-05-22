@@ -66,10 +66,10 @@ export class SearchResultsPageComponent implements OnInit, OnDestroy {
     let combinedSearchTrigger$ = combineLatest([queryParams$, attributeId$]).pipe(
       switchMap(([params, attrId]) => {
 
-        this.searchType = params['type'];
-        this.searchQuery = params['query']
+        this.searchType = Array.isArray(params['type']) ? params['type'][0] : params['type'];
+        this.searchQuery = Array.isArray(params['query']) ? params['query'][0] : params['query'];
 
-        this.currentPage = params['page'] ? +params['page'] : 1;
+        this.currentPage = (Array.isArray(params['page'])  ? params['page'][0] : params['page']) ? +params['page'] : 1;
         this.currentAttributeId = attrId;
 
         this.setupTableColumns();
@@ -96,17 +96,6 @@ export class SearchResultsPageComponent implements OnInit, OnDestroy {
         this.isLoading = searchOutcome.isLoading;
       })
     );
-  }
-
-  private parseTypeParam(raw: string | string[] | undefined): SearchableEntityType {
-    if (!raw) return 'case';
-    const value = Array.isArray(raw) ? raw[0] : raw;
-    return this.toSearchableEntityType(value);
-  }
-
-  private toSearchableEntityType(value: string): SearchableEntityType {
-    const validTypes: SearchableEntityType[] = ['case', 'user', 'lawyer', 'customer'];
-    return validTypes.includes(value as SearchableEntityType) ? value as SearchableEntityType : 'case';
   }
 
   private executeSearchLogic(

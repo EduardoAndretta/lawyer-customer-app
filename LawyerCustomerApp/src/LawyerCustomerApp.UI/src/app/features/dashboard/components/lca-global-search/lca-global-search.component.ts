@@ -61,7 +61,6 @@ export class LcaGlobalSearchComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    // Subscription for attribute changes
     const attributeSub = this.userProfileService.selectedAccountAttributeId$
       .pipe(distinctUntilChanged())
       .subscribe(id => {
@@ -78,85 +77,141 @@ export class LcaGlobalSearchComponent implements OnInit, OnDestroy {
       debounceTime(300),
       distinctUntilChanged()
     ).subscribe(searchTerm => {
-
-      console.log('Eduardo')
-
       this.performSearch(searchTerm);
     });
     this.subscriptions.add(searchSub);
   }
 
   private transformToSearchResultItem(item: any, type: 'case' | 'user' | 'lawyer' | 'customer'): SearchResultItem | null {
-    if (!item) return null;
-    let nameOrTitle = '';
-    let path = '';
-    let idValue = null;
+  if (!item) return null;
+  let nameOrTitle = '';
+  let path = '';
+  let idValue = null;
 
-    switch (type) {
-      case 'case':
-        nameOrTitle = item.title || 'Untitled Case';
-        idValue = item.id;
+  console.log(item);
+
+  let parsedType = Array.isArray(type) ? type[0] : type;
+
+  switch (parsedType) {
+    case 'case':
+
+      if (item?.originalItem != null)
+      {
+        nameOrTitle = item.originalItem?.name || 'Unnamed Case';
+        idValue = item.originalItem?.id;
         path = `/dashboard/cases/${idValue}`;
-        break;
-      case 'user':
-        nameOrTitle = item.name || 'Unnamed User';
-        idValue = item.id;
-        path = `/dashboard/users/${idValue}`;
-        break;
-      case 'lawyer':
-        nameOrTitle = item.name || 'Unnamed Lawyer';
-        idValue = item.lawyerId;
-        path = `/dashboard/lawyers/${idValue}`;
-        break;
-      case 'customer':
-        nameOrTitle = item.name || 'Unnamed Customer';
-        idValue = item.customerId;
-        path = `/dashboard/customers/${idValue}`;
-        break;
-      default: return null;
-    }
-    return { id: idValue, name: nameOrTitle, type, path, originalItem: item };
-  }
 
-  onSuggestionSelectedFromAutocomplete(selectedItemFullObject: any): void {
-    if (!selectedItemFullObject) return;
-
-    const searchResult = this.transformToSearchResultItem(selectedItemFullObject, this.selectedSearchType);
-    if (searchResult && searchResult.path) {
-      this.router.navigate([searchResult.path]);
-
-      this.selectedObjectFromAutocomplete = null;
-      this.searchQueryForDisplay = '';
-
-      if (this.autoCompleteComponent) {
-        this.autoCompleteComponent.writeValue('');
-        this.autoCompleteComponent.suggestions = [];
-        this.autoCompleteComponent.showSuggestions = false;
+        break;
       }
+
+      nameOrTitle = item.title || 'Untitled Case';
+      idValue = item.id;
+      path = `/dashboard/cases/${idValue}`;
+      break;
+    case 'user':
+
+      if (item?.originalItem != null)
+      {
+        nameOrTitle = item.originalItem?.name || 'Unnamed User';
+        idValue = item.originalItem?.id;
+        path = `/dashboard/users/${idValue}`;
+
+        break;
+      }
+
+      nameOrTitle = item.name || 'Unnamed User';
+      idValue = item.id;
+      path = `/dashboard/users/${idValue}`;
+      break;
+    case 'lawyer':
+
+      if (item?.originalItem != null)
+      {
+        nameOrTitle = item.originalItem?.name || 'Unnamed Lawyer';
+        idValue = item.originalItem?.lawyerId;
+        path = `/dashboard/lawyers/${idValue}`;
+
+        break;
+      }
+
+      nameOrTitle = item.name || 'Unnamed Lawyer';
+      idValue = item.lawyerId;
+      path = `/dashboard/lawyers/${idValue}`;
+      break;
+    case 'customer':
+
+      if (item?.originalItem != null)
+      {
+        nameOrTitle = item.originalItem?.name || 'Unnamed Customer';
+        idValue = item.originalItem?.customerId;
+        path = `/dashboard/customers/${idValue}`;
+
+        break;
+      }
+
+      nameOrTitle = item.name || 'Unnamed Customer';
+      idValue = item.customerId;
+      path = `/dashboard/customers/${idValue}`;
+      break;
+    default:
+      return null;
+  }
+
+  return { id: idValue, name: nameOrTitle, type: parsedType, path, originalItem: item };
+}
+
+onSuggestionSelectedFromAutocomplete(selectedItemFullObject: any): void {
+  if (!this.selectedSearchType) return;
+  if (!selectedItemFullObject) return;
+
+  const searchType = Array.isArray(this.selectedSearchType) ? this.selectedSearchType[0] : this.selectedSearchType;
+
+  console.log("---------------")
+
+  const searchResult = this.transformToSearchResultItem(selectedItemFullObject, searchType);
+
+  console.log(searchResult);
+
+  console.log("---------------")
+
+  if (searchResult && searchResult.path) {
+    this.router.navigate([searchResult.path]);
+
+    this.selectedObjectFromAutocomplete = null;
+    this.searchQueryForDisplay = '';
+
+    if (this.autoCompleteComponent) {
+      this.autoCompleteComponent.writeValue('');
+      this.autoCompleteComponent.suggestions = [];
+      this.autoCompleteComponent.showSuggestions = false;
     }
   }
+}
 
   onSearchTypeChange(type: 'case' | 'user' | 'lawyer' | 'customer'): void {
-  if (this.selectedSearchType === type) return;
+    if (this.selectedSearchType === type) return;
 
-  console.log(`Search type changed to: ${type}`);
-  this.selectedSearchType = type;
-  this.searchQueryForDisplay = '';
-  this.selectedObjectFromAutocomplete = null;
+    this.selectedSearchType = type;
+    this.searchQueryForDisplay = '';
+    this.selectedObjectFromAutocomplete = null;
 
-  if (this.autoCompleteComponent) {
-    this.autoCompleteComponent.writeValue('');
-  }
+    if (this.autoCompleteComponent) {
+      this.autoCompleteComponent.writeValue('');
+    }
 
-  this.autocompleteItemsSource$.next([]);
+    this.autocompleteItemsSource$.next([]);
 }
 
   onSearchInputChanged(searchTerm: string): void {
+    if (!this.selectedSearchType) return;
+
     // [Emit the search term to the Subject instead of searching immediately]
     this.searchTermsSubject.next(searchTerm);
   }
 
+
   private performSearch(searchTerm: string): void {
+    if (!this.selectedSearchType) return;
 
     if (this.currentAttributeId === null) {
       this.autocompleteItemsSource$.next([]);
@@ -170,14 +225,10 @@ export class LcaGlobalSearchComponent implements OnInit, OnDestroy {
 
     let searchObservable: Observable<any>;
 
-    switch (this.selectedSearchType) {
-      case 'case':
-        console.log({
-          query: searchTerm,
-          attributeId: this.currentAttributeId,
-          pagination
-        })
+    let parsedType = Array.isArray(this.selectedSearchType) ? this.selectedSearchType[0] : this.selectedSearchType;
 
+    switch (parsedType) {
+      case 'case':
         searchObservable = this.caseSearchService.search({
           query: searchTerm,
           attributeId: this.currentAttributeId,
@@ -185,13 +236,6 @@ export class LcaGlobalSearchComponent implements OnInit, OnDestroy {
         });
         break;
       case 'user':
-
-        console.log({
-          query: searchTerm,
-          attributeId: this.currentAttributeId,
-          pagination
-        })
-
         searchObservable = this.userSearchService.search({
           query: searchTerm,
           attributeId: this.currentAttributeId,
@@ -199,13 +243,6 @@ export class LcaGlobalSearchComponent implements OnInit, OnDestroy {
         });
         break;
       case 'lawyer':
-
-        console.log({
-          query: searchTerm,
-          attributeId: this.currentAttributeId,
-          pagination
-        })
-
         searchObservable = this.lawyerSearchService.search({
           query: searchTerm,
           attributeId: this.currentAttributeId,
@@ -213,13 +250,6 @@ export class LcaGlobalSearchComponent implements OnInit, OnDestroy {
         });
         break;
       case 'customer':
-
-        console.log({
-          query: searchTerm,
-          attributeId: this.currentAttributeId,
-          pagination
-        })
-
         searchObservable = this.customerSearchService.search({
           query: searchTerm,
           attributeId: this.currentAttributeId,
@@ -227,14 +257,14 @@ export class LcaGlobalSearchComponent implements OnInit, OnDestroy {
         });
         break;
       default:
-
-        console.log('default')
-
-        searchObservable = of({ items: [] });
+        return;
     }
 
     searchObservable.pipe(
-      map(response => response.items || []),
+      map(response => (response.items || [])
+        .map((item: any) => this.transformToSearchResultItem(item, parsedType))
+        .filter((item: SearchResultItem): item is SearchResultItem => item !== null)
+      ),
       catchError(err => {
         this.toastService.showError(`Failed to search ${this.selectedSearchType}s.`);
         return of([]);
@@ -244,8 +274,6 @@ export class LcaGlobalSearchComponent implements OnInit, OnDestroy {
         this.cdRef.detectChanges();
       })
     ).subscribe(items => {
-      console.log(items)
-
       this.autocompleteItemsSource$.next(items);
     });
   }
@@ -266,6 +294,9 @@ export class LcaGlobalSearchComponent implements OnInit, OnDestroy {
   }
 
   expandSearch(): void {
+    if (!this.selectedSearchType) return;
+
+
     if (!this.searchQueryForDisplay?.trim()) {
       this.toastService.showInfo("Please enter a search term.");
       return;

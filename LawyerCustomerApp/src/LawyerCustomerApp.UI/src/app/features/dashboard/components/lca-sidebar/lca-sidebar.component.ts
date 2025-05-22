@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router, NavigationEnd } from '@angular/router';
-import { Subscription, Observable } from 'rxjs';
+import { Subscription, Observable, firstValueFrom } from 'rxjs';
 import { filter, map, distinctUntilChanged } from 'rxjs/operators';
 import { AuthService } from '../../../../core/services/auth.service';
 import { UserProfileService, LAWYER_ATTRIBUTE_ID, CUSTOMER_ATTRIBUTE_ID } from '../../../../core/services/user-profile.service';
@@ -15,7 +15,7 @@ import { UserDetailsInformationItem } from '../../../../core/models/user.models'
 })
 export class LcaSidebarComponent implements OnInit, OnDestroy {
   currentUser$: Observable<UserDetailsInformationItem | null>;
-  selectedAccountAttributeId$: Observable<number | null>;
+  selectedAccountAttributeId: number | null;
   accountOptions: LcaSelectOption[] = [];
   isAccountSelectDisabled: boolean = false;
 
@@ -35,12 +35,12 @@ export class LcaSidebarComponent implements OnInit, OnDestroy {
     private toastService: ToastService
   ) {
     this.currentUser$ = this.userProfileService.currentUserDetails$;
-    this.selectedAccountAttributeId$ = this.userProfileService.selectedAccountAttributeId$;
+    this.selectedAccountAttributeId = null
   }
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
     this.currentUser$ = this.userProfileService.currentUserDetails$;
-    this.selectedAccountAttributeId$ = this.userProfileService.selectedAccountAttributeId$;
+    this.selectedAccountAttributeId = await firstValueFrom(this.userProfileService.selectedAccountAttributeId$);
 
     const userDetailsSub = this.currentUser$.subscribe(user => {
       this.currentUserDetails = user;
@@ -84,7 +84,7 @@ export class LcaSidebarComponent implements OnInit, OnDestroy {
     if (this.isAccountSelectDisabled) {
         this.toastService.showInfo("Please navigate to the Home page to change your account type.");
         
-        setTimeout(() => this.userProfileService.setSelectedAccount(this.userProfileService.getCurrentAttributeId()), 0);
+        this.userProfileService.setSelectedAccount(numericAttributeId);
         
         return;
     }

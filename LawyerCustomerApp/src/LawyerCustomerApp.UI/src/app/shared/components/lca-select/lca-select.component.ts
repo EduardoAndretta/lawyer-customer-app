@@ -20,8 +20,6 @@ export interface LcaSelectOption {
       multi: true
     }
   ],
-  // Consider OnPush if you manage changes carefully, but default is fine too.
-  // changeDetection: ChangeDetectionStrategy.OnPush 
 })
 export class LcaSelectComponent implements ControlValueAccessor, OnInit, OnDestroy {
   @Input() options: LcaSelectOption[] = [];
@@ -85,10 +83,8 @@ export class LcaSelectComponent implements ControlValueAccessor, OnInit, OnDestr
     return val1 === val2;
   }
 
-  // --- ControlValueAccessor IMPLEMENTATION ---
 
   writeValue(value: any | any[]): void {
-    // console.log(`[LcaSelect ${this.label || this.id}] writeValue called with:`, value, 'Current _value:', this._value);
     let newValue: any;
     if (this.multiple) {
       newValue = Array.isArray(value) ? value : (value !== null && value !== undefined ? [value] : []);
@@ -103,26 +99,19 @@ export class LcaSelectComponent implements ControlValueAccessor, OnInit, OnDestr
 
     if (changed) {
       this._value = newValue;
-      // console.log(`[LcaSelect ${this.label || this.id}] _value set to:`, this._value);
-      // this.cdr.detectChanges(); // Use detectChanges if things are not updating visually, especially with OnPush or complex scenarios
-                                // For default change detection, this might not be strictly necessary but can help ensure view updates.
     }
   }
 
   registerOnChange(fn: (value: any) => void): void {
-    // console.log(`[LcaSelect ${this.label || this.id}] registerOnChange`);
     this.onChange = fn;
   }
 
   registerOnTouched(fn: () => void): void {
-    // console.log(`[LcaSelect ${this.label || this.id}] registerOnTouched`);
     this.onTouched = fn;
   }
 
   setDisabledState?(isDisabled: boolean): void {
-    // console.log(`[LcaSelect ${this.label || this.id}] setDisabledState called with:`, isDisabled);
     this.disabled = isDisabled;
-    // this.cdr.markForCheck(); // If using OnPush
   }
 
   // Called when the native select's value changes
@@ -137,23 +126,20 @@ export class LcaSelectComponent implements ControlValueAccessor, OnInit, OnDestr
 
     if (changed) {
         this._value = newValueFromSelect;
-        this.onChange(this._value); // Propagate the change to the parent form control
-        // console.log(`[LcaSelect ${this.label || this.id}] propagating change to parent:`, this._value);
+        this.onChange(this._value);
     }
   }
 
-  // Called on blur
   onBlur(): void {
-    // console.log(`[LcaSelect ${this.label || this.id}] onBlur`);
     this.onTouched();
   }
 
   private arraysEqual(arr1: any[], arr2: any[]): boolean {
-    if (arr1 === arr2) return true; // Same instance or both null/undefined
+    if (arr1 === arr2) return true;
     if (!arr1 || !arr2 || arr1.length !== arr2.length) return false;
     
-    const sortedArr1 = [...arr1].sort(); // Sort copies to handle order differences if needed
-    const sortedArr2 = [...arr2].sort(); // (May not be necessary if order is guaranteed)
+    const sortedArr1 = [...arr1].sort();
+    const sortedArr2 = [...arr2].sort();
 
     for (let i = 0; i < sortedArr1.length; i++) {
       if (!this.compareFunctionBinding(sortedArr1[i], sortedArr2[i])) {

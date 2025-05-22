@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription, Observable, of } from 'rxjs';
+import { Subscription, of } from 'rxjs';
 import { switchMap, tap, finalize } from 'rxjs/operators';
 
 import { CaseService } from '../../../../core/services/case.service';
@@ -54,7 +54,7 @@ export class CaseDetailsPageComponent implements OnInit, OnDestroy {
         const id = params.get('id');
         if (!id) {
           this.toastService.showError("Case ID not found in URL.");
-          this.router.navigate(['/dashboard/home']); // Or to a cases list
+          this.router.navigate(['/dashboard/home']);
           return;
         }
         this.caseId = +id;
@@ -80,8 +80,6 @@ export class CaseDetailsPageComponent implements OnInit, OnDestroy {
       } else {
         this.toastService.showError('Could not load case details.');
         this.caseDetails = null;
-        // Optionally navigate away if details are crucial and not found
-        // this.router.navigate(['/dashboard/cases']);
       }
     });
   }
@@ -142,7 +140,7 @@ loadPermissions(): void {
     }
     const payload = {
         caseId: this.caseId,
-        attributeId: this.currentAttributeId, // Context of the revoker
+        attributeId: this.currentAttributeId,
         permissions: [{
             attributeId: permissionToRevoke.attributeId,
             permissionId: permissionToRevoke.permissionId,
@@ -150,12 +148,12 @@ loadPermissions(): void {
             roleId: permissionToRevoke.roleId
         }]
     };
-    this.isLoadingPermissions = true; // Indicate activity
-    this.caseService.revokePermissions(payload).pipe(
+    this.isLoadingPermissions = true; 
+    this.permissionService.revokePermissionsFromCase(payload).pipe(
         finalize(() => this.isLoadingPermissions = false)
     ).subscribe({
         next: () => this.loadPermissions(),
-        error: () => {} // Handled by interceptor
+        error: () => {}
     });
   }
 

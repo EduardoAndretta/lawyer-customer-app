@@ -5,9 +5,7 @@
   size="xl">
 
   <div lca-modal-body>
-    <app-lca-loading-spinner [isLoading]="isDataLoading" message="Loading permission options..."></app-lca-loading-spinner>
-
-    <form [formGroup]="permissionsForm" (ngSubmit)="onSubmit()" class="lca-form" *ngIf="!isDataLoading">
+    <form [formGroup]="permissionsForm" (ngSubmit)="onSubmit()" class="lca-form">
       <p *ngIf="mode === 'grant'">Select user, the permission context (attribute), and the specific permission/role to grant for this case.</p>
       <p *ngIf="mode === 'revoke'">Select user, the permission context (attribute), and the specific permission/role to revoke for this case.</p>
 
@@ -19,22 +17,26 @@
 
             <app-lca-auto-complete
               label="User"
-              placeholder="Search or select User..."
-              [items]="(usersList$ | async) ?? []"
+              placeholder="Type to search User..."
+              formControlName="userId"
+              [items]="(usersItemsSource$ | async) ?? []"
               displayProperty="name"
               valueProperty="userId"
-              formControlName="userId"
+              (inputTextChanged)="onUsersSearchChanged($event)"
+              [serverSideFiltering]="true"
               [minLength]="0"
               [ngClass]="{ 'is-invalid-autocomplete-wrapper': submitted && getFormControl(i, 'userId')?.errors }">
             </app-lca-auto-complete>
 
             <app-lca-auto-complete
               label="Attribute (Permission Context)"
-              placeholder="Search or select Attribute..."
-              [items]="(attributesList$ | async) ?? []"
+              placeholder="Type to search Attribute..."
+              formControlName="attributeId"
+              [items]="(attributesItemsSource$ | async) ?? []"
               displayProperty="key"
               valueProperty="value"
-              formControlName="attributeId"
+              (inputTextChanged)="onAttributesSearchChanged($event)"
+              [serverSideFiltering]="true"
               [minLength]="0"
               [ngClass]="{ 'is-invalid-autocomplete-wrapper': submitted && getFormControl(i, 'attributeId')?.errors }">
             </app-lca-auto-complete>
@@ -42,11 +44,13 @@
             <app-lca-auto-complete
               *ngIf="mode === 'grant'"
               label="Permission to Grant"
-              placeholder="Search or select Permission..."
-              [items]="(grantablePermissionsList$ | async) ?? []"
+              placeholder="Type to search Permission..."
+              formControlName="permissionId"
+              [items]="(permissionsItemsSource$ | async) ?? []"
               displayProperty="key"
               valueProperty="value"
-              formControlName="permissionId"
+              (inputTextChanged)="onPermissionsSearchChanged($event)"
+              [serverSideFiltering]="true"
               [minLength]="0"
               [ngClass]="{ 'is-invalid-autocomplete-wrapper': submitted && getFormControl(i, 'permissionId')?.errors }">
             </app-lca-auto-complete>
@@ -54,46 +58,45 @@
             <app-lca-auto-complete
               *ngIf="mode === 'revoke'"
               label="Permission to Revoke"
-              placeholder="Search or select Permission..."
-              [items]="(revokablePermissionsList$ | async) ?? []"
+              placeholder="Type to search Permission..."
+              formControlName="permissionId"
+              [items]="(permissionsItemsSource$ | async) ?? []"
               displayProperty="key"
               valueProperty="value"
-              formControlName="permissionId"
+              (inputTextChanged)="onPermissionsSearchChanged($event)"
+              [serverSideFiltering]="true"
               [minLength]="0"
               [ngClass]="{ 'is-invalid-autocomplete-wrapper': submitted && getFormControl(i, 'permissionId')?.errors }">
             </app-lca-auto-complete>
 
             <app-lca-auto-complete
               label="Role"
-              placeholder="Search or select Role..."
-              [items]="(rolesList$ | async) ?? []"
+              placeholder="Type to search Role..."
+              formControlName="roleId"
+              [items]="(rolesItemsSource$ | async) ?? []"
               displayProperty="key"
               valueProperty="value"
-              formControlName="roleId"
+              (inputTextChanged)="onRolesSearchChanged($event)"
+              [serverSideFiltering]="true"
               [minLength]="0"
               [ngClass]="{ 'is-invalid-autocomplete-wrapper': submitted && getFormControl(i, 'roleId')?.errors }">
             </app-lca-auto-complete>
 
           </div>
           <div *ngIf="submitted" class="validation-summary-entry">
-                <div *ngIf="getFormControl(i, 'userId')?.errors?.['required']" class="lca-input-error-message small-text">User selection is required.</div>
-                <div *ngIf="getFormControl(i, 'attributeId')?.errors?.['required']" class="lca-input-error-message small-text">Attribute context is required.</div>
-                <div *ngIf="getFormControl(i, 'permissionId')?.errors?.['required']" class="lca-input-error-message small-text">Permission selection is required.</div>
-                <div *ngIf="getFormControl(i, 'roleId')?.errors?.['required']" class="lca-input-error-message small-text">Role selection is required.</div>
-                <div *ngIf="!isPermissionEntryUserAttributeValid(i) && permissionEntry.get('userId')?.value && permissionEntry.get('attributeId')?.value !== null && permissionEntry.get('attributeId')?.value !== undefined"
-                     class="lca-input-error-message small-text combination-error">
-                  This user cannot have permissions {{mode}} for the selected attribute context.
-                </div>
+            <div *ngIf="getFormControl(i, 'userId')?.errors?.['required']" class="lca-input-error-message small-text">User selection is required.</div>
+            <div *ngIf="getFormControl(i, 'attributeId')?.errors?.['required']" class="lca-input-error-message small-text">Attribute context is required.</div>
+            <div *ngIf="getFormControl(i, 'permissionId')?.errors?.['required']" class="lca-input-error-message small-text">Permission selection is required.</div>
+            <div *ngIf="getFormControl(i, 'roleId')?.errors?.['required']" class="lca-input-error-message small-text">Role selection is required.</div>
+            <div *ngIf="!isPermissionEntryUserAttributeValid(i) && getFormControl(i, 'userId')?.value && getFormControl(i, 'attributeId')?.value !== null && getFormControl(i, 'attributeId')?.value !== undefined"
+                  class="lca-input-error-message small-text combination-error">
+              This user cannot have permissions {{mode}} for the selected attribute context.
+            </div>
           </div>
 
           <div class="entry-actions">
-            <app-lca-button
-                type="button"
-                lcaStyle="danger"
-                (lcaClick)="removePermissionEntry(i)"
-                *ngIf="permissionsToModify.controls.length > 1"
-                size="sm">
-              Remove This Entry
+            <app-lca-button type="button" lcaStyle="danger" (lcaClick)="removePermissionEntry(i)" *ngIf="permissionsToModify.controls.length > 1" size="sm">
+              Remove
             </app-lca-button>
           </div>
         </div>
@@ -103,20 +106,14 @@
         Add Another Permission Entry
       </app-lca-button>
     </form>
-     <div *ngIf="mode === 'revoke' && currentPermissions.length === 0 && !isDataLoading" class="no-permissions-info">
-        There are no active permissions on this case to revoke.
-    </div>
   </div>
-
   <div lca-modal-footer>
-    <app-lca-button type="button" lcaStyle="secondary" (lcaClick)="closeModal(false)" [disabled]="isLoading || isDataLoading">
-      Cancel
-    </app-lca-button>
+    <app-lca-button type="button" lcaStyle="secondary" (lcaClick)="closeModal(false)" [disabled]="isLoadingSubmission">Cancel</app-lca-button>
     <app-lca-button
       type="button" lcaStyle="primary"
       (lcaClick)="onSubmit()"
-      [isLoading]="isLoading"
-      [disabled]="isLoading || isDataLoading || permissionsForm.invalid || permissionsToModify.length === 0">
+      [isLoading]="isLoadingSubmission"
+      [disabled]="isLoadingSubmission || permissionsForm.invalid || permissionsToModify.length === 0">
       {{ mode === 'grant' ? 'Grant Selected' : 'Revoke Selected' }}
     </app-lca-button>
   </div>

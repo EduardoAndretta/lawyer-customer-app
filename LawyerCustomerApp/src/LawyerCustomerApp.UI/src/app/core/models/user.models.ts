@@ -182,29 +182,3 @@ export interface UserEditParametersDto {
   relatedUserId?: number | null;
   values?: UserEditValues | null;
 }
-
-// [User Permissions]
-export interface UserPermissionsParametersDto {
-  relatedUserId?: number | null;
-  attributeId?: number | null;
-}
-
-export interface UserPermissionsInformationItem extends BasePermissionsInformationItem {}
-
-export interface UserPermissionsInformationDto {
-  items: UserPermissionsInformationItem[] | null;
-}
-
-// [User Grant Permissions]
-export interface UserGrantPermissionsParametersDto {
-  relatedUserId?: number | null;
-  attributeId?: number | null;
-  permissions: PermissionDetail[] | null;
-}
-
-// [User Revoke Permissions]
-export interface UserRevokePermissionsParametersDto {
-  relatedUserId?: number | null;
-  attributeId?: number | null;
-  permissions: PermissionDetail[] | null;
-}

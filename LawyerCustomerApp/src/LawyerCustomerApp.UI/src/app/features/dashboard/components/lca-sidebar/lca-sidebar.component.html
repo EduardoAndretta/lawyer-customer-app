@@ -8,7 +8,7 @@
         label="Current Account Context"
         valueProperty="value"
         [options]="accountOptions"
-        [ngModel]="selectedAccountAttributeId$ | async"
+        [ngModel]="selectedAccountAttributeId"
         (ngModelChange)="onAccountTypeChange($event)"
         [disabled]="isAccountSelectDisabled || accountOptions.length <= 1">
       </app-lca-select>
@@ -36,7 +36,7 @@
       <li><a routerLink="/dashboard/users" routerLinkActive="active-link">Manage Users</a></li>
 
       <!-- Manage Lawyers - Conditional -->
-      <li *ngIf="(selectedAccountAttributeId$ | async) !== null; else lawyerLinkDisabled">
+      <li *ngIf="selectedAccountAttributeId !== null; else lawyerLinkDisabled">
         <a routerLink="/dashboard/lawyers" routerLinkActive="active-link">Manage Lawyers</a>
       </li>
       <ng-template #lawyerLinkDisabled>
@@ -44,7 +44,7 @@
       </ng-template>
 
       <!-- Manage Customers - Conditional -->
-      <li *ngIf="(selectedAccountAttributeId$ | async) !== null; else customerLinkDisabled">
+      <li *ngIf="selectedAccountAttributeId !== null; else customerLinkDisabled">
         <a routerLink="/dashboard/customers" routerLinkActive="active-link">Manage Customers</a>
       </li>
       <ng-template #customerLinkDisabled>
@@ -52,7 +52,7 @@
       </ng-template>
 
       <!-- Manage Cases - Conditional -->
-      <li *ngIf="(selectedAccountAttributeId$ | async) !== null; else caseLinkDisabled">
+      <li *ngIf="selectedAccountAttributeId !== null; else caseLinkDisabled">
         <a routerLink="/dashboard/cases" routerLinkActive="active-link">Manage Cases</a>
       </li>
       <ng-template #caseLinkDisabled>

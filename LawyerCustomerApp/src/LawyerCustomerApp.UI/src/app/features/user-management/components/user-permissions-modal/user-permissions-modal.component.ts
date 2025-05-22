@@ -41,7 +41,7 @@ export class UserPermissionsModalComponent implements OnInit, OnDestroy {
   attributesList$: BehaviorSubject<KeyValueItem<number>[]> = new BehaviorSubject<KeyValueItem<number>[]>([]); // Attributes are back
 
   private subscriptions = new Subscription();
-  private currentLoggedInUserAttributeId: number | null = null; // Context of the admin/user performing action
+  private currentLoggedInUserAttributeId: number | null = null;
   private readonly COMBO_LIST_PAGE_SIZE = 100;
 
   constructor(
@@ -67,7 +67,7 @@ export class UserPermissionsModalComponent implements OnInit, OnDestroy {
       permissionsToModify: this.fb.array([])
     });
 
-    this.loadAllAutoCompleteData(); // Load data when modal is initialized
+    this.loadAllAutoCompleteData();
     this.addPermissionEntry();
   }
 
@@ -97,7 +97,7 @@ export class UserPermissionsModalComponent implements OnInit, OnDestroy {
         map(response => response?.items || []),
         catchError(() => { this.toastService.showError("Failed to load roles."); return of([]); })
     );
-    const attributesObs$ = this.comboDataService.getAttributes(comboPagination).pipe( // Attributes are needed again
+    const attributesObs$ = this.comboDataService.getAttributes(comboPagination).pipe(
         map(response => response?.items || []),
         catchError(() => { this.toastService.showError("Failed to load attributes."); return of([]); })
     );

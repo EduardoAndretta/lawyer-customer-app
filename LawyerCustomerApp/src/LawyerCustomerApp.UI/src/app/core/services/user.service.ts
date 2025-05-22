@@ -7,10 +7,7 @@ import { ToastService } from './toast.service';
 import {
   UserDetailsParametersDto, UserDetailsInformationDto,
   RegisterUserParametersDto,
-  UserEditParametersDto,
-  UserPermissionsParametersDto, UserPermissionsInformationDto,
-  UserGrantPermissionsParametersDto, UserRevokePermissionsParametersDto,
-  UserDetailsInformationItem
+  UserEditParametersDto
 } from '../models/user.models';
 
 @Injectable({
@@ -48,33 +45,6 @@ export class UserService {
   edit(params: UserEditParametersDto): Observable<any> {
     return this.http.patch(`${this.baseUrl}/edit`, params).pipe(
       tap(() => this.toastService.showSuccess('User updated successfully!')),
-      catchError(error => {
-        throw error;
-      })
-    );
-  }
-
-  getPermissions(params: UserPermissionsParametersDto): Observable<UserPermissionsInformationDto | null> {
-    return this.http.post<UserPermissionsInformationDto>(`${this.baseUrl}/permissions`, params).pipe(
-      catchError(error => {
-        console.error('Failed to get user permissions:', error);
-        return of(null);
-      })
-    );
-  }
-
-  grantPermissions(params: UserGrantPermissionsParametersDto): Observable<any> {
-    return this.http.put(`${this.baseUrl}/grant-permissions`, params).pipe(
-      tap(() => this.toastService.showSuccess('Permissions granted successfully to user!')),
-      catchError(error => {
-        throw error;
-      })
-    );
-  }
-
-  revokePermissions(params: UserRevokePermissionsParametersDto): Observable<any> {
-    return this.http.put(`${this.baseUrl}/revoke-permissions`, params).pipe(
-      tap(() => this.toastService.showSuccess('Permissions revoked successfully from user!')),
       catchError(error => {
         throw error;
       })
