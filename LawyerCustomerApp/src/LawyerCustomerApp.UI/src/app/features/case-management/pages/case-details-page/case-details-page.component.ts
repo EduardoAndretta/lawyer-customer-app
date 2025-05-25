@@ -139,7 +139,7 @@ loadPermissions(): void {
         return;
     }
     const payload = {
-        caseId: this.caseId,
+        relatedCaseId: this.caseId,
         attributeId: this.currentAttributeId,
         permissions: [{
             attributeId: permissionToRevoke.attributeId,

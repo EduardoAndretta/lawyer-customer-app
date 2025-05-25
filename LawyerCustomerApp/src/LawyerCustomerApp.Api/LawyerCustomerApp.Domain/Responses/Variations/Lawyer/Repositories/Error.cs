@@ -60,6 +60,14 @@ public class UserNotFoundError : Constructor
     public override int Status => 400;
 }
 
+public class LawyerNotFoundError : Constructor
+{
+    public override string Identity => "LawyerNotFoundError";
+    public override Type Resource => typeof(Error);
+
+    public override int Status => 400;
+}
+
 public class UserNotCapableForAttributeAccountError : Constructor
 {
     public override string Identity => "UserNotCapableForAttributeAccountError";

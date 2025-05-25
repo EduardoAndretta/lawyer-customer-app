@@ -38,11 +38,7 @@ internal class Repository : IRepository
 
         if (string.IsNullOrWhiteSpace(sqliteConnectionString))
         {
-            resultConstructor.SetConstructor(
-                new NotFoundDatabaseConnectionStringError()
-                {
-                    Status = 500
-                });
+            resultConstructor.SetConstructor(new NotFoundDatabaseConnectionStringError());
 
             return resultConstructor.Build<AuthenticateInformation>();
         }
@@ -90,11 +86,7 @@ internal class Repository : IRepository
 
         if (userInformation == null)
         {
-            resultConstructor.SetConstructor(
-                new TokenAuthenticationError()
-                {
-                    Status = 400
-                });
+            resultConstructor.SetConstructor(new TokenAuthenticationError());
 
             return resultConstructor.Build<AuthenticateInformation>();
         }
@@ -181,11 +173,7 @@ internal class Repository : IRepository
 
         if (includedItems == 0)
         {
-            resultConstructor.SetConstructor(
-                new TokenAuthenticationInsertionError()
-                {
-                    Status = 500
-                });
+            resultConstructor.SetConstructor(new TokenAuthenticationInsertionError());
 
             return resultConstructor.Build<AuthenticateInformation>();
         }
@@ -206,11 +194,7 @@ internal class Repository : IRepository
 
         if (string.IsNullOrWhiteSpace(sqliteConnectionString))
         {
-            resultConstructor.SetConstructor(
-                new NotFoundDatabaseConnectionStringError()
-                {
-                    Status = 500
-                });
+            resultConstructor.SetConstructor(new NotFoundDatabaseConnectionStringError());
 
             return resultConstructor.Build<RefreshInformation>();
         }
@@ -239,7 +223,8 @@ internal class Repository : IRepository
                                           [T].[refresh_token]            AS [RefreshToken], 
                                           [T].[refresh_token_limit_date] AS [RefreshTokenLimitDate],
                                           [U].[id]                       AS [UserId],      
-                                          [U].[email]                    AS [Email] FROM [tokens] T
+                                          [U].[email]                    AS [Email] 
+                                   FROM [tokens] [T]
                                    LEFT JOIN [users] U ON [T].[user_id] = [U].[id]
                                    WHERE  [T].[jwt_token]     = @JwtToken AND 
                                           [T].[refresh_token] = @RefreshToken");
@@ -265,11 +250,7 @@ internal class Repository : IRepository
 
         if (tokensInformation == null)
         {
-            resultConstructor.SetConstructor(
-                new TokenRefreshError()
-                {
-                    Status = 400
-                });
+            resultConstructor.SetConstructor(new TokenRefreshError());
 
             return resultConstructor.Build<RefreshInformation>();
         }
@@ -278,22 +259,14 @@ internal class Repository : IRepository
 
         if (tokensInformation.JwtTokenLimitDate > actualDate)
         {
-            resultConstructor.SetConstructor(
-                new TokenJwtNotExpiredError()
-                {
-                    Status = 400
-                });
+            resultConstructor.SetConstructor(new TokenJwtNotExpiredError());
 
             return resultConstructor.Build<RefreshInformation>();
         }
 
         if (tokensInformation.RefreshTokenLimitDate < actualDate)
         {
-            resultConstructor.SetConstructor(
-                new TokenRefreshExpiredError()
-                {
-                    Status = 400
-                });
+            resultConstructor.SetConstructor(new TokenRefreshExpiredError());
 
             return resultConstructor.Build<RefreshInformation>();
         }
@@ -378,11 +351,7 @@ internal class Repository : IRepository
 
         if (includedItems == 0)
         {
-            resultConstructor.SetConstructor(
-                new TokenRefreshInsertionError()
-                {
-                    Status = 500
-                });
+            resultConstructor.SetConstructor(new TokenRefreshInsertionError());
 
             return resultConstructor.Build<RefreshInformation>();
         }
@@ -403,11 +372,7 @@ internal class Repository : IRepository
 
         if (string.IsNullOrWhiteSpace(sqliteConnectionString))
         {
-            resultConstructor.SetConstructor(
-                new NotFoundDatabaseConnectionStringError()
-                {
-                    Status = 500
-                });
+            resultConstructor.SetConstructor(new NotFoundDatabaseConnectionStringError());
 
             return resultConstructor.Build();
         }
@@ -432,7 +397,8 @@ internal class Repository : IRepository
             var stringBuilder = new StringBuilder();
 
             stringBuilder.Append(@"SELECT [T].[id]            AS [Id], 
-                                          [T].[invalidated]   AS [Invalidated] FROM [tokens] T
+                                          [T].[invalidated]   AS [Invalidated] 
+                                   FROM [tokens] [T]
                                    WHERE  [T].[jwt_token]     = @JwtToken AND 
                                           [T].[refresh_token] = @RefreshToken");
 
@@ -449,22 +415,14 @@ internal class Repository : IRepository
 
         if (tokensInformation == null)
         {
-            resultConstructor.SetConstructor(
-                new TokenInvalidatedError()
-                {
-                    Status = 400
-                });
+            resultConstructor.SetConstructor(new TokenInvalidatedError());
 
             return resultConstructor.Build();
         }
 
         if (tokensInformation.Invalidated)
         {
-            resultConstructor.SetConstructor(
-                new TokenInvalidatedError()
-                {
-                    Status = 400
-                });
+            resultConstructor.SetConstructor(new TokenInvalidatedError());
 
             return resultConstructor.Build();
         }
@@ -479,7 +437,7 @@ internal class Repository : IRepository
 
             var stringBuilder = new StringBuilder();
 
-            stringBuilder.Append(@"UPDATE [tokens] T SET [T].[invalidated] = @Invalidated WHERE [T].[id] = @TokenId");
+            stringBuilder.Append(@"UPDATE [tokens] SET [invalidated] = @Invalidated WHERE [id] = @TokenId");
 
             var includedItems = await connection.Connection.ExecuteAsync(
                 new CommandDefinition(
@@ -494,11 +452,7 @@ internal class Repository : IRepository
 
         if (updatedItems == 0)
         {
-            resultConstructor.SetConstructor(
-                new TokenInvalidateUpdateError()
-                {
-                    Status = 500
-                });
+            resultConstructor.SetConstructor(new TokenInvalidateUpdateError());
 
             return resultConstructor.Build();
         }
@@ -514,11 +468,7 @@ internal class Repository : IRepository
 
         if (string.IsNullOrWhiteSpace(sqliteConnectionString))
         {
-            resultConstructor.SetConstructor(
-                new NotFoundDatabaseConnectionStringError()
-                {
-                    Status = 500
-                });
+            resultConstructor.SetConstructor(new NotFoundDatabaseConnectionStringError());
 
             return resultConstructor.Build();
         }
@@ -557,22 +507,14 @@ internal class Repository : IRepository
 
         if (tokensInformation == null)
         {
-            resultConstructor.SetConstructor(
-                new TokenValidationError()
-                {
-                    Status = 400
-                });
+            resultConstructor.SetConstructor(new TokenValidationError());
 
             return resultConstructor.Build();
         }
 
         if (tokensInformation.Invalidated)
         {
-            resultConstructor.SetConstructor(
-                new TokenInvalidatedError()
-                {
-                    Status = 400
-                });
+            resultConstructor.SetConstructor(new TokenInvalidatedError());
 
             return resultConstructor.Build();
         }
@@ -581,11 +523,7 @@ internal class Repository : IRepository
 
         if (tokensInformation.JwtTokenLimitDate < actualDate)
         {
-            resultConstructor.SetConstructor(
-                new TokenJwtExpiredError()
-                {
-                    Status = 400
-                });
+            resultConstructor.SetConstructor(new TokenJwtExpiredError());
 
             return resultConstructor.Build();
         }

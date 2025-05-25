@@ -655,15 +655,9 @@ WHERE
             ViewAnyCustomerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_CUSTOMER_ACCOUNT_USER, contextualizer)
         };
 
-        var information = await ValuesExtensions.GetValue(async () =>
-        {
-            // [Permissions Queries]
+        // [Permissions Queries]
 
-            DetailsInformation information;
-
-            // [Check Permission Objects Permissions]
-
-            const string queryPermissions = @"
+        const string queryPermissions = @"
 WITH [permission_checks]([permission_name], [permission_id]) AS (
     VALUES
     ('HasViewCustomerAccountUserPermission',       @ViewCustomerAccountUserPermissionId),
@@ -726,55 +720,55 @@ SELECT
 FROM [permission_checks] [PC]
 LEFT JOIN [grants] [G] ON [G].[permission_name] = [PC].[permission_name];";
 
-            var queryPermissionsParameters = new 
-            {
-                ViewUserPermissionId                = permission.ViewUserPermissionId,
-                ViewCustomerAccountUserPermissionId = permission.ViewCustomerAccountUserPermissionId,
-
-                ViewOwnUserPermissionId                = permission.ViewOwnUserPermissionId,               
-                ViewOwnCustomerAccountUserPermissionId = permission.ViewOwnCustomerAccountUserPermissionId,
-
-                ViewPublicUserPermissionId                = permission.ViewPublicUserPermissionId,               
-                ViewPublicCustomerAccountUserPermissionId = permission.ViewPublicCustomerAccountUserPermissionId,
-
-                ViewAnyUserPermissionId                = permission.ViewAnyUserPermissionId,
-                ViewAnyCustomerAccountUserPermissionId = permission.ViewAnyCustomerAccountUserPermissionId,
-
-                CustomerId  = parameters.CustomerId,
-                AttributeId = parameters.UserId,
-                UserId      = parameters.UserId,
-                RoleId      = parameters.RoleId
-            };
-
-            var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Details>(queryPermissions, queryPermissionsParameters);
-
-            // [Principal Query]
-
-            var queryParameters = new
-            {
-                 // [NOT ACL]
-
-                 HasViewOwnUserPermission                = permissionsResult.HasViewOwnUserPermission,
-                 HasViewOwnCustomerAccountUserPermission = permissionsResult.HasViewOwnCustomerAccountUserPermission,
-                 
-                 HasViewAnyUserPermission                = permissionsResult.HasViewAnyUserPermission,
-                 HasViewAnyCustomerAccountUserPermission = permissionsResult.HasViewAnyCustomerAccountUserPermission,
-                 
-                 HasViewPublicUserPermission                = permissionsResult.HasViewPublicUserPermission,
-                 HasViewPublicCustomerAccountUserPermission = permissionsResult.HasViewPublicCustomerAccountUserPermission,
-                 
-                 // [ACL]
-                 
-                 HasViewUserPermission                = permissionsResult.HasViewUserPermission,
-                 HasViewCustomerAccountUserPermission = permissionsResult.HasViewCustomerAccountUserPermission,
-
-                 AttributeId  = parameters.AttributeId,
-                 UserId       = parameters.UserId,
-                 CustomerId   = parameters.CustomerId,
-                 RoleId       = parameters.RoleId
-            };
-
-            var queryText = $@"
+        var queryPermissionsParameters = new 
+        {
+            ViewUserPermissionId                = permission.ViewUserPermissionId,
+            ViewCustomerAccountUserPermissionId = permission.ViewCustomerAccountUserPermissionId,
+        
+            ViewOwnUserPermissionId                = permission.ViewOwnUserPermissionId,               
+            ViewOwnCustomerAccountUserPermissionId = permission.ViewOwnCustomerAccountUserPermissionId,
+        
+            ViewPublicUserPermissionId                = permission.ViewPublicUserPermissionId,               
+            ViewPublicCustomerAccountUserPermissionId = permission.ViewPublicCustomerAccountUserPermissionId,
+        
+            ViewAnyUserPermissionId                = permission.ViewAnyUserPermissionId,
+            ViewAnyCustomerAccountUserPermissionId = permission.ViewAnyCustomerAccountUserPermissionId,
+        
+            CustomerId  = parameters.CustomerId,
+            AttributeId = parameters.UserId,
+            UserId      = parameters.UserId,
+            RoleId      = parameters.RoleId
+        };
+        
+        var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Details>(queryPermissions, queryPermissionsParameters);
+        
+        // [Principal Query]
+        
+        var queryParameters = new
+        {
+             // [NOT ACL]
+        
+             HasViewOwnUserPermission                = permissionsResult.HasViewOwnUserPermission,
+             HasViewOwnCustomerAccountUserPermission = permissionsResult.HasViewOwnCustomerAccountUserPermission,
+             
+             HasViewAnyUserPermission                = permissionsResult.HasViewAnyUserPermission,
+             HasViewAnyCustomerAccountUserPermission = permissionsResult.HasViewAnyCustomerAccountUserPermission,
+             
+             HasViewPublicUserPermission                = permissionsResult.HasViewPublicUserPermission,
+             HasViewPublicCustomerAccountUserPermission = permissionsResult.HasViewPublicCustomerAccountUserPermission,
+             
+             // [ACL]
+             
+             HasViewUserPermission                = permissionsResult.HasViewUserPermission,
+             HasViewCustomerAccountUserPermission = permissionsResult.HasViewCustomerAccountUserPermission,
+        
+             AttributeId  = parameters.AttributeId,
+             UserId       = parameters.UserId,
+             CustomerId   = parameters.CustomerId,
+             RoleId       = parameters.RoleId
+        };
+        
+        var queryText = $@"
 SELECT
     [U].[id] AS [UserId],
     [C].[id] AS [CustomerId],
@@ -782,7 +776,7 @@ SELECT
 FROM [users] [U]
 RIGHT JOIN [customers] [C] ON [C].[user_id] = [U].[id]
 WHERE
-    [U].[id] = @UserId AND [C].[id] = @CustomerId
+    [C].[id] = @CustomerId
     AND (
 
         -- [Block 1: Has Specific or Global Grant for VIEW_ANY_USER | VIEW_USER]
@@ -837,23 +831,26 @@ WHERE
         ))
 );";
 
-            using (var multiple = await connection.Connection.QueryMultipleAsync(
-                new CommandDefinition(
-                    commandText:       queryText,
-                    parameters:        queryParameters,
-                    transaction:       connection.Transaction,
-                    cancellationToken: contextualizer.CancellationToken,
-                    commandTimeout:    TimeSpan.FromHours(1).Milliseconds
-                    )))
-            {
-                information = new DetailsInformation
-                {
-                    Item = await multiple.ReadFirstAsync<DetailsInformation.ItemProperties>()
-                };
-            }
+        var item = await connection.Connection.QueryFirstOrDefaultAsync<DetailsInformation.ItemProperties>(
+            new CommandDefinition(
+                commandText:       queryText,
+                parameters:        queryParameters,
+                transaction:       connection.Transaction,
+                cancellationToken: contextualizer.CancellationToken,
+                commandTimeout:    TimeSpan.FromHours(1).Milliseconds
+                ));
 
-            return information;
-        });
+        if (item == null)
+        {
+            resultConstructor.SetConstructor(new CustomerNotFoundError());
+
+            return resultConstructor.Build<DetailsInformation>();
+        }
+
+        var information = new DetailsInformation()
+        {
+            Item = item
+        };
 
         return resultConstructor.Build<DetailsInformation>(information);
     }

@@ -957,13 +957,31 @@ public record SearchEnabledUsersToGrantPermissionsParametersDto
     [JsonIgnore]
     public int? RoleId { get; init; }
 
+    public string? Query { get; init; }
+
+    public PaginationProperties? Pagination { get; init; }
+
     public SearchEnabledUsersToGrantPermissionsParameters ToOrdinary()
     {
         return new SearchEnabledUsersToGrantPermissionsParameters
         {
+            Query = this.Query ?? string.Empty,
+
             UserId = this.UserId ?? 0,
-            RoleId = this.RoleId ?? 0
+            RoleId = this.RoleId ?? 0,
+
+            Pagination = new()
+            {
+                Begin = this.Pagination?.Begin ?? 0,
+                End   = this.Pagination?.End   ?? 0
+            }
         };
+    }
+
+    public class PaginationProperties
+    {
+        public int? Begin { get; init; }
+        public int? End { get; init; }
     }
 }
 
@@ -971,6 +989,16 @@ public class SearchEnabledUsersToGrantPermissionsParameters
 {
     public required int UserId { get; init; }
     public required int RoleId { get; init; }
+
+    public required string Query { get; init; }
+
+    public required PaginationProperties Pagination { get; init; }
+
+    public class PaginationProperties
+    {
+        public required int Begin { get; init; }
+        public required int End { get; init; }
+    }
 }
 
 
@@ -982,13 +1010,32 @@ public record SearchEnabledUsersToRevokePermissionsParametersDto
     [JsonIgnore]
     public int? RoleId { get; init; }
 
+    public string? Query { get; init; }
+
+    public PaginationProperties? Pagination { get; init; }
+
     public SearchEnabledUsersToRevokePermissionsParameters ToOrdinary()
     {
         return new SearchEnabledUsersToRevokePermissionsParameters
         {
+            Query = this.Query ?? string.Empty,
+
             UserId = this.UserId ?? 0,
-            RoleId = this.RoleId ?? 0
+            RoleId = this.RoleId ?? 0,
+
+
+            Pagination = new()
+            {
+                Begin = this.Pagination?.Begin ?? 0,
+                End   = this.Pagination?.End   ?? 0
+            }
         };
+    }
+
+    public class PaginationProperties
+    {
+        public int? Begin { get; init; }
+        public int? End { get; init; }
     }
 }
 
@@ -996,6 +1043,16 @@ public class SearchEnabledUsersToRevokePermissionsParameters
 {
     public required int UserId { get; init; }
     public required int RoleId { get; init; }
+
+    public required string Query { get; init; }
+
+    public required PaginationProperties Pagination { get; init; }
+
+    public class PaginationProperties
+    {
+        public required int Begin { get; init; }
+        public required int End { get; init; }
+    }
 }
 
 

@@ -447,7 +447,7 @@ public class Controller : ControllerBase
         if (result.IsFinished)
             return result.HandleActionResult(this);
 
-        return NoContent();
+        return result.Value;
     }
 
     [HttpPost("search/enable-users-to-revoke-permissions"), Authorize(Policy = "internal-jwt-bearer")]
@@ -486,7 +486,7 @@ public class Controller : ControllerBase
         if (result.IsFinished)
             return result.HandleActionResult(this);
 
-        return NoContent();
+        return result.Value;
     }
 
 }

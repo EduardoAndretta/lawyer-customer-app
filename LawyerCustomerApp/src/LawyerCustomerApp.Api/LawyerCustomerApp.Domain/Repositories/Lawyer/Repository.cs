@@ -656,15 +656,9 @@ WHERE
             ViewAnyLawyerAccountUserPermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_LAWYER_ACCOUNT_USER, contextualizer)
         };
 
-        var information = await ValuesExtensions.GetValue(async () =>
-        {
-            // [Permissions Queries]
+        // [Permissions Queries]
 
-            DetailsInformation information;
-
-            // [Check Permission Objects Permissions]
-
-            const string queryPermissions = @"
+        const string queryPermissions = @"
 WITH [permission_checks]([permission_name], [permission_id]) AS (
     VALUES
     ('HasViewUserPermission',                    @ViewUserPermissionId),
@@ -727,55 +721,55 @@ SELECT
 FROM [permission_checks] [PC]
 LEFT JOIN [grants] [G] ON [G].[permission_name] = [PC].[permission_name];";
 
-            var queryPermissionsParameters = new 
-            { 
-                ViewUserPermissionId              = permission.ViewUserPermissionId,
-                ViewLawyerAccountUserPermissionId = permission.ViewLawyerAccountUserPermissionId,
-
-                ViewOwnUserPermissionId              = permission.ViewOwnUserPermissionId,               
-                ViewOwnLawyerAccountUserPermissionId = permission.ViewOwnLawyerAccountUserPermissionId,
-
-                ViewPublicUserPermissionId              = permission.ViewPublicUserPermissionId,               
-                ViewPublicLawyerAccountUserPermissionId = permission.ViewPublicLawyerAccountUserPermissionId,
-
-                ViewAnyUserPermissionId              = permission.ViewAnyUserPermissionId,
-                ViewAnyLawyerAccountUserPermissionId = permission.ViewAnyLawyerAccountUserPermissionId,
-
-                AttributeId = parameters.AttributeId,
-                UserId      = parameters.UserId,
-                LawyerId    = parameters.LawyerId,
-                RoleId      = parameters.RoleId,
-            };
-
-            var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Details>(queryPermissions, queryPermissionsParameters);
-
-            // [Principal Query]
-
-            var queryParameters = new
-            {
-                 // [NOT ACL]
-
-                 HasViewOwnUserPermission              = permissionsResult.HasViewOwnUserPermission,
-                 HasViewOwnLawyerAccountUserPermission = permissionsResult.HasViewOwnLawyerAccountUserPermission,
-                 
-                 HasViewAnyUserPermission              = permissionsResult.HasViewAnyUserPermission,
-                 HasViewAnyLawyerAccountUserPermission = permissionsResult.HasViewAnyLawyerAccountUserPermission,
-                 
-                 HasViewPublicUserPermission              = permissionsResult.HasViewPublicUserPermission,
-                 HasViewPublicLawyerAccountUserPermission = permissionsResult.HasViewPublicLawyerAccountUserPermission,
-                 
-                 // [ACL]
-                 
-                 HasViewUserPermission              = permissionsResult.HasViewUserPermission,
-                 HasViewLawyerAccountUserPermission = permissionsResult.HasViewLawyerAccountUserPermission,
-                      
-                 LawyerId     = parameters.LawyerId,
-                 AttributeId  = parameters.AttributeId,
-                 UserId       = parameters.UserId,
-                 RoleId       = parameters.RoleId
-            };
-
-            var queryText = $@"
+        var queryPermissionsParameters = new 
+        { 
+            ViewUserPermissionId              = permission.ViewUserPermissionId,
+            ViewLawyerAccountUserPermissionId = permission.ViewLawyerAccountUserPermissionId,
+        
+            ViewOwnUserPermissionId              = permission.ViewOwnUserPermissionId,               
+            ViewOwnLawyerAccountUserPermissionId = permission.ViewOwnLawyerAccountUserPermissionId,
+        
+            ViewPublicUserPermissionId              = permission.ViewPublicUserPermissionId,               
+            ViewPublicLawyerAccountUserPermissionId = permission.ViewPublicLawyerAccountUserPermissionId,
+        
+            ViewAnyUserPermissionId              = permission.ViewAnyUserPermissionId,
+            ViewAnyLawyerAccountUserPermissionId = permission.ViewAnyLawyerAccountUserPermissionId,
+        
+            AttributeId = parameters.AttributeId,
+            UserId      = parameters.UserId,
+            LawyerId    = parameters.LawyerId,
+            RoleId      = parameters.RoleId,
+        };
+        
+        var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Details>(queryPermissions, queryPermissionsParameters);
+        
+        // [Principal Query]
+        
+        var queryParameters = new
+        {
+             // [NOT ACL]
+        
+             HasViewOwnUserPermission              = permissionsResult.HasViewOwnUserPermission,
+             HasViewOwnLawyerAccountUserPermission = permissionsResult.HasViewOwnLawyerAccountUserPermission,
+             
+             HasViewAnyUserPermission              = permissionsResult.HasViewAnyUserPermission,
+             HasViewAnyLawyerAccountUserPermission = permissionsResult.HasViewAnyLawyerAccountUserPermission,
+             
+             HasViewPublicUserPermission              = permissionsResult.HasViewPublicUserPermission,
+             HasViewPublicLawyerAccountUserPermission = permissionsResult.HasViewPublicLawyerAccountUserPermission,
+             
+             // [ACL]
+             
+             HasViewUserPermission              = permissionsResult.HasViewUserPermission,
+             HasViewLawyerAccountUserPermission = permissionsResult.HasViewLawyerAccountUserPermission,
+                  
+             LawyerId     = parameters.LawyerId,
+             AttributeId  = parameters.AttributeId,
+             UserId       = parameters.UserId,
+             RoleId       = parameters.RoleId
+        };
+        
+        var queryText = $@"
 SELECT
     [U].[id] AS [UserId],
     [L].[id] AS [LawyerId],
@@ -783,7 +777,7 @@ SELECT
 FROM [users] [U]
 RIGHT JOIN [lawyers] [L] ON [L].[user_id] = [U].[id]
 WHERE
-    [U].[id] = @UserId AND [L].[id] = @LawyerId
+    [L].[id] = @LawyerId
     AND (
 
         -- [Block 1: Has Specific or Global Grant for VIEW_ANY_USER | VIEW_USER]
@@ -834,23 +828,26 @@ WHERE
         ))
 ));";
 
-            using (var multiple = await connection.Connection.QueryMultipleAsync(
-                new CommandDefinition(
-                    commandText:       queryText,
-                    parameters:        queryParameters,
-                    transaction:       connection.Transaction,
-                    cancellationToken: contextualizer.CancellationToken,
-                    commandTimeout:    TimeSpan.FromHours(1).Milliseconds
-                    )))
-            {
-                information = new DetailsInformation
-                {
-                    Item = await multiple.ReadFirstAsync<DetailsInformation.ItemProperties>()
-                };
-            }
+        var item = await connection.Connection.QueryFirstOrDefaultAsync<DetailsInformation.ItemProperties>(
+            new CommandDefinition(
+                commandText:       queryText,
+                parameters:        queryParameters,
+                transaction:       connection.Transaction,
+                cancellationToken: contextualizer.CancellationToken,
+                commandTimeout:   TimeSpan.FromHours(1).Milliseconds
+                ));
 
-            return information;
-        });
+        if (item == null)
+        {
+            resultConstructor.SetConstructor(new LawyerNotFoundError());
+
+            return resultConstructor.Build<DetailsInformation>();
+        }
+
+        var information = new DetailsInformation()
+        {
+            Item = item
+        };
 
         return resultConstructor.Build<DetailsInformation>(information);
     }
@@ -867,11 +864,7 @@ WHERE
 
         if (string.IsNullOrWhiteSpace(sqliteConnectionString))
         {
-            resultConstructor.SetConstructor(
-                new NotFoundDatabaseConnectionStringError()
-                {
-                    Status = 500
-                });
+            resultConstructor.SetConstructor(new NotFoundDatabaseConnectionStringError());
 
             return resultConstructor.Build();
         }

@@ -530,11 +530,9 @@ WHERE
             ViewAnyCasePermissionId = await GetPermissionIdAsync(PermissionSymbols.VIEW_ANY_CASE, contextualizer)
         };
 
-        var information = await ValuesExtensions.GetValue(async () =>
-        {
-            // [Permissions Queries]
+        // [Permissions Queries]
 
-            const string queryPermissions = @"
+        const string queryPermissions = @"
 WITH [permission_checks]([permission_name], [permission_id]) AS (
     VALUES
     ('HasViewOwnCasePermission',    @ViewOwnCasePermissionId),
@@ -602,26 +600,24 @@ LEFT JOIN [grants] [G] ON [G].[permission_name] = [PC].[permission_name];";
                 ViewCasePermissionId       = permission.ViewCasePermissionId
             };
 
-            var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Details>(queryPermissions, queryPermissionsParameters);
+        var permissionsResult = await connection.Connection.QueryFirstAsync<PermissionResult.Details>(queryPermissions, queryPermissionsParameters);
 
-            // [Principal Query]
+        // [Principal Query]
 
-            var queryParameters = new
-            {
-                UserId      = parameters.UserId,
-                CaseId      = parameters.CaseId,
-                AttributeId = parameters.AttributeId,
-                RoleId      = parameters.RoleId,
+        var queryParameters = new
+        {
+            UserId      = parameters.UserId,
+            CaseId      = parameters.CaseId,
+            AttributeId = parameters.AttributeId,
+            RoleId      = parameters.RoleId,
 
-                ViewCasePermissionId = permission.ViewCasePermissionId,
+            HasViewAnyCasePermission    = permissionsResult.HasViewAnyCasePermission,
+            HasViewPublicCasePermission = permissionsResult.HasViewPublicCasePermission,
+            HasViewOwnCasePermission    = permissionsResult.HasViewOwnCasePermission,
+            HasViewCasePermission       = permissionsResult.HasViewCasePermission
+        };
 
-                HasViewAnyCasePermission    = permissionsResult.HasViewAnyCasePermission,
-                HasViewPublicCasePermission = permissionsResult.HasViewPublicCasePermission,
-                HasViewOwnCasePermission    = permissionsResult.HasViewOwnCasePermission,
-                HasViewCasePermission       = permissionsResult.HasViewCasePermission
-            };
-
-            const string queryText = $@"
+        const string queryText = $@"
 SELECT
     [C].[id]          AS [Id],    
     [C].[user_id]     AS [UserId],
@@ -634,12 +630,12 @@ WHERE
 
     -- [Basic non-permission filter]
 
-    ([C].[id] = @CaseId AND [C].[user_id] = @UserId)
+    [C].[id] = @CaseId
     AND (
        
         -- [Block 1: User has permission to view the case]
 
-        ([C].[user_id] = @UserId AND @HasViewOwnCasePermission = 1)
+        ([C].[user_id] = @UserId AND (@HasViewOwnCasePermission = 1 OR @HasViewAnyCasePermission = 1))
 
         OR
 
@@ -659,25 +655,26 @@ WHERE
         ))
     );";
 
-            DetailsInformation information;
+        var item = await connection.Connection.QueryFirstOrDefaultAsync<DetailsInformation.ItemProperties>(
+            new CommandDefinition(
+                commandText:       queryText,
+                parameters:        queryParameters,
+                transaction:       connection.Transaction,
+                cancellationToken: contextualizer.CancellationToken,
+                commandTimeout:   TimeSpan.FromHours(1).Milliseconds
+                ));
 
-            using (var multiple = await connection.Connection.QueryMultipleAsync(
-                new CommandDefinition(
-                    commandText:       queryText,
-                    parameters:        queryParameters,
-                    transaction:       connection.Transaction,
-                    cancellationToken: contextualizer.CancellationToken,
-                    commandTimeout:    TimeSpan.FromHours(1).Milliseconds
-                    )))
-            {
-                information = new DetailsInformation
-                {
-                    Item = await multiple.ReadFirstAsync<DetailsInformation.ItemProperties>()
-                };
-            }
+        if (item == null)
+        {
+            resultConstructor.SetConstructor(new CaseNotFoundError());
 
-            return information;
-        });
+            return resultConstructor.Build<DetailsInformation>();
+        }
+
+        var information = new DetailsInformation()
+        {
+            Item = item
+        };
 
         return resultConstructor.Build<DetailsInformation>(information);
     }
